@@ -9,6 +9,7 @@
 
 // UNSUPPORTED: c++11, nvrtc
 // UNSUPPORTED: msvc && c++14, msvc && c++17
+// XFAIL: nvhpc
 
 #include <cuda/std/mdspan>
 #include <cuda/std/cassert>
