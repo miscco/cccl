@@ -301,14 +301,53 @@ template<typename T>
   return x > 0 ? x : -x;
 }
 
-
+template <typename T1, typename T2>
 inline
-bool almost_equal(const double& a, const double& b, const double& a_tol, const double& r_tol)
+  typename std::enable_if<std::is_floating_point<T1>::value && std::is_floating_point<T2>::value,
+                          bool>::type
+  almost_equal(const T1 &a, const T2 &b, const double &a_tol, const double &r_tol)
 {
-    if(abs(a - b) > r_tol * (abs(a) + abs(b)) + a_tol)
-        return false;
-    else
-        return true;
+  if (abs(a - b) > r_tol * (abs(a) + abs(b)) + a_tol)
+    return false;
+  else
+    return true;
+}
+
+namespace
+{
+
+template <typename>
+struct is_complex
+{
+  static const bool value = false;
+};
+
+template <typename T>
+struct is_complex<::std::complex<T>>
+{
+  static const bool value = true;
+};
+
+template <typename T>
+struct is_complex<::cuda::std::complex<T>>
+{
+  static const bool value = true;
+};
+
+template <typename T>
+struct is_complex<THRUST_NS_QUALIFIER::complex<T>>
+{
+  static const bool value = true;
+};
+
+} // anonym namespace
+
+template <typename T1, typename T2>
+inline typename std::enable_if<is_complex<T1>::value && is_complex<T2>::value, bool>::type
+almost_equal(const T1 &a, const T2 &b, const double &a_tol, const double &r_tol)
+{
+  return almost_equal(a.real(), b.real(), a_tol, r_tol) &&
+         almost_equal(a.imag(), b.imag(), a_tol, r_tol);
 }
 
 template <typename T1, typename T2>
@@ -320,43 +359,45 @@ void assert_almost_equal(T1 a, T2 b,
     if(!almost_equal(a, b, a_tol, r_tol)){
         unittest::UnitTestFailure f;
         f << "[" << filename << ":" << lineno << "] ";
-        f << "values are not approximately equal: " << (double) a << " " << (double) b;
+        f << "values are not approximately equal: " << a << " " << b;
         f << " [type='" << type_name<T1>() << "']";
         throw f;
     }
 }
 
 
-template <typename T1, typename T2>
-void assert_almost_equal(THRUST_NS_QUALIFIER::complex<T1> a, THRUST_NS_QUALIFIER::complex<T2> b,
-                         const std::string& filename = "unknown", int lineno = -1,
-                         double a_tol = DEFAULT_ABSOLUTE_TOL, double r_tol = DEFAULT_RELATIVE_TOL)
+//template <typename T1, typename T2>
+//void assert_almost_equal(THRUST_NS_QUALIFIER::complex<T1> a, THRUST_NS_QUALIFIER::complex<T2> b,
+//                         const std::string& filename = "unknown", int lineno = -1,
+//                         double a_tol = DEFAULT_ABSOLUTE_TOL, double r_tol = DEFAULT_RELATIVE_TOL)
+//
+//{
+//  assert(false);
+//  if(!almost_equal(a.real(), b.real(), a_tol, r_tol)){
+//        unittest::UnitTestFailure f;
+//        f << "[" << filename << ":" << lineno << "] ";
+//        f << "values are not approximately equal: " <<  a << " " << b;
+//        f << " [type='" << type_name<T1>() << "']";
+//        throw f;
+//    }
+//}
 
-{
-  if(!almost_equal(a.real(), b.real(), a_tol, r_tol)){
-        unittest::UnitTestFailure f;
-        f << "[" << filename << ":" << lineno << "] ";
-        f << "values are not approximately equal: " <<  a << " " << b;
-        f << " [type='" << type_name<T1>() << "']";
-        throw f;
-    }
-}
-
-
-template <typename T1, typename T2>
-  void assert_almost_equal(const THRUST_NS_QUALIFIER::complex<T1>& a, const std::complex<T2>& b,
-                         const std::string& filename = "unknown", int lineno = -1,
-                         double a_tol = DEFAULT_ABSOLUTE_TOL, double r_tol = DEFAULT_RELATIVE_TOL)
-
-{
-  if(!almost_equal(a.real(), b.real(), a_tol, r_tol)){
-        unittest::UnitTestFailure f;
-        f << "[" << filename << ":" << lineno << "] ";
-        f << "values are not approximately equal: " <<  a << " " << b;
-        f << " [type='" << type_name<T1>() << "']";
-        throw f;
-    }
-}
+//
+//
+//template <typename T1, typename T2>
+//  void assert_almost_equal(const THRUST_NS_QUALIFIER::complex<T1>& a, const std::complex<T2>& b,
+//                         const std::string& filename = "unknown", int lineno = -1,
+//                         double a_tol = DEFAULT_ABSOLUTE_TOL, double r_tol = DEFAULT_RELATIVE_TOL)
+//
+//{
+//  if(!almost_equal(a.real(), b.real(), a_tol, r_tol)){
+//        unittest::UnitTestFailure f;
+//        f << "[" << filename << ":" << lineno << "] ";
+//        f << "values are not approximately equal: " <<  a << " " << b;
+//        f << " [type='" << type_name<T1>() << "']";
+//        throw f;
+//    }
+//}
 
 template <typename T>
 class almost_equal_to
