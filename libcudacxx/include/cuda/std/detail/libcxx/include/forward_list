@@ -819,7 +819,7 @@ public:
     __remove_return_type remove(const value_type& __v);
     template <class _Predicate> __remove_return_type remove_if(_Predicate __pred);
     _LIBCUDACXX_INLINE_VISIBILITY
-    __remove_return_type unique() {return unique(__equal_to<value_type>());}
+    __remove_return_type unique() {return unique(__equal_to());}
     template <class _BinaryPredicate> __remove_return_type unique(_BinaryPredicate __binary_pred);
     _LIBCUDACXX_INLINE_VISIBILITY
     void merge(forward_list&& __x) {merge(__x, __less<value_type>());}
