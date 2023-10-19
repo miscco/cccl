@@ -17,7 +17,7 @@
 #include "../__fwd/tuple.h"
 #include "../__tuple_dir/make_tuple_types.h"
 #include "../__tuple_dir/tuple_element.h"
-#include "../__tuple_dir/tuple_like.h"
+#include "../__tuple_dir/tuple_like_ext.h"
 #include "../__tuple_dir/tuple_size.h"
 #include "../__tuple_dir/tuple_types.h"
 #include "../__type_traits/enable_if.h"
@@ -121,9 +121,10 @@ template <class _SizeTrait, size_t _Expected>
 struct __tuple_like_with_size_imp<true, _SizeTrait, _Expected> : integral_constant<bool, _SizeTrait::value == _Expected>
 {};
 
-template <class _Tuple, size_t _ExpectedSize, class _RawTuple = __remove_cvref_t<_Tuple>>
+template <class _Tuple, size_t _ExpectedSize,
+          class _RawTuple = __remove_cvref_t<_Tuple>>
 using __tuple_like_with_size _LIBCUDACXX_NODEBUG_TYPE =
-    __tuple_like_with_size_imp< __tuple_like<_RawTuple>::value, tuple_size<_RawTuple>, _ExpectedSize >;
+  __tuple_like_with_size_imp<__tuple_like_ext<_RawTuple>::value, tuple_size<_RawTuple>, _ExpectedSize>;
 
 struct _LIBCUDACXX_TYPE_VIS __check_tuple_constructor_fail
 {
