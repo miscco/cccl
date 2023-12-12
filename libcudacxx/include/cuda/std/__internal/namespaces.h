@@ -70,8 +70,11 @@
 #  define _CCCL_BEGIN_NAMESPACE_FILESYSTEM _LIBCUDACXX_PROLOGUE_INCLUDE_CHECK() namespace cuda::std { inline namespace __fs { namespace filesystem { inline namespace _LIBCUDACXX_ABI_NAMESPACE {
 #  define _CCCL_END_NAMESPACE_FILESYSTEM } } } } _LIBCUDACXX_PROLOGUE_INCLUDE_CHECK()
 
-// Shorthands for different qualifiers
-// Namespaces related to execution
+// Namespace related to SIMD
+#define _CCCL_BEGIN_NAMESPACE_SIMD_ABI namespace cuda { namespace std { namespace simd_abi { inline namespace _LIBCUDACXX_ABI_NAMESPACE {
+#define _CCCL_END_NAMESPACE_SIMD_ABI } } } }
+
+  // Namespaces related to execution
 #  define _CCCL_BEGIN_NAMESPACE_EXECUTION _LIBCUDACXX_PROLOGUE_INCLUDE_CHECK() namespace cuda::std::execution { inline namespace _LIBCUDACXX_ABI_NAMESPACE {
 #  define _CCCL_END_NAMESPACE_EXECUTION } } _LIBCUDACXX_PROLOGUE_INCLUDE_CHECK()
 
@@ -80,11 +83,11 @@
 
 // Namespace to avoid name collisions with CPOs on clang-16 (see https://godbolt.org/z/9TadonrdM for example)
 #if _CCCL_COMPILER(CLANG, ==, 16)
-#  define _LIBCUDACXX_BEGIN_HIDDEN_FRIEND_NAMESPACE namespace __hidden {
-#  define _LIBCUDACXX_END_HIDDEN_FRIEND_NAMESPACE(_CLASS) } using __hidden::_CLASS;
+#  define _CCCL_BEGIN_HIDDEN_FRIEND_NAMESPACE namespace __hidden {
+#  define _CCCL_END_HIDDEN_FRIEND_NAMESPACE(_CLASS) } using __hidden::_CLASS;
 #else // ^^^ _CCCL_COMPILER(CLANG, ==, 16) ^^^ / vvv !_CCCL_COMPILER(CLANG, ==, 16) vvv
-#  define _LIBCUDACXX_BEGIN_HIDDEN_FRIEND_NAMESPACE
-#  define _LIBCUDACXX_END_HIDDEN_FRIEND_NAMESPACE(_CLASS)
+#  define _CCCL_BEGIN_HIDDEN_FRIEND_NAMESPACE
+#  define _CCCL_END_HIDDEN_FRIEND_NAMESPACE(_CLASS)
 #endif // !_CCCL_COMPILER(CLANG, ==, 16)
 
 // Shorthands for different qualifiers
@@ -96,6 +99,7 @@
 #  define _CUDA_VMR            ::cuda::mr::_LIBCUDACXX_ABI_NAMESPACE
 #  define _CUDA_VPTX           ::cuda::ptx::_LIBCUDACXX_ABI_NAMESPACE
 #  define _CUDA_VSTD_FS        ::cuda::std::__fs::filesystem::_LIBCUDACXX_ABI_NAMESPACE
+#  define _CUDA_SIMD           ::cuda::std::simd_abi::_LIBCUDACXX_ABI_NAMESPACE
 #  define _CUDA_STD_EXEC       ::cuda::std::execution::_LIBCUDACXX_ABI_NAMESPACE
 #  define _CUDA_EXEC           ::cuda::execution::_LIBCUDACXX_ABI_NAMESPACE
 #  define _CUDA_DRIVER         ::cuda::__driver::_LIBCUDACXX_ABI_NAMESPACE
