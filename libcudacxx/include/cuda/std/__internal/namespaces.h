@@ -71,7 +71,12 @@
 #  endif // _CCCL_STD_VER <= 2014
 #  define _LIBCUDACXX_END_NAMESPACE_FILESYSTEM } } } } }
 
+// Namespace related to SIMD
+#define _LIBCUDACXX_BEGIN_NAMESPACE_SIMD_ABI namespace cuda { namespace std { namespace simd_abi { inline namespace _LIBCUDACXX_ABI_NAMESPACE {
+#define _LIBCUDACXX_END_NAMESPACE_SIMD_ABI } } } }
+
 // Shorthands for different qualifiers
+#  define _CUDA_SIMD           ::cuda::std::simd_abi::_LIBCUDACXX_ABI_NAMESPACE
 #  define _CUDA_VSTD_NOVERSION ::cuda::std
 #  define _CUDA_VSTD           ::cuda::std::_LIBCUDACXX_ABI_NAMESPACE
 #  define _CUDA_VRANGES        ::cuda::std::ranges::_LIBCUDACXX_ABI_NAMESPACE
