@@ -23,6 +23,7 @@
 #include "../__type_traits/is_constructible.h"
 #include "../__type_traits/is_move_constructible.h"
 #include "../__type_traits/is_nothrow_constructible.h"
+#include "../__utility/declval.h"
 #include "../__utility/forward.h"
 
 #if defined(_CCCL_IMPLICIT_SYSTEM_HEADER_GCC)
