@@ -32,9 +32,9 @@ _LIBCUDACXX_BEGIN_NAMESPACE_STD
 _LIBCUDACXX_BEGIN_NAMESPACE_RANGES_ABI
 
 // MSVC requires an interesting workaround for a /permissive- bug
-// We cannot simply define unreachable_sentinel_t with it friendfunctions,
-// but we must derive from a base class in a different namespace so that they
-// are only ever found through ADL
+// We cannot simply define unreachable_sentinel_t with its friend functions,
+// but we must derive from a base class in a different namespace so that they are
+// only ever found through ADL
 
 struct unreachable_sentinel_t
 #ifdef _LIBCUDACXX_COMPILER_MSVC
