@@ -475,6 +475,7 @@ namespace std
 #include "__type_traits/is_destructible.h"
 #include "__type_traits/is_empty.h"
 #include "__type_traits/is_enum.h"
+#include "__type_traits/is_execution_policy.h"
 #include "__type_traits/is_final.h"
 #include "__type_traits/is_floating_point.h"
 #include "__type_traits/is_function.h"

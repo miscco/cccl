@@ -297,6 +297,7 @@ set(files
   __type_traits/is_destructible.h
   __type_traits/is_empty.h
   __type_traits/is_enum.h
+  __type_traits/is_execution_policy.h
   __type_traits/is_final.h
   __type_traits/is_floating_point.h
   __type_traits/is_function.h
