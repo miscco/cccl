@@ -24,6 +24,7 @@ set(files
   __algorithm/generate_n.h
   __algorithm/generate.h
   __algorithm/half_positive.h
+  __algorithm/in_fun_result.h
   __algorithm/is_permutation.h
   __algorithm/lexicographical_compare.h
   __algorithm/min_element.h
@@ -34,6 +35,8 @@ set(files
   __algorithm/none_of.h
   __algorithm/ranges_find_if_not.h
   __algorithm/ranges_find_if.h
+  __algorithm/ranges_for_each_n.h
+  __algorithm/ranges_for_each.h
   __algorithm/ranges_min_element.h
   __algorithm/ranges_min.h
   __algorithm/remove_copy_if.h
