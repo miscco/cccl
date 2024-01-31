@@ -32,6 +32,8 @@ set(files
   __algorithm/move_backward.h
   __algorithm/move.h
   __algorithm/none_of.h
+  __algorithm/ranges_find_if_not.h
+  __algorithm/ranges_find_if.h
   __algorithm/ranges_min_element.h
   __algorithm/ranges_min.h
   __algorithm/remove_copy_if.h
