@@ -673,6 +673,8 @@ template <class BidirectionalIterator, class Compare>
 #include "__algorithm/move_backward.h"
 #include "__algorithm/move.h"
 #include "__algorithm/none_of.h"
+#include "__algorithm/pstl_for_each_n.h"
+#include "__algorithm/pstl_for_each.h"
 #include "__algorithm/ranges_find_if_not.h"
 #include "__algorithm/ranges_find_if.h"
 #include "__algorithm/ranges_for_each_n.h"

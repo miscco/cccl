@@ -33,6 +33,10 @@ set(files
   __algorithm/move_backward.h
   __algorithm/move.h
   __algorithm/none_of.h
+  __algorithm/pstl_backend.h
+  __algorithm/pstl/cpu_backend.h
+  __algorithm/pstl/for_each_n.h
+  __algorithm/pstl/for_each.h
   __algorithm/pstl/optional.h
   __algorithm/ranges_find_if_not.h
   __algorithm/ranges_find_if.h
