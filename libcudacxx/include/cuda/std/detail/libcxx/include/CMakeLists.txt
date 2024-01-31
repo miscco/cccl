@@ -26,10 +26,14 @@ set(files
   __algorithm/half_positive.h
   __algorithm/is_permutation.h
   __algorithm/lexicographical_compare.h
+  __algorithm/min_element.h
+  __algorithm/min.h
   __algorithm/mismatch.h
   __algorithm/move_backward.h
   __algorithm/move.h
   __algorithm/none_of.h
+  __algorithm/ranges_min_element.h
+  __algorithm/ranges_min.h
   __algorithm/remove_copy_if.h
   __algorithm/remove_copy.h
   __algorithm/remove_if.h
