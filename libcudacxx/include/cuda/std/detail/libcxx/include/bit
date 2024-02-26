@@ -66,6 +66,7 @@ namespace std {
 #endif // no system header
 
 #include "__assert" // all public C++ headers provide the assertion handler
+#include "__bit/rotate.h"
 #include "__debug"
 #include "cstdint"
 #include "limits"
@@ -502,31 +503,6 @@ constexpr int __libcpp_popcount(unsigned long long __x) {
 
 #endif // _CCCL_COMPILER_MSVC
 
-template<class _Tp>
-_LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_BIT_CONSTEXPR
-_Tp __rotl(_Tp __t, unsigned int __cnt) noexcept
-{
-    static_assert(__libcpp_is_unsigned_integer<_Tp>::value, "__rotl requires unsigned");
-    using __nlt = numeric_limits<_Tp>;
-
-    return ((__cnt % __nlt::digits) == 0) ?
-      __t :
-      (__t << (__cnt % __nlt::digits)) | (__t >> (__nlt::digits - (__cnt % __nlt::digits)));
-}
-
-
-template<class _Tp>
-_LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_BIT_CONSTEXPR
-_Tp __rotr(_Tp __t, unsigned int __cnt) noexcept
-{
-    static_assert(__libcpp_is_unsigned_integer<_Tp>::value, "__rotr requires unsigned");
-    using __nlt = numeric_limits<_Tp>;
-
-    return ((__cnt % __nlt::digits) == 0) ?
-        __t :
-        (__t >> (__cnt % __nlt::digits)) | (__t << (__nlt::digits - (__cnt % __nlt::digits)));
-}
-
 // Forward decl for recursive use in split word operations
 template<class _Tp>
 _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_BIT_CONSTEXPR
@@ -760,27 +736,7 @@ __ceil2(_Tp __t) noexcept
         (numeric_limits<unsigned>::digits  - numeric_limits<_Tp>::digits));
 }
 
-
 #if (_CCCL_STD_VER > 2017) || defined(__cuda_std__)
-
-template<class _Tp>
-_LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_BIT_CONSTEXPR
-__enable_if_t<__libcpp_is_unsigned_integer<_Tp>::value, _Tp>
-rotl(_Tp __t, unsigned int __cnt) noexcept
-{
-    return __rotl(__t, __cnt);
-}
-
-
-// rotr
-template<class _Tp>
-_LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_BIT_CONSTEXPR
-__enable_if_t<__libcpp_is_unsigned_integer<_Tp>::value, _Tp>
-rotr(_Tp __t, unsigned int __cnt) noexcept
-{
-    return __rotr(__t, __cnt);
-}
-
 
 template<class _Tp>
 _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_BIT_CONSTEXPR
