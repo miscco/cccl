@@ -29,11 +29,7 @@ _CCCL_DIAG_PUSH
 _CCCL_DIAG_SUPPRESS_CLANG("-Wunused-function")
 #  include <cuda_bf16.h>
 _CCCL_DIAG_POP
-
 #  include <nv/target>
-
-#  include "../__type_traits/integral_constant.h"
-#  include "../cmath"
 
 _LIBCUDACXX_BEGIN_NAMESPACE_STD
 

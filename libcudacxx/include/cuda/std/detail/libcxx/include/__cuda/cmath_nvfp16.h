@@ -26,10 +26,7 @@
 #if defined(_LIBCUDACXX_HAS_NVFP16)
 
 #  include <cuda_fp16.h>
-
 #  include <nv/target>
-
-#  include "../cmath"
 
 _LIBCUDACXX_BEGIN_NAMESPACE_STD
 
