@@ -245,6 +245,7 @@ template<class T> complex<T> tanh (const complex<T>&);
 #endif // no system header
 
 #include "__assert" // all public C++ headers provide the assertion handler
+#include "__complex/traits.h"
 #include "__type_traits/enable_if.h"
 #include "__type_traits/is_arithmetic.h"
 #include "__type_traits/is_floating_point.h"
@@ -295,52 +296,7 @@ template<class T> complex<T> tanh (const complex<T>&);
 
 _LIBCUDACXX_BEGIN_NAMESPACE_STD
 
-template <class _Tp>
-struct __is_nvfp16 : false_type
-{};
-
-template <class _Tp>
-struct __is_nvbf16 : false_type
-{};
-
-template <class _Tp>
-struct __is_complex_float
-{
-  static constexpr auto value = is_floating_point<_Tp>::value || __is_nvfp16<_Tp>::value || __is_nvbf16<_Tp>::value;
-};
-
-template<class _Tp>
-struct __is_complex_arithmetic {
-    static constexpr auto value = is_arithmetic<_Tp>::value || __is_complex_float<_Tp>::value;
-};
-
-template<class _Tp>
-struct __type_to_vector;
-
 template<class _Tp> class _LIBCUDACXX_TEMPLATE_VIS _LIBCUDACXX_COMPLEX_ALIGNAS(2*sizeof(_Tp)) complex;
-
-// 26.3.7 values:
-
-template <class _Tp, bool = is_integral<_Tp>::value,
-                     bool = is_floating_point<_Tp>::value
-                     >
-struct __libcpp_complex_overload_traits {};
-
-// Integral Types
-template <class _Tp>
-struct __libcpp_complex_overload_traits<_Tp, true, false>
-{
-    typedef double _ValueType;
-    typedef complex<double> _ComplexType;
-};
-
-// Floating point types
-template <class _Tp>
-struct __libcpp_complex_overload_traits<_Tp, false, true>
-{
-    typedef _Tp _ValueType;
-    typedef complex<_Tp> _ComplexType;
-};
 
 template<class _Tp> _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11_COMPLEX
 complex<_Tp> operator*(const complex<_Tp>& __z, const complex<_Tp>& __w);
@@ -848,96 +804,6 @@ operator-(const _Tp& __x, const complex<_Tp>& __y)
     return __t;
 }
 
-template<class _Tp, typename = void>
-struct __has_vector_type : _CUDA_VSTD::false_type {};
-
-template<class _Tp>
-struct __has_vector_type<_Tp, _CUDA_VSTD::__void_t<typename __type_to_vector<_Tp>::__type>> : _CUDA_VSTD::true_type {};
-
-template<class _Tp>
-struct __abcd_results
-{
-    _Tp __ac;
-    _Tp __bd;
-    _Tp __ad;
-    _Tp __bc;
-};
-
-template<class _Tp>
-struct __ab_results
-{
-    _Tp __a;
-    _Tp __b;
-};
-
-template<class _Tp, typename = __enable_if_t<!__has_vector_type<_Tp>::value>>
-_LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11_COMPLEX
-__abcd_results<_Tp>
-__complex_calculate_partials(_Tp __a, _Tp __b, _Tp __c, _Tp __d)
-{
-    return {
-        __a * __c,
-        __b * __d,
-        __a * __d,
-        __b * __c
-    };
-}
-
-template<class _Tp, typename = __enable_if_t<!__has_vector_type<_Tp>::value>>
-_LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11_COMPLEX
-__ab_results<_Tp>
-__complex_piecewise_mul(_Tp __x1, _Tp __y1, _Tp __x2, _Tp __y2)
-{
-    return {
-        __x1 * __x2,
-        __y1 * __y2
-    };
-}
-
-template<class _Tp>
-_LIBCUDACXX_INLINE_VISIBILITY
-__enable_if_t<__has_vector_type<_Tp>::value, __abcd_results<_Tp>>
-__complex_calculate_partials(_Tp __a, _Tp __b, _Tp __c, _Tp __d)
-{
-    __abcd_results<_Tp> __ret;
-
-    using _Vec = typename __type_to_vector<_Tp>::__type;
-
-    _Vec __first{ __a, __b };
-    _Vec __second{ __c, __d };
-    _Vec __second_flip{ __d, __c };
-
-    _Vec __ac_bd = __first * __second;
-    _Vec __ad_bc = __first * __second_flip;
-
-    __ret.__ac = __ac_bd.x;
-    __ret.__bd = __ac_bd.y;
-    __ret.__ad = __ad_bc.x;
-    __ret.__bc = __ad_bc.y;
-
-    return __ret;
-}
-
-template<class _Tp>
-_LIBCUDACXX_INLINE_VISIBILITY
-__enable_if_t<__has_vector_type<_Tp>::value, __ab_results<_Tp>>
-__complex_piecewise_mul(_Tp __x1, _Tp __y1, _Tp __x2, _Tp __y2)
-{
-    __ab_results<_Tp> __ret;
-
-    using _Vec = typename __type_to_vector<_Tp>::__type;
-
-    _Vec __v1{ __x1, __y1 };
-    _Vec __v2{ __x2, __y2 };
-
-    _Vec __result = __v1 * __v2;
-
-    __ret.__a = __result.x;
-    __ret.__b = __result.y;
-
-    return __ret;
-}
-
 template<class _Tp>
 _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11_COMPLEX
 complex<_Tp>
@@ -1272,6 +1138,28 @@ real(const complex<_Tp>& __c)
 {
     return __c.real();
 }
+
+// 26.3.7 values:
+
+template <class _Tp, bool = _LIBCUDACXX_TRAIT(is_integral, _Tp), bool = _LIBCUDACXX_TRAIT(is_floating_point, _Tp) >
+struct __libcpp_complex_overload_traits
+{};
+
+// Integral Types
+template <class _Tp>
+struct __libcpp_complex_overload_traits<_Tp, true, false>
+{
+  typedef double _ValueType;
+  typedef complex<double> _ComplexType;
+};
+
+// Floating point types
+template <class _Tp>
+struct __libcpp_complex_overload_traits<_Tp, false, true>
+{
+  typedef _Tp _ValueType;
+  typedef complex<_Tp> _ComplexType;
+};
 
 template <class _Tp>
 inline _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11

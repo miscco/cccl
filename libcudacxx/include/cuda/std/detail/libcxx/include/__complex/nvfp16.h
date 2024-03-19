@@ -27,6 +27,7 @@
 
 #  include <cuda_fp16.h>
 
+#  include "../__complex/traits.h"
 #  include "../__cuda/cmath_nvfp16.h"
 #  include "../__type_traits/integral_constant.h"
 #  include "../__type_traits/enable_if.h"

@@ -30,6 +30,7 @@ _CCCL_DIAG_SUPPRESS_CLANG("-Wunused-function")
 #  include <cuda_bf16.h>
 _CCCL_DIAG_POP
 
+#  include "../__complex/traits.h"
 #  include "../__cuda/cmath_nvbf16.h"
 #  include "../__type_traits/integral_constant.h"
 #  include "../__type_traits/enable_if.h"
