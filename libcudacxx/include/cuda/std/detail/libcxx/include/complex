@@ -317,8 +317,8 @@ public:
     return *this;
   }
 
-  template <class _Xp>
-  _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11 complex& operator=(const complex<_Xp>& __c)
+  template <class _Up>
+  _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11 complex& operator=(const complex<_Up>& __c)
   {
     __re_ = __c.real();
     __im_ = __c.imag();
@@ -406,28 +406,28 @@ public:
     return *this;
   }
 
-  template <class _Xp>
-  _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11 complex& operator+=(const complex<_Xp>& __c)
+  template <class _Up>
+  _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11 complex& operator+=(const complex<_Up>& __c)
   {
     __re_ += __c.real();
     __im_ += __c.imag();
     return *this;
   }
-  template <class _Xp>
-  _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11 complex& operator-=(const complex<_Xp>& __c)
+  template <class _Up>
+  _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11 complex& operator-=(const complex<_Up>& __c)
   {
     __re_ -= __c.real();
     __im_ -= __c.imag();
     return *this;
   }
-  template <class _Xp>
-  _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11 complex& operator*=(const complex<_Xp>& __c)
+  template <class _Up>
+  _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11 complex& operator*=(const complex<_Up>& __c)
   {
     *this = *this * complex(__c.real(), __c.imag());
     return *this;
   }
-  template <class _Xp>
-  _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11 complex& operator/=(const complex<_Xp>& __c)
+  template <class _Up>
+  _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11 complex& operator/=(const complex<_Up>& __c)
   {
     *this = *this / complex(__c.real(), __c.imag());
     return *this;
