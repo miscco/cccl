@@ -33,9 +33,6 @@ _CCCL_DIAG_POP
 #  include "../__complex/traits.h"
 #  include "../__cuda/cmath_nvbf16.h"
 #  include "../__type_traits/integral_constant.h"
-#  include "../__type_traits/enable_if.h"
-#  include "../__type_traits/is_arithmetic.h"
-#  include "../__type_traits/is_same.h"
 #  include "../cmath"
 
 #  if !defined(_CCCL_COMPILER_NVRTC)
