@@ -247,7 +247,6 @@ template<class T> complex<T> tanh (const complex<T>&);
 #include "__assert" // all public C++ headers provide the assertion handler
 #include "__complex/traits.h"
 #include "__type_traits/enable_if.h"
-#include "__type_traits/is_arithmetic.h"
 #include "__type_traits/is_constructible.h"
 #include "__type_traits/is_floating_point.h"
 #include "__type_traits/is_integral.h"
@@ -256,7 +255,6 @@ template<class T> complex<T> tanh (const complex<T>&);
 #include "climits"
 #include "cmath"
 #include "cstdint"
-#include "type_traits"
 #include "version"
 
 #ifndef __cuda_std__
@@ -857,8 +855,15 @@ struct __libcpp_complex_overload_traits<_Tp, false, true>
 };
 
 template <class _Tp>
+using __libcpp_complex_value_type = typename __libcpp_complex_overload_traits<_Tp>::_ValueType;
+
+template <class _Tp>
+using __libcpp_complex_complex_type = typename __libcpp_complex_overload_traits<_Tp>::_ComplexType;
+
+
+template <class _Tp>
 inline _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11
-typename __libcpp_complex_overload_traits<_Tp>::_ValueType
+__libcpp_complex_value_type<_Tp>
 real(_Tp __re)
 {
     return __re;
@@ -876,7 +881,7 @@ imag(const complex<_Tp>& __c)
 
 template <class _Tp>
 inline _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11
-typename __libcpp_complex_overload_traits<_Tp>::_ValueType
+__libcpp_complex_value_type<_Tp>
 imag(_Tp)
 {
     return 0;
@@ -955,10 +960,10 @@ norm(const complex<_Tp>& __c)
 
 template <class _Tp>
 inline _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11
-typename __libcpp_complex_overload_traits<_Tp>::_ValueType
+__libcpp_complex_value_type<_Tp>
 norm(_Tp __re)
 {
-    typedef typename __libcpp_complex_overload_traits<_Tp>::_ValueType _ValueType;
+    typedef __libcpp_complex_value_type<_Tp> _ValueType;
     return static_cast<_ValueType>(__re) * __re;
 }
 
@@ -974,10 +979,10 @@ conj(const complex<_Tp>& __c)
 
 template <class _Tp>
 inline _LIBCUDACXX_INLINE_VISIBILITY _LIBCUDACXX_CONSTEXPR_AFTER_CXX11
-typename __libcpp_complex_overload_traits<_Tp>::_ComplexType
+__libcpp_complex_complex_type<_Tp>
 conj(_Tp __re)
 {
-    typedef typename __libcpp_complex_overload_traits<_Tp>::_ComplexType _ComplexType;
+    typedef __libcpp_complex_complex_type<_Tp> _ComplexType;
     return _ComplexType(__re);
 }
 
@@ -1001,7 +1006,7 @@ inline _LIBCUDACXX_INLINE_VISIBILITY
 __enable_if_t
 <
     __is_complex_float<_Tp>::value,
-    typename __libcpp_complex_overload_traits<_Tp>::_ComplexType
+    __libcpp_complex_complex_type<_Tp>
 >
 proj(_Tp __re)
 {
@@ -1015,11 +1020,11 @@ inline _LIBCUDACXX_INLINE_VISIBILITY
 __enable_if_t
 <
     is_integral<_Tp>::value,
-    typename __libcpp_complex_overload_traits<_Tp>::_ComplexType
+    __libcpp_complex_complex_type<_Tp>
 >
 proj(_Tp __re)
 {
-    typedef typename __libcpp_complex_overload_traits<_Tp>::_ComplexType _ComplexType;
+    typedef __libcpp_complex_complex_type<_Tp> _ComplexType;
     return _ComplexType(__re);
 }
 
