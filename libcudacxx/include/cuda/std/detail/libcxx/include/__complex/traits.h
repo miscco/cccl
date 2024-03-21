@@ -27,6 +27,7 @@
 #include "../__type_traits/is_arithmetic.h"
 #include "../__type_traits/is_floating_point.h"
 #include "../__type_traits/void_t.h"
+#include "../__utility/declval.h"
 
 _LIBCUDACXX_BEGIN_NAMESPACE_STD
 
@@ -50,6 +51,16 @@ struct __is_complex_arithmetic
 {
   static constexpr auto value = _LIBCUDACXX_TRAIT(is_arithmetic, _Tp) || __is_complex_float<_Tp>::value;
 };
+
+template <class _Tp>
+struct __complex_alignment : integral_constant<size_t, 2 * sizeof(_Tp)>
+{};
+
+# if _LIBCUDACXX_CUDA_ABI_VERSION > 3
+#  define _LIBCUDACXX_COMPLEX_ALIGNAS(_Tp) _ALIGNAS(__complex_alignment<_Tp>::value)
+# else
+#  define _LIBCUDACXX_COMPLEX_ALIGNAS(_Tp)
+# endif
 
 template <class _Tp>
 struct __type_to_vector;
