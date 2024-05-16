@@ -18,6 +18,13 @@ sphinx_exclude_patterns = [
     "VERSION.md",
 ]
 
+# deps can be used to link to other projects' documentation
+deps = [
+    [ "CUB", "../cub/docs/_build/docs/CUB/latest" ],
+]
+
+project_build_order = [ "cub" ]
+
 # list of files from which to extract documentation.  if a directory is specified,
 # it will be recursively searched.
 #
