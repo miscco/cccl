@@ -21,9 +21,20 @@ sphinx_exclude_patterns = [
 # deps can be used to link to other projects' documentation
 deps = [
     [ "CUB", "../cub/docs/_build/docs/CUB/latest" ],
+    [ "Thrust", "_build/docs/Thrust/latest" ],
 ]
 
-project_build_order = [ "cub" ]
+[repo_docs.projects.Thrust]
+name = "Thrust: The C++ Parallel Algorithms Library"
+logo = "../img/logo.png"
+docs_root = "thrust"
+
+enhanced_search_enabled = true
+api_output_directory = "api"
+use_fast_doxygen_conversion = true
+sphinx_generate_doxygen_groups = true
+sphinx_generate_doxygen_pages = true
+sphinx_exclude_patterns = []
 
 # list of files from which to extract documentation.  if a directory is specified,
 # it will be recursively searched.
@@ -31,7 +42,8 @@ project_build_order = [ "cub" ]
 # paths are relative to ${docs_root}.
 #
 # defaults to an empty list.
-doxygen_input = []
+doxygen_input = [
+]
 
 # doxygen allows the creation of custom commands to ease in the documentation process.
 # for example, this adds a @carb_framework_overview command which creates a link
@@ -46,17 +58,28 @@ doxygen_aliases = []
 #
 # more information on the format can be found at:
 #     https://www.doxygen.nl/manual/config.html#cfg_predefined
-doxygen_predefined = []
+doxygen_predefined = [
+  "_CCCL_DEVICE=",
+  "_CCCL_EXEC_CHECK_DISABLE=",
+  "_CCCL_FORCEINLINE=",
+  "_CCCL_HOST=",
+  "_CCCL_HOST_DEVICE=",
+  "_CCCL_NODISCARD=[[nodiscard]]",
+  "_CCCL_STD_VER",
+  "THRUST_INLINE_CONSTANT",
+  "THRUST_NAMESPACE_BEGIN",
+  "THRUST_PREVENT_MACRO_SUBSTITUTION",
+]
 
 # make sure to use ./fetch_imgs.sh
 doxygen_conf_extra = """
-  IMAGE_PATH             = ${config_root}/img
+  IMAGE_PATH             = ${config_root}/thrust/img
   DOXYFILE_ENCODING      = UTF-8
   INPUT_ENCODING         = UTF-8
   EXTENSION_MAPPING      = cuh=c++ cu=c++
   EXAMPLE_PATH           = ../examples/device
   EXAMPLE_RECURSIVE      = NO
   EXAMPLE_PATTERNS       = *.cu
-  EXCLUDE_SYMBOLS        = "*detail*" "CUB_DETAIL*"
+  EXCLUDE_SYMBOLS        = "*detail*" "__*" "THRUST_NS_QUALIFIER" "optional"
   AUTOLINK_SUPPORT       = YES
 """

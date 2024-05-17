@@ -14,7 +14,7 @@ Naturally, there was a lot of overlap among the three projects, and it became cl
 
 - :ref:`CUB <cub-module>` is a lower-level, CUDA-specific library designed for speed-of-light parallel algorithms across all GPU architectures. In addition to device-wide algorithms, it provides *cooperative algorithms* like block-wide reduction and warp-wide scan, providing CUDA kernel developers with building blocks to create speed-of-light, custom kernels.
 
-- **Thrust** is the C++ parallel algorithms library which inspired the introduction of parallel algorithms to the C++ Standard Library. Thrust's high-level interface greatly enhances programmer productivity while enabling performance portability between GPUs and multicore CPUs via configurable backends that allow using multiple parallel programming frameworks (such as CUDA, TBB, and OpenMP).
+- :ref:`Thrust <thrust-module>` is the C++ parallel algorithms library which inspired the introduction of parallel algorithms to the C++ Standard Library. Thrust's high-level interface greatly enhances programmer productivity while enabling performance portability between GPUs and multicore CPUs via configurable backends that allow using multiple parallel programming frameworks (such as CUDA, TBB, and OpenMP).
 
 The main goal of CCCL is to fill a similar role that the Standard C++ Library fills for Standard C++: provide general-purpose, speed-of-light tools to CUDA C++ developers, allowing them to focus on solving the problems that matter.
 Unifying these projects is the first step towards realizing that goal.
