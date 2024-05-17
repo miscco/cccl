@@ -5,12 +5,16 @@ CUDA C++ Core Libraries
    :hidden:
    :maxdepth: 3
 
+   :ref:`libcu++ <libcudacxx-module>`
+   :ref:`CUB <cub-module>`
+   :ref:`Thrust <thrust-module>`
+
 Welcome to the CUDA C++ Core Libraries (CCCL) where our mission is to make CUDA C++ more delightful.
 
 The concept for the CUDA C++ Core Libraries (CCCL) grew organically out of the Thrust, CUB, and libcudacxx projects that were developed independently over the years with a similar goal: to provide high-quality, high-performance, and easy-to-use C++ abstractions for CUDA developers.
 Naturally, there was a lot of overlap among the three projects, and it became clear the community would be better served by unifying them into a single repository.
 
-- **libcudacxx** is the CUDA C++ Standard Library. It provides an implementation of the C++ Standard Library that works in both host and device code. Additionally, it provides abstractions for CUDA-specific hardware features like synchronization primitives, cache control, atomics, and more.
+- :ref:`libcu++ <libcudacxx-module>` is the CUDA C++ Standard Library. It provides an implementation of the C++ Standard Library that works in both host and device code. Additionally, it provides abstractions for CUDA-specific hardware features like synchronization primitives, cache control, atomics, and more.
 
 - :ref:`CUB <cub-module>` is a lower-level, CUDA-specific library designed for speed-of-light parallel algorithms across all GPU architectures. In addition to device-wide algorithms, it provides *cooperative algorithms* like block-wide reduction and warp-wide scan, providing CUDA kernel developers with building blocks to create speed-of-light, custom kernels.
 

@@ -12,7 +12,7 @@ CUB
    test_overview
    tuning
    benchmarking
-   ${repo_docs_api_path}/CUB_api
+   ${repo_docs_api_path}/cub_api
 
 .. the line below can be used to use the README.md file as the index page
 .. .. mdinclude:: ../README.md

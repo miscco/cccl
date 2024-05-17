@@ -5,7 +5,7 @@
 [repo_docs]
 enabled = true
 name = "CUDA C++ Core Libraries"
-project = "CCCL"
+project = "cccl"
 logo = "img/logo.png"
 
 enhanced_search_enabled = true
@@ -18,13 +18,28 @@ sphinx_exclude_patterns = [
     "VERSION.md",
 ]
 
+project_build_order = [ "libcudacxx", "cub", "thrust", "cccl" ]
+
 # deps can be used to link to other projects' documentation
 deps = [
-    [ "CUB", "_build/docs/CUB/latest" ],
-    [ "Thrust", "_build/docs/Thrust/latest" ],
+    [ "libcudacxx", "_build/docs/libcudacxx/latest" ],
+    [ "cub", "_build/docs/cub/latest" ],
+    [ "thrust", "_build/docs/thrust/latest" ],
 ]
 
-[repo_docs.projects.CUB]
+[repo_docs.projects.libcudacxx]
+name = "libcu++"
+docs_root = "libcudacxx"
+logo = "../img/logo.png"
+
+enhanced_search_enabled = true
+api_output_directory = "api"
+use_fast_doxygen_conversion = true
+sphinx_generate_doxygen_groups = true
+sphinx_generate_doxygen_pages = true
+sphinx_exclude_patterns = []
+
+[repo_docs.projects.cub]
 name = "CUB"
 docs_root = "cub"
 logo = "../img/logo.png"
@@ -35,6 +50,11 @@ use_fast_doxygen_conversion = true
 sphinx_generate_doxygen_groups = true
 sphinx_generate_doxygen_pages = true
 sphinx_exclude_patterns = []
+
+# deps can be used to link to other projects' documentation
+deps = [
+    [ "libcudacxx", "_build/docs/libcudacxx/latest" ],
+]
 
 # list of files from which to extract documentation.  if a directory is specified,
 # it will be recursively searched.
@@ -137,7 +157,7 @@ doxygen_conf_extra = """
   AUTOLINK_SUPPORT       = YES
 """
 
-[repo_docs.projects.Thrust]
+[repo_docs.projects.thrust]
 name = "Thrust: The C++ Parallel Algorithms Library"
 docs_root = "thrust"
 logo = "../img/logo.png"
@@ -151,7 +171,8 @@ sphinx_exclude_patterns = []
 
 # deps can be used to link to other projects' documentation
 deps = [
-    [ "CUB", "_build/docs/CUB/latest" ],
+    [ "libcudacxx", "_build/docs/libcudacxx/latest" ],
+    [ "cub", "_build/docs/cub/latest" ],
 ]
 
 # list of files from which to extract documentation.  if a directory is specified,
