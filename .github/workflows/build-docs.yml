@@ -40,31 +40,27 @@ jobs:
 
       # Build top level docs for CCCL
       - name: Build landing page
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./docs/_build/docs/cccl/latest
-          destination: ./_site
+        run: |
+          mkdir ./site
+          cp -rf ./docs/_build/docs/cccl/latest/* .site
 
       #  cub
-      - name: Build libcudacxx docs
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./docs/_build/docs/cub/latest
-          destination: ./_site/cub
+      - name: Build cub docs
+        run: |
+          mkdir ./site/cub
+          cp -rf ./docs/_build/docs/cub/latest/* .site
 
       # Libcudacxx
       - name: Build libcudacxx docs
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./docs/_build/docs/libcudacxx/latest
-          destination: ./_site/libcudacxx
+        run: |
+          mkdir ./site/libcudacxx
+          cp -rf ./docs/_build/docs/libcudacxx/latest/* .site
 
       # Thrust
       - name: Build Thrust docs
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./docs/_build/docs/thrust/latest
-          destination: ./_site/thrust
+        run: |
+          mkdir ./site/thrust
+          cp -rf ./docs/_build/docs/thrust/latest/* .site
 
       # Upload build artifacts
       - name: Upload artifact
