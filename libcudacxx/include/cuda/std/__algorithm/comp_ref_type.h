@@ -74,13 +74,13 @@ struct __debug_less
 
 // Pass the comparator by lvalue reference. Or in debug mode, using a
 // debugging wrapper that stores a reference.
-#ifdef _LIBCUDACXX_ENABLE_DEBUG_MODE
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE
 template <class _Comp>
 using __comp_ref_type = __debug_less<_Comp>;
-#else
+#else // ^^^ _LIBCUDACXX_ENABLE_DEBUG_MODE ^^^ / vvv !_LIBCUDACXX_ENABLE_DEBUG_MODE vvv
 template <class _Comp>
 using __comp_ref_type = _Comp&;
-#endif
+#endif // !_LIBCUDACXX_ENABLE_DEBUG_MODE
 
 _LIBCUDACXX_END_NAMESPACE_STD
 

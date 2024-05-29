@@ -25,21 +25,21 @@
 #include <cuda/std/cstddef>
 #include <cuda/std/detail/libcxx/include/__assert>
 
-#if defined(_LIBCUDACXX_ENABLE_DEBUG_MODE) && !defined(_LIBCUDACXX_DEBUG_RANDOMIZE_UNSPECIFIED_STABILITY)
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE && !defined(_LIBCUDACXX_DEBUG_RANDOMIZE_UNSPECIFIED_STABILITY)
 #  define _LIBCUDACXX_DEBUG_RANDOMIZE_UNSPECIFIED_STABILITY
 #endif
 
-#if defined(_LIBCUDACXX_ENABLE_DEBUG_MODE) && !defined(_LIBCUDACXX_DEBUG_ITERATOR_BOUNDS_CHECKING)
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE && !defined(_LIBCUDACXX_DEBUG_ITERATOR_BOUNDS_CHECKING)
 #  define _LIBCUDACXX_DEBUG_ITERATOR_BOUNDS_CHECKING
 #endif
 
-#ifdef _LIBCUDACXX_ENABLE_DEBUG_MODE
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE
 #  define _LIBCUDACXX_DEBUG_ASSERT(x, m) _LIBCUDACXX_ASSERT(::std::__libcpp_is_constant_evaluated() || (x), m)
 #else
 #  define _LIBCUDACXX_DEBUG_ASSERT(x, m) ((void) 0)
 #endif
 
-#if defined(_LIBCUDACXX_ENABLE_DEBUG_MODE) || defined(_LIBCUDACXX_BUILDING_LIBRARY)
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE || defined(_LIBCUDACXX_BUILDING_LIBRARY)
 
 _LIBCUDACXX_BEGIN_NAMESPACE_STD
 
@@ -220,7 +220,7 @@ _LIBCUDACXX_BEGIN_NAMESPACE_STD
 template <class _Tp>
 _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 inline void __debug_db_insert_c(_Tp* __c)
 {
-#ifdef _LIBCUDACXX_ENABLE_DEBUG_MODE
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE
   if (!__libcpp_is_constant_evaluated())
   {
     __get_db()->__insert_c(__c);
@@ -233,7 +233,7 @@ _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 inline void __debug_db_inser
 template <class _Tp>
 _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 inline void __debug_db_insert_i(_Tp* __i)
 {
-#ifdef _LIBCUDACXX_ENABLE_DEBUG_MODE
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE
   if (!__libcpp_is_constant_evaluated())
   {
     __get_db()->__insert_i(__i);
@@ -246,7 +246,7 @@ _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 inline void __debug_db_inser
 template <class _Tp>
 _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 inline void __debug_db_erase_c(_Tp* __c)
 {
-#ifdef _LIBCUDACXX_ENABLE_DEBUG_MODE
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE
   if (!__libcpp_is_constant_evaluated())
   {
     __get_db()->__erase_c(__c);
@@ -259,7 +259,7 @@ _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 inline void __debug_db_erase
 template <class _Tp>
 _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 inline void __debug_db_swap(_Tp* __lhs, _Tp* __rhs)
 {
-#ifdef _LIBCUDACXX_ENABLE_DEBUG_MODE
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE
   if (!__libcpp_is_constant_evaluated())
   {
     __get_db()->swap(__lhs, __rhs);
@@ -273,7 +273,7 @@ _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 inline void __debug_db_swap(
 template <class _Tp>
 _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 inline void __debug_db_invalidate_all(_Tp* __c)
 {
-#ifdef _LIBCUDACXX_ENABLE_DEBUG_MODE
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE
   if (!__libcpp_is_constant_evaluated())
   {
     __get_db()->__invalidate_all(__c);

@@ -68,14 +68,14 @@ public:
               typename enable_if<is_convertible<_Up, iterator_type>::value>::type* = nullptr) noexcept
       : __i_(__u.base())
   {
-#ifdef _LIBCUDACXX_ENABLE_DEBUG_MODE
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE
     if (!__libcpp_is_constant_evaluated())
     {
       __get_db()->__iterator_copy(this, _CUDA_VSTD::addressof(__u));
     }
-#endif
+#endif // _LIBCUDACXX_ENABLE_DEBUG_MODE
   }
-#ifdef _LIBCUDACXX_ENABLE_DEBUG_MODE
+#if _LIBCUDACXX_ENABLE_DEBUG_MODE
   _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 __wrap_iter(const __wrap_iter& __x)
       : __i_(__x.base())
   {
@@ -103,7 +103,7 @@ public:
       __get_db()->__erase_i(this);
     }
   }
-#endif
+#endif // _LIBCUDACXX_ENABLE_DEBUG_MODE
   _LIBCUDACXX_INLINE_VISIBILITY _CCCL_CONSTEXPR_CXX14 reference operator*() const noexcept
   {
     _LIBCUDACXX_DEBUG_ASSERT(__get_const_db()->__dereferenceable(this),
