@@ -41,14 +41,14 @@ jobs:
       # Copy all docs to the right folder
       - name: Move docs to right oflder
         run: |
-          mkdir ./site
-          cp -rf ./docs/_build/docs/cccl/latest/* .site
-          mkdir ./site/cub
-          cp -rf ./docs/_build/docs/cub/latest/* .site
-          mkdir ./site/libcudacxx
-          cp -rf ./docs/_build/docs/libcudacxx/latest/* .site
-          mkdir ./site/thrust
-          cp -rf ./docs/_build/docs/thrust/latest/* .site
+          mkdir _site
+          cp -rf ./docs/_build/docs/cccl/latest/* _site
+          mkdir _site/cub
+          cp -rf ./docs/_build/docs/cub/latest/* _site/cub
+          mkdir _site/libcudacxx
+          cp -rf ./docs/_build/docs/libcudacxx/latest/* _site/libcudacxx
+          mkdir _site/thrust
+          cp -rf ./docs/_build/docs/thrust/latest/* _site/thrust
 
       # Upload build artifacts
       - name: Upload artifact
