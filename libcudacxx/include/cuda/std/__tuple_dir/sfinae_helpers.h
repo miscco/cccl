@@ -40,12 +40,16 @@
 
 _LIBCUDACXX_BEGIN_NAMESPACE_STD
 
+#if _CCCL_STD_VER >= 2017
+template <bool... _Pred>
+using __all = integral_constant<bool, (_Pred && ... && true)>;
+#else // ^^^ _CCCL_STD_VER >= 2017 ^^^ / vvv _CCCL_STD_VER <= 2014 vvv
 template <bool... _Preds>
 struct __all_dummy;
 
 template <bool... _Pred>
 using __all = is_same<__all_dummy<_Pred...>, __all_dummy<((void) _Pred, true)...>>;
-
+#endif // _CCCL_STD_VER <= 2014
 struct __tuple_sfinae_base
 {
   template <class, class>
