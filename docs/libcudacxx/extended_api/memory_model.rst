@@ -215,13 +215,13 @@ leads to a **data race**, and exhibits **undefined behavior**:
        .. code:: cpp
 
           x = 42;
-          cuda::atomic_ref<int, cuda::thread_scope_device> flag(f);
-          flag.store(1, memory_order_release);
+          cuda::atomic_ref<int, cuda::thread_scope_block> flag(f);
+          flag.store(1, memory_order_release); // UB: data race
      -
        .. code:: cpp
 
           cuda::atomic_ref<int, cuda::thread_scope_device> flag(f);
-          while(flag.load(memory_order_acquire) != 1);
+          while(flag.load(memory_order_acquire) != 1); // UB: data race
           assert(x == 42);
 
 While the memory operations on ``f`` - the store and the loads - are
