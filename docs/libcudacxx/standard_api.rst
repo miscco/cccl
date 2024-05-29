@@ -19,22 +19,18 @@ Standard API
 Standard Library Backports
 --------------------------
 
-C++ Standard versions include new language features and new library
-features. As the name implies, language features are new features of the
-language the require compiler support. Library features are simply new
-additions to the Standard Library that typically do not rely on new
-language features nor require compiler support and could conceivably be
-implemented in an older C++ Standard. Typically, library features are
-only available in the particular C++ Standard version (or newer) in
-which they were introduced, even if the library features do not depend
-on any particular language features.
+C++ Standard versions include new language features and new library features. As the name implies, language features
+are new features of the language the require compiler support. Library features are simply new additions to the
+Standard Library that typically do not rely on new language features nor require compiler support and could conceivably
+be implemented in an older C++ Standard.
 
-In effort to make library features available to a broader set of users,
-the NVIDIA C++ Standard Library relaxes this restriction. libcu++ makes
-a best-effort to provide access to C++ Standard Library features in
-older C++ Standard versions than they were introduced. For example, the
-calendar functionality added to ``<chrono>`` in C++20 is made available
-in C++14.
+Typically, library features are only available in the particular C++ Standard version (or newer) in which they were
+introduced, even if the library features do not depend on any particular language features.
+
+In effort to make library features available to a broader set of users, the NVIDIA C++ Standard Library relaxes this
+restriction. libcu++ makes a best-effort to provide access to C++ Standard Library features in older C++ Standard
+versions than they were introduced. For example, the calendar functionality added to ``<chrono>`` in C++20 is made
+available in C++14.
 
 Feature availability:
 
