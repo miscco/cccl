@@ -4,9 +4,10 @@ Streams
 =======
 
 .. toctree::
+   :hidden:
    :maxdepth: 1
 
-   streams/stream_ref
+   cuda::stream_ref <streams/stream_ref>
 
 .. list-table::
    :widths: 25 45 30

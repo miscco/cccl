@@ -4,6 +4,7 @@ Function wrapper
 -----------------
 
 .. toctree::
+   :hidden:
    :maxdepth: 1
 
    functional/proclaim_return_type

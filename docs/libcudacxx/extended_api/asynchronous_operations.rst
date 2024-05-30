@@ -4,6 +4,7 @@ Asynchronous Operations
 -----------------------
 
 .. toctree::
+   :hidden:
    :maxdepth: 1
 
    asynchronous_operations/memcpy_async_tx

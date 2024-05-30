@@ -4,6 +4,7 @@ Shapes
 ======
 
 .. toctree::
+   :hidden:
    :maxdepth: 1
 
    shapes/aligned_size_t

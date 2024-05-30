@@ -4,6 +4,7 @@ Synchronization Primitives
 ===========================
 
 .. toctree::
+   :hidden:
    :maxdepth: 1
 
    synchronization_primitives/atomic

@@ -4,6 +4,7 @@ Memory access properties
 ------------------------
 
 .. toctree::
+   :hidden:
    :maxdepth: 1
 
    memory_access_properties/access_property
