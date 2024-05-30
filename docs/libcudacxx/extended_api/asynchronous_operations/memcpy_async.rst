@@ -81,47 +81,57 @@ to by ``destination``. Both objects are reinterpreted as arrays of
 Notes
 -----
 
-``cuda::memcpy_async`` have similar constraints to
-```std::memcpy`` <https://en.cppreference.com/w/cpp/string/byte/memcpy>`_,
-namely: \* If the objects overlap, the behavior is undefined. \* If
-either ``destination`` or ``source`` is an invalid or null pointer, the
-behavior is undefined (even if ``count`` is zero). \* If the objects are
-`potentially-overlapping <https://en.cppreference.com/w/cpp/language/object#Subobjects>`_
-the behavior is undefined. \* If the objects are not of
-`TriviallyCopyable <https://en.cppreference.com/w/cpp/named_req/TriviallyCopyable>`_
-type the program is ill-formed, no diagnostic required.
+``cuda::memcpy_async`` have similar constraints to `std::memcpy <https://en.cppreference.com/w/cpp/string/byte/memcpy>`_,
+namely:
 
-If *Shape* is
-```cuda::aligned_size_t`` <../shapes/aligned_size_t.md>`_, ``source``
-and ``destination`` are both required to be aligned on
-``cuda::aligned_size_t::align``, else the behavior is undefined.
-
-If ``cuda::pipeline`` is in a *quitted state* (see
-```cuda::pipeline::quit`` <../synchronization_primitives/pipeline/quit.md>`_),
-the behavior is undefined.
-
-For cooperative variants, if the parameters are not the same across all
-threads in ``group``, the behavior is undefined.
+   - If the objects overlap, the behavior is undefined.
+   - If either ``destination`` or ``source`` is an invalid or null pointer, the behavior is undefined
+     (even if ``count`` is zero).
+   - If the objects are `potentially-overlapping <https://en.cppreference.com/w/cpp/language/object#Subobjects>`_
+     the behavior is undefined.
+   - If the objects are not of `TriviallyCopyable <https://en.cppreference.com/w/cpp/named_req/TriviallyCopyable>`_
+     type the program is ill-formed, no diagnostic required.
+   - If *Shape* is :ref:`cuda::aligned_size_t <libcudacxx-extended-api-memory-access-shapes-aligned-size>`, ``source``
+     and ``destination`` are both required to be aligned on ``cuda::aligned_size_t::align``, else the behavior is
+     undefined.
+   - If ``cuda::pipeline`` is in a *quitted state*
+     (see :ref:`cuda::pipeline::quit <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`),
+     the behavior is undefined.
+   - For cooperative variants, if the parameters are not the same across all threads in ``group``, the behavior is
+     undefined.
 
 Template Parameters
 -------------------
 
-| ``Group`` \| A type satisfying the [*Group*] concept. \|
-| ``Shape`` \| Either
-  ```cuda::std::size_t`` <https://en.cppreference.com/w/c/types/size_t>`_
-  or ```cuda::aligned_size_t`` <../shapes/aligned_size_t.md>`_. \|
+.. list-table::
+   :widths: 25 75
+   :header-rows: 0
+
+   * - ``Group``
+     - A type satisfying the [*Group*] concept.
+   * - ``Shape``
+     - Either `cuda::std::size_t <https://en.cppreference.com/w/c/types/size_t>`_
+       or :ref:`cuda::aligned_size_t <libcudacxx-extended-api-memory-access-shapes-aligned-size>`.
 
 Parameters
 ----------
 
-| ``group`` \| The group of threads. \|
-| ``destination`` \| Pointer to the memory location to copy to. \|
-| ``source`` \| Pointer to the memory location to copy from. \|
-| ``size`` \| The number of bytes to copy. \|
-| ``barrier`` \| The barrier object used to wait on the copy completion.
-  \|
-| ``pipeline`` \| The pipeline object used to wait on the copy
-  completion. \|
+.. list-table::
+   :widths: 25 75
+   :header-rows: 0
+
+   * - ``group``
+     - The group of threads.
+   * - ``destination``
+     - Pointer to the memory location to copy to.
+   * - ``source``
+     - Pointer to the memory location to copy from.
+   * - ``size``
+     - The number of bytes to copy.
+   * - ``barrier``
+     - The barrier object used to wait on the copy completion.
+   * - ``pipeline``
+     - The pipeline object used to wait on the copy completion.
 
 Examples
 --------

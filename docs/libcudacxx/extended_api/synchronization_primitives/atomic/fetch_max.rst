@@ -15,7 +15,7 @@ Defined in header ``<cuda/atomic>``:
 
 Atomically find the maximum of the value stored in the ``cuda::atomic``
 and ``val``. The maximum is found using
-```cuda::std::max`` <https://en.cppreference.com/w/cpp/algorithm/max>`_.
+`cuda::std::max <https://en.cppreference.com/w/cpp/algorithm/max>`_.
 
 Example
 -------

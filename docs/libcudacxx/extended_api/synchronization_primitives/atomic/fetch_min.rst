@@ -15,7 +15,7 @@ Defined in header ``<cuda/atomic>``:
 
 Atomically find the minimum of the value stored in the ``cuda::atomic``
 and ``val``. The minimum is found using
-```cuda::std::min`` <https://en.cppreference.com/w/cpp/algorithm/min>`_.
+`cuda::std::min <https://en.cppreference.com/w/cpp/algorithm/min>`_.
 
 Example
 -------
