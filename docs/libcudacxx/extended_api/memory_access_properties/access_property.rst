@@ -118,9 +118,11 @@ The ``cuda::access_property::normal`` hints that the pointer points to the globa
 be accessed with “normal frequency”, while ``cuda::access_property::global`` only hints that the pointer points to
 the global address-space, it does not hint about how frequent the accesses will be.
 
-**WARNING**: the behavior of *requesting* the application of ``cuda::access_property`` to memory accesses,
-or their association with memory addresses, outside of the corresponding address space is *undefined*
-(note: even if that address is not “used”).
+.. warning::
+
+   The behavior of *requesting* the application of ``cuda::access_property`` to memory accesses, or their association
+   with memory addresses, outside of the corresponding address space is *undefined*
+   (note: even if that address is not “used”).
 
 Default constructor
 -------------------
@@ -236,21 +238,22 @@ Conversion operators
    __host__ __device__ constexpr access_property::persisting::operator cudaAccessProperty() const noexcept;
 
 **Returns**: corresponding CUDA Runtime
-```cudaAccessProperty`` <https://docs.nvidia.com/cuda/cuda-runtime-api>`_
+`cudaAccessProperty <https://docs.nvidia.com/cuda/cuda-runtime-api>`_
 value.
 
 **Note**: Allows ``constexpr cuda::access_property::normal{}``,
 ``cuda::access_property::streaming{}``, and
 ``cuda::access_property::persisting{}`` to be used in lieu of the
 corresponding CUDA Runtime
-```cudaAccessProperty`` <https://docs.nvidia.com/cuda/cuda-runtime-api>`_
+`cudaAccessProperty <https://docs.nvidia.com/cuda/cuda-runtime-api>`_
 enumerated values.
 
 Mapping of access properties to NVVM-IR and the PTX ISA
 -------------------------------------------------------
 
-   **WARNING**: The implementation makes **no guarantees** about the
-   content of this section; it can change any time.
+.. warning::
+
+   The implementation makes **no guarantees** about the content of this section; it can change any time.
 
 When ``cuda::access_property`` is applied to memory operation, it
 sometimes matches with some of the cache eviction priorities and cache
