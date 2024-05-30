@@ -13,10 +13,8 @@ Defined in header ``<cuda/pipeline>``:
 
 Releases the current *pipeline stage*.
 
-Notes
------
+.. note::
 
-If the calling thread is a *producer thread*, the behavior is undefined.
-
-The pipeline is in a :ref:`quitted state <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`,
-the behavior is undefined.
+   - If the calling thread is a *producer thread*, the behavior is undefined.
+   - If the pipeline is in a :ref:`quitted state <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`,
+     the behavior is undefined.

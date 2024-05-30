@@ -109,9 +109,9 @@ producers and consumers. In a *partitioned pipeline*, each participating thread 
    * - :ref:`quit <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`
      - Quits current thread's participation in the *pipeline*.
 
-.. rubric:: Notes
+.. note::
 
-A thread role cannot change during the lifetime of the pipeline object.
+   - A thread role cannot change during the lifetime of the pipeline object.
 
 .. rubric:: Example
 

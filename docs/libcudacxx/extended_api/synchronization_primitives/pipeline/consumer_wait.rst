@@ -32,21 +32,24 @@ Defined in header ``<cuda/pipeline>``:
 3. Blocks the current thread until all operations committed to the current *pipeline stage* complete or until specified
    time point has been reached.
 
-Parameters
-----------
+.. rubric:: Parameters
 
-| ``duration`` \| An object of type ``cuda::std::chrono::duration`` representing the maximum time to spend waiting. \|
-| ``time_point`` \| An object of type ``cuda::std::chrono::time_point`` representing the time when to stop waiting. \|
+.. list-table::
+   :widths: 25 75
+   :header-rows: 0
 
-Return Value
-------------
+   * - ``duration``
+     - An object of type ``cuda::std::chrono::duration`` representing the maximum time to spend waiting.
+   * - ``time_point``
+     - An object of type ``cuda::std::chrono::time_point`` representing the time when to stop waiting.
+
+
+.. rubric:: Return Value
 
 ``false`` if the *wait* timed out, ``true`` otherwise.
 
-Notes
------
+.. note::
 
-If the calling thread is a *producer thread*, the behavior is undefined.
-
-The pipeline is in a :ref:`quitted state <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`,
-the behavior is undefined.
+   - If the calling thread is a *producer thread*, the behavior is undefined.
+   - If the pipeline is in a :ref:`quitted state <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`,
+     the behavior is undefined.

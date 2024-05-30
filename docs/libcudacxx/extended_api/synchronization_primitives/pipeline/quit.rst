@@ -16,14 +16,12 @@ Quits the current thread's participation in the collective ownership of the corr
 Ownership of :ref:`cuda::pipeline_shared_state <libcudacxx-extended-api-synchronization-pipeline-pipeline-shared-state>`
 is released by the last invoking thread.
 
-Return Value
-------------
+.. rubric:: Return Value
 
 ``true`` if ownership of the *shared state* was released, otherwise ``false``.
 
-Notes
------
+.. note::
 
-After the completion of a call to ``cuda::pipeline::quit``, no other operations other than
-:ref:`cuda::pipeline::~pipeline <libcudacxx-extended-api-synchronization-pipeline-pipeline-destructor>` may called by the
-current thread.
+   - After the completion of a call to ``cuda::pipeline::quit``, no other operations other than
+     :ref:`cuda::pipeline::~pipeline <libcudacxx-extended-api-synchronization-pipeline-pipeline-destructor>` may
+     called by the current thread.

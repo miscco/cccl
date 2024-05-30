@@ -24,8 +24,7 @@ Defined in header ``<cuda/pipeline>``:
 The class template ``cuda::pipeline_shared_state`` is a storage type used to coordinate the threads participating
 in a ``cuda::pipeline``.
 
-Template Parameters
--------------------
+.. rubric:: Template Parameters
 
 .. list-table::
    :widths: 25 75
@@ -37,8 +36,7 @@ Template Parameters
    * - ``StagesCount``
      - The number of stages for the *pipeline*.
 
-Member Functions
-----------------
+.. rubric:: Member Functions
 
 .. list-table::
    :widths: 25 75
@@ -53,8 +51,7 @@ Member Functions
    * - ``operator=`` [deleted]
      -  ``cuda::pipeline_shared_state`` is not assignable.
 
-Constructor
-------------
+.. rubric:: Constructor
 
 .. code:: cuda
 
@@ -82,8 +79,7 @@ Construct a ``cuda::pipeline`` *shared state* object.
 
 `See it on Godbolt <https://godbolt.org/z/K4vKq4vd3>`__
 
-NVCC ``__shared__`` Initialization Warnings
--------------------------------------------
+.. rubric:: NVCC ``__shared__`` Initialization Warnings
 
 When using libcu++ with NVCC, a ``__shared__`` ``cuda::pipeline_shared_state`` will lead to the following warning
 because ``__shared__`` variables are not initialized:
@@ -95,8 +91,7 @@ because ``__shared__`` variables are not initialized:
 
 It can be silenced using ``#pragma nv_diag_suppress static_var_with_dynamic_init``.
 
-Example
--------
+.. rubric:: Example
 
 .. code:: cuda
 

@@ -16,20 +16,23 @@ Binds operations previously issued by the current thread to the named ``cuda::ba
 ``cuda::barrier::arrive`` is performed on completion. The bind operation implicitly increments the barrier's
 current phase to account for the subsequent ``cuda::barrier::arrive``, resulting in a net change of 0.
 
-Parameters
-----------
+.. rubric:: Parameters
 
-| ``pipe`` \| The thread-scoped ``cuda::pipeline`` object to wait on. \|
-| ``bar`` \| The ``cuda::barrier`` to arrive on. \|
+.. list-table::
+   :widths: 25 75
+   :header-rows: 0
 
-Notes
------
+   * - ``pipe``
+     - The thread-scoped ``cuda::pipeline`` object to wait on.
+   * - ``bar``
+     - The ``cuda::barrier`` to arrive on.
 
-The pipeline is in a :ref:`quitted state <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`,
-the behavior is undefined.
+.. note::
 
-Example
--------
+   - If the pipeline is in a :ref:`quitted state <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`,
+     the behavior is undefined.
+
+.. rubric:: Example
 
 .. code:: cuda
 

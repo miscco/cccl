@@ -15,24 +15,30 @@ Let *Stage* be the pipeline stage ``Prior`` stages before the current one (count
 Blocks the current thread until all operations committed to *pipeline stages* up to *Stage* complete.
 All stages up to *Stage* (exclusive) are implicitly released.
 
-Template parameters
--------------------
+.. rubric:: Template Parameters
 
-| ``Prior`` \| The index of the pipeline stage *Stage* (see above) counting up from the current one. The index of the current stage is ``0``. \|
+.. list-table::
+   :widths: 25 75
+   :header-rows: 0
 
-Parameters
-----------
+   * - ``Prior``
+     - The index of the pipeline stage *Stage* (see above) counting up from the current one. The index of the current stage is ``0``.
 
-| ``pipe`` \| The thread-scoped ``cuda::pipeline`` object to wait on. \|
+.. rubric:: Parameters
 
-Notes
------
+.. list-table::
+   :widths: 25 75
+   :header-rows: 0
 
-The pipeline is in a :ref:`quitted state <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`,
-the behavior is undefined.
+   * - ``pipe``
+     - The thread-scoped ``cuda::pipeline`` object to wait on.
 
-Example
--------
+.. note::
+
+   - If the pipeline is in a :ref:`quitted state <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`,
+     the behavior is undefined.
+
+.. rubric:: Example
 
 .. code:: cuda
 

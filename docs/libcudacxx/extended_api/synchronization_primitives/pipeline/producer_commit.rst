@@ -13,10 +13,8 @@ Defined in header ``<cuda/pipeline>``:
 
 Commits operations previously issued by the current thread to the current *pipeline stage*.
 
-Expects
--------
+.. note::
 
-If the calling thread is a *consumer thread*, the behavior is undefined.
-
-The pipeline is in a :ref:`quitted state <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`,
-the behavior is undefined.
+   - If the calling thread is a *consumer thread*, the behavior is undefined.
+   - If the pipeline is in a :ref:`quitted state <libcudacxx-extended-api-synchronization-pipeline-pipeline-quit>`,
+     the behavior is undefined.

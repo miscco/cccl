@@ -47,19 +47,7 @@ Defined in header ``<cuda/pipeline>``:
    producer actions while the others are performing consumer actions.
 4. Creates a *partitioned pipeline* where each thread's role is explicitly specified.
 
-Notes
------
-
-All threads in ``group`` acquire collective ownership of the ``shared_state`` storage.
-
-``make_pipeline`` must be invoked by every threads in ``group`` such that ``group::sync`` may be invoked.
-
-``shared_state`` and ``producer_count`` must be the same across all threads in ``group``, else the behavior is undefined.
-
-``producer_count`` must be strictly inferior to ``group::size``, otherwise the behavior is undefined.
-
-Template Parameters
--------------------
+.. rubric:: Template Parameters
 
 .. list-table::
    :widths: 25 75
@@ -68,8 +56,7 @@ Template Parameters
    * - ``Group``
      - A type satisfying the :ref:`ThreadGroup <libcudacxx-extended-api-thread-groups>` concept.
 
-Parameters
-----------
+.. rubric:: Parameters
 
 .. list-table::
    :widths: 25 75
@@ -85,15 +72,20 @@ Parameters
    * - ``role``
      - The role of the current thread in the pipeline.
 
-Return Value
-------------
+.. rubric:: Return Value
 
 A ``cuda::pipeline`` object.
 
+.. note::
+
+  - All threads in ``group`` acquire collective ownership of the ``shared_state`` storage.
+  - ``make_pipeline`` must be invoked by every threads in ``group`` such that ``group::sync`` may be invoked.
+  - ``shared_state`` and ``producer_count`` must be the same across all threads in ``group``, else the behavior is undefined.
+  - ``producer_count`` must be strictly inferior to ``group::size``, otherwise the behavior is undefined.
+
 .. _libcudacxx-extended-api-synchronization-pipeline-pipeline-make-pipeline-example:
 
-Example
--------
+.. rubric:: Example
 
 .. code:: cuda
 
