@@ -41,7 +41,6 @@
 _LIBCUDACXX_BEGIN_NAMESPACE_STD
 
 // [mdspan.sub.extents]
-// [mdspan.sub.extents]-4
 template <class _Extents, class _SliceType>
 _LIBCUDACXX_CONCEPT __subextents_is_full_extent = convertible_to<_SliceType, full_extent_t>;
 
@@ -186,8 +185,9 @@ __submdspan_extents(index_sequence<_SliceIndexes...>, const _Extent& __src, _Sli
   using _Result    = __get_subextents_t<_Extent, _Slices...>;
 
   constexpr auto __map_rank_                     = _CUDA_VSTD::__map_rank<_IndexType, _Slices...>();
-  const array<_IndexType, _Extent::rank()> __arr = {__get_submdspan_extents<_SliceIndexes>(__src, __slices...)...};
-  array<_IndexType, _Result::rank()> __res       = {};
+  const array<_IndexType, _Extent::rank()> __arr = {
+    _CUDA_VSTD::__get_submdspan_extents<_SliceIndexes>(__src, __slices...)...};
+  array<_IndexType, _Result::rank()> __res = {};
 
   for (size_t __index = 0; index < _Result::rank(); ++__index)
   {
@@ -210,7 +210,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI constexpr auto submdspan_extents(const
 {
   static_assert(_CCCL_FOLD_AND((__is_valid_subextents<typename _Extents::index_type, _Slices>) ),
                 "[mdspan.sub.extents] For each rank index k of src.extents(), exactly one of the following is true:");
-  return __submdspan_extents(index_sequence_for<_Slices...>(), __src, __slices...);
+  return __submdspan_extents(_CUDA_VSTD::index_sequence_for<_Slices...>(), __src, __slices...);
 }
 
 _LIBCUDACXX_END_NAMESPACE_STD

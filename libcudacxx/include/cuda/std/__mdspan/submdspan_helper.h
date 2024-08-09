@@ -113,17 +113,6 @@ struct full_extent_t
 };
 _CCCL_GLOBAL_CONSTANT full_extent_t full_extent{};
 
-// [mdspan.submdspan.submdspan.mapping.result]
-template <class _LayoutMapping>
-struct submdspan_mapping_result
-{
-  static_assert(true, // __is_layout_mapping<_LayoutMapping>,
-                "[mdspan.submdspan.submdspan.mapping.result] shall meet the layout mapping requirements");
-
-  _CCCL_NO_UNIQUE_ADDRESS _LayoutMapping mapping{};
-  size_t offset{};
-};
-
 // [mdspan.submdspan.helpers]
 _LIBCUDACXX_TEMPLATE(class _Tp)
 _LIBCUDACXX_REQUIRES((!__integral_constant_like<_Tp>) )
