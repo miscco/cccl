@@ -15,7 +15,13 @@
 //     explicit constexpr complex(const complex<double>&);
 // };
 
-#undef _CCCL_NO_SYSTEM_HEADER
+#if defined(__clang__)
+#  define _CCCL_IMPLICIT_SYSTEM_HEADER_CLANG
+#elif defined(_MSC_VER)
+#  define _CCCL_IMPLICIT_SYSTEM_HEADER_MSVC
+#else
+#  define _CCCL_IMPLICIT_SYSTEM_HEADER_GCC
+#endif
 
 #include <cuda/std/cassert>
 #include <cuda/std/complex>

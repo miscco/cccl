@@ -234,14 +234,6 @@ template<class T> complex<T> tanh (const complex<T>&);
 
 #include <cuda/std/detail/__config>
 
-#if defined(_CCCL_IMPLICIT_SYSTEM_HEADER_GCC)
-#  pragma GCC system_header
-#elif defined(_CCCL_IMPLICIT_SYSTEM_HEADER_CLANG)
-#  pragma clang system_header
-#elif defined(_CCCL_IMPLICIT_SYSTEM_HEADER_MSVC)
-#  pragma system_header
-#endif // no system header
-
 #include <cuda/std/__complex/vector_support.h>
 #include <cuda/std/__type_traits/enable_if.h>
 #include <cuda/std/__type_traits/is_constructible.h>
@@ -296,15 +288,15 @@ public:
       , __im_(__im)
   {}
 
-  template <class _Up, __enable_if_t<__complex_can_implicitly_construct<_Tp, _Up>::value, int> = 0>
+  template <class _Up, __enable_if_t<__cccl_internal::__is_implicitly_convertible<_Tp, _Up>::value, int> = 0>
   _LIBCUDACXX_HIDE_FROM_ABI constexpr complex(const complex<_Up>& __c)
       : __re_(static_cast<_Tp>(__c.real()))
       , __im_(static_cast<_Tp>(__c.imag()))
   {}
 
   template <class _Up,
-            __enable_if_t<!__complex_can_implicitly_construct<_Tp, _Up>::value, int> = 0,
-            __enable_if_t<_CCCL_TRAIT(is_constructible, _Tp, _Up), int>              = 0>
+            __enable_if_t<!__cccl_internal::__is_implicitly_convertible<_Tp, _Up>::value, int> = 0,
+            __enable_if_t<_CCCL_TRAIT(is_constructible, _Tp, _Up), int>                        = 0>
   _LIBCUDACXX_HIDE_FROM_ABI explicit constexpr complex(const complex<_Up>& __c)
       : __re_(static_cast<_Tp>(__c.real()))
       , __im_(static_cast<_Tp>(__c.imag()))
