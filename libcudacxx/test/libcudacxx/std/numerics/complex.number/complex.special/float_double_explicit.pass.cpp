@@ -15,6 +15,8 @@
 //     explicit constexpr complex(const complex<double>&);
 // };
 
+#undef _CCCL_NO_SYSTEM_HEADER
+
 #include <cuda/std/cassert>
 #include <cuda/std/complex>
 
