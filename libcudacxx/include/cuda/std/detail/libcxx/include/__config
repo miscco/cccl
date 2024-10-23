@@ -939,6 +939,9 @@ __sanitizer_annotate_contiguous_container(const void*, const void*, const void*,
 #    define _LIBCUDACXX_HAS_NO_FOLD_EXPRESSIONS
 #  endif
 
+// FIXME: obvious hack
+#  define _LIBCUDACXX_PSTL_CPU_BACKEND_SERIAL
+
 #endif // __cplusplus
 
 #endif // _LIBCUDACXX_CONFIG

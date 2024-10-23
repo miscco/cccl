@@ -376,6 +376,9 @@ class Configuration(object):
             if 'icc' in self.config.available_features:
                 self.cxx.link_flags += ['-lirc']
                 self.cxx.compile_flags += ['-Xcompiler=-diag-disable=10441']
+            if self.get_lit_bool('use_openmp', False):
+                self.cxx.link_flags += ['-lgomp']
+                self.cxx.compile_flags += ['-Xcompiler=-fopenmp']
 
     def _configure_clang_cl(self, clang_path):
         def _split_env_var(var):
