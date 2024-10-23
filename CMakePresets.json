@@ -190,6 +190,16 @@
       }
     },
     {
+      "name": "libcudacxx-benchmark",
+      "displayName": "libcu++ benchmark",
+      "inherits": "libcudacxx-cpp17",
+      "cacheVariables": {
+        "CCCL_ENABLE_CUB": true,
+        "CCCL_ENABLE_BENCHMARKS": true,
+        "CUB_ENABLE_DIALECT_CPP17": true
+      }
+    },
+    {
       "name": "cub-base",
       "hidden": true,
       "inherits": "base",
