@@ -66,9 +66,30 @@ struct Test
   }
 };
 
+#if !defined(TEST_COMPILER_MSVC_2017)
+template <class Iter>
+struct TestRanges
+{
+  template <class Policy>
+  __host__ __device__ void operator()(Policy&& policy)
+  {
+    for (size_t i = 0; i < num_tests; ++i)
+    {
+      cuda::std::fill(cuda::std::begin(data), cuda::std::end(data), Bool{false});
+      cuda::std::ranges::for_each_n(policy, Iter(data), sizes[i], test_functor{});
+      assert(cuda::std::all_of(data, data + sizes[i], convert_to_bool{}));
+    }
+  }
+};
+#endif // !TEST_COMPILER_MSVC_2017
+
 int main(int, char**)
 {
   types::for_each(types::forward_iterator_list<Bool*>{}, TestIteratorWithPolicies<Test>{});
+
+#if !defined(TEST_COMPILER_MSVC_2017)
+  types::for_each(types::forward_iterator_list<Bool*>{}, TestIteratorWithPolicies<TestRanges>{});
+#endif // !TEST_COMPILER_MSVC_2017
 
   return 0;
 }
