@@ -534,6 +534,7 @@ typedef __char32_t char32_t;
 // clang-format off
 #  define _CUDA_VSTD_NOVERSION ::cuda::std
 #  define _CUDA_VSTD           ::cuda::std::_LIBCUDACXX_ABI_NAMESPACE
+#  define _CUDA_VEXEC          ::cuda::std::execution::_LIBCUDACXX_ABI_NAMESPACE
 #  define _CUDA_VRANGES        ::cuda::std::ranges::_LIBCUDACXX_ABI_NAMESPACE
 #  define _CUDA_VIEWS          ::cuda::std::ranges::views::_LIBCUDACXX_ABI_NAMESPACE
 #  define _CUDA_VMR            ::cuda::mr::_LIBCUDACXX_ABI_NAMESPACE
@@ -562,6 +563,10 @@ typedef __char32_t char32_t;
 #  define _LIBCUDACXX_END_NAMESPACE_RANGES } } } }
 #  define _LIBCUDACXX_BEGIN_NAMESPACE_VIEWS namespace cuda { namespace std { namespace ranges { namespace views { inline namespace _LIBCUDACXX_ABI_NAMESPACE {
 #  define _LIBCUDACXX_END_NAMESPACE_VIEWS } } } } }
+
+// Namespaces related to parallel algorithms
+#  define _LIBCUDACXX_BEGIN_NAMESPACE_EXECUTION namespace cuda { namespace std { namespace execution { inline namespace _LIBCUDACXX_ABI_NAMESPACE {
+#  define _LIBCUDACXX_END_NAMESPACE_EXECUTION } } } }
 
 #  if _CCCL_STD_VER >= 2020
 #    define _LIBCUDACXX_BEGIN_NAMESPACE_RANGES_ABI inline namespace __cxx20 {
