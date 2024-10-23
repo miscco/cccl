@@ -4,12 +4,12 @@
 // under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-// SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES.
+// SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef _CUDA_STD_EXECUTION
-#define _CUDA_STD_EXECUTION
+#ifndef _LIBCUDACXX___UTILITY_EMPTY_H
+#define _LIBCUDACXX___UTILITY_EMPTY_H
 
 #include <cuda/std/detail/__config>
 
@@ -21,13 +21,11 @@
 #  pragma system_header
 #endif // no system header
 
-_CCCL_PUSH_MACROS
+_LIBCUDACXX_BEGIN_NAMESPACE_STD
 
-#include <cuda/std/__algorithm/pstl_backends/optional.h>
-#include <cuda/std/__execution/policy.h>
-#include <cuda/std/__type_traits/is_execution_policy.h>
-#include <cuda/std/version>
+struct __empty
+{};
 
-_CCCL_POP_MACROS
+_LIBCUDACXX_END_NAMESPACE_STD
 
-#endif // _CUDA_STD_EXECUTION
+#endif // _LIBCUDACXX___UTILITY_EMPTY_H
