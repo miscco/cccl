@@ -105,7 +105,6 @@ PREDEFINED             = __device__= \
                         _CCCL_SUPPRESS_DEPRECATED_PUSH= \
                         _CCCL_SUPPRESS_DEPRECATED_POP= \
                         "_CCCL_TEMPLATE(x)=template<x, " \
-                        "_CCCL_TRAIT(x, y)=x<y>::value" \
                         "_CCCL_TRAILING_REQUIRES(x)=-> x requires " \
                         _CCCL_TYPE_VISIBILITY_DEFAULT= \
                         _CCCL_TYPE_VISIBILITY_HIDDEN= \

@@ -22,7 +22,7 @@
 template <bool IsArray>
 __host__ __device__ TEST_CONSTEXPR_CXX23 void test_basic()
 {
-  using VT               = typename cuda::std::conditional<IsArray, A[], A>::type;
+  using VT               = cuda::std::conditional_t<IsArray, A[], A>;
   const int expect_alive = IsArray ? 3 : 1;
   {
     using U = cuda::std::unique_ptr<VT>;

@@ -36,7 +36,7 @@ struct GenericDeleter
 template <bool IsArray>
 __host__ __device__ TEST_CONSTEXPR_CXX23 void test_basic()
 {
-  using VT               = typename cuda::std::conditional<IsArray, A[], A>::type;
+  using VT               = cuda::std::conditional_t<IsArray, A[], A>;
   const int expect_alive = IsArray ? 5 : 1;
   {
     cuda::std::unique_ptr<VT> s1(newValue<VT>(expect_alive));
@@ -119,7 +119,7 @@ __host__ __device__ TEST_CONSTEXPR_CXX23 void test_basic()
 template <bool IsArray>
 __host__ __device__ TEST_CONSTEXPR_CXX23 void test_sfinae()
 {
-  using VT = typename cuda::std::conditional<IsArray, int[], int>::type;
+  using VT = cuda::std::conditional_t<IsArray, int[], int>;
   {
     using U = cuda::std::unique_ptr<VT>;
     static_assert(!cuda::std::is_assignable<U, U&>::value, "");

@@ -176,7 +176,7 @@ struct ReduceAgent
   // ptx_plan type *must* only be used from device code
   // Its use from host code will result in *undefined behaviour*
   //
-  using ptx_plan = typename core::detail::specialize_plan_msvc10_war<PtxPlan>::type::type;
+  using ptx_plan = typename core::detail::specialize_plan_msvc10_war<PtxPlan>::type;
 
   using TempStorage  = typename ptx_plan::TempStorage;
   using Vector       = typename ptx_plan::Vector;

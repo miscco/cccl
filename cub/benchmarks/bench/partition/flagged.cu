@@ -77,8 +77,8 @@ void flagged(nvbench::state& state, nvbench::type_list<T, OffsetT, UseDistinctPa
   using equality_op_t                        = cub::NullType;
   using offset_t                             = OffsetT;
   constexpr bool use_distinct_out_partitions = UseDistinctPartitionT::value;
-  using output_it_t                          = typename ::cuda::std::
-    conditional<use_distinct_out_partitions, cub::detail::select::partition_distinct_output_t<T*, T*>, T*>::type;
+  using output_it_t =
+    ::cuda::std::conditional_t<use_distinct_out_partitions, cub::detail::select::partition_distinct_output_t<T*, T*>, T*>;
 
   using dispatch_t = cub::DispatchSelectIf<
     input_it_t,

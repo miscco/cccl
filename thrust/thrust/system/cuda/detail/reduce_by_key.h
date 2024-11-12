@@ -164,7 +164,7 @@ struct ReduceByKeyAgent
     }; // union TempStorage
   }; // struct PtxPlan
 
-  using ptx_plan = typename core::detail::specialize_plan_msvc10_war<PtxPlan>::type::type;
+  using ptx_plan = typename core::detail::specialize_plan_msvc10_war<PtxPlan>::type;
 
   using KeysLoadIt             = typename ptx_plan::KeysLoadIt;
   using ValuesLoadIt           = typename ptx_plan::ValuesLoadIt;
@@ -914,9 +914,9 @@ template <class Derived, class KeyInputIt, class ValInputIt, class KeyOutputIt, 
   ValOutputIt values_output,
   BinaryPred binary_pred)
 {
-  using value_type = ::cuda::std::_If<thrust::detail::is_output_iterator<ValOutputIt>,
-                                      thrust::detail::it_value_t<ValInputIt>,
-                                      thrust::detail::it_value_t<ValOutputIt>>;
+  using value_type = ::cuda::std::conditional_t<thrust::detail::is_output_iterator<ValOutputIt>,
+                                                thrust::detail::it_value_t<ValInputIt>,
+                                                thrust::detail::it_value_t<ValOutputIt>>;
   return cuda_cub::reduce_by_key(
     policy,
     keys_first,

@@ -1258,7 +1258,7 @@ struct DispatchHistogram
    * @param stream
    *   CUDA stream to launch kernels within. Default is stream<sub>0</sub>.
    */
-  template <typename MaxPolicyT = typename ::cuda::std::_If<
+  template <typename MaxPolicyT = typename ::cuda::std::conditional_t<
               ::cuda::std::is_void_v<PolicyHub>,
               /* fallback_policy_hub */
               detail::histogram::policy_hub<SampleT, CounterT, NUM_CHANNELS, NUM_ACTIVE_CHANNELS, /* isEven */ 0>,
@@ -1344,7 +1344,7 @@ struct DispatchHistogram
    *   CUDA stream to launch kernels within.  Default is stream<sub>0</sub>.
    *
    */
-  template <typename MaxPolicyT = typename ::cuda::std::_If<
+  template <typename MaxPolicyT = typename ::cuda::std::conditional_t<
               ::cuda::std::is_void_v<PolicyHub>,
               /* fallback_policy_hub */
               detail::histogram::policy_hub<SampleT, CounterT, NUM_CHANNELS, NUM_ACTIVE_CHANNELS, /* isEven */ 1>,

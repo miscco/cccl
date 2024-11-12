@@ -91,7 +91,7 @@ __host__ __device__ TEST_CONSTEXPR_CXX23 void test_sfinae()
 template <bool IsArray>
 __host__ __device__ TEST_CONSTEXPR_CXX23 void test_basic()
 {
-  using VT               = typename cuda::std::conditional<!IsArray, A, A[]>::type;
+  using VT               = cuda::std::conditional_t<!IsArray, A, A[]>;
   const int expect_alive = IsArray ? 5 : 1;
   {
     using APtr = cuda::std::unique_ptr<VT>;
@@ -212,7 +212,7 @@ template <bool IsArray>
 __host__ __device__ void test_sink3()
 {
   NV_IF_TARGET(NV_IS_HOST, ({
-                 using VT = typename cuda::std::conditional<!IsArray, A, A[]>::type;
+                 using VT = cuda::std::conditional_t<!IsArray, A, A[]>;
                  sink3<VT>(source3<VT>());
                  assert(A_count == 0);
                }))

@@ -116,7 +116,7 @@ struct has_sm_tuning : has_sm_tuning_impl<SM, typename P<lowest_supported_sm_arc
 //   otherwise move on to the next sm in the sm_list
 template <template <class> class P, class SM, class... SMs>
 struct specialize_plan_impl_match<P, typelist<SM, SMs...>>
-    : ::cuda::std::conditional<has_sm_tuning<P, SM>::value, P<SM>, specialize_plan_impl_match<P, typelist<SMs...>>>::type
+    : ::cuda::std::conditional_t<has_sm_tuning<P, SM>::value, P<SM>, specialize_plan_impl_match<P, typelist<SMs...>>>
 {};
 
 #if _CCCL_CUDA_COMPILER(NVHPC)
@@ -139,13 +139,13 @@ struct specialize_plan_msvc10_war
   // if Plan has tuning type, this means it has SM-specific tuning
   // so loop through sm_list to find match,
   // otherwise just specialize on provided SM
-  using type = ::cuda::std::conditional<has_tuning_t<Plan<lowest_supported_sm_arch>>::value,
-                                        specialize_plan_impl_loop<Plan, SM, sm_list>,
-                                        Plan<SM>>;
+  using type = ::cuda::std::conditional_t<has_tuning_t<Plan<lowest_supported_sm_arch>>::value,
+                                          specialize_plan_impl_loop<Plan, SM, sm_list>,
+                                          Plan<SM>>;
 };
 
 template <template <class> class Plan, class SM = _THRUST_TUNING_ARCH>
-struct specialize_plan : specialize_plan_msvc10_war<Plan, SM>::type::type
+struct specialize_plan : specialize_plan_msvc10_war<Plan, SM>::type
 {};
 
 #undef _THRUST_TUNING_ARCH
@@ -516,8 +516,7 @@ struct uninitialized_array
     return data()[idx];
   }
 
-  _CCCL_HOST_DEVICE T (&as_array())[N]
-  {
+  _CCCL_HOST_DEVICE T (&as_array()) [N] {
     return static_cast<T(&)[N]>(data_);
   }
 };

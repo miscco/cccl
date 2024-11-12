@@ -38,7 +38,7 @@ struct Deleter
 template <bool IsArray>
 __host__ __device__ TEST_CONSTEXPR_CXX23 void test_basic()
 {
-  using VT = typename cuda::std::conditional<IsArray, int[], int>::type;
+  using VT = cuda::std::conditional_t<IsArray, int[], int>;
   {
     cuda::std::unique_ptr<int, Deleter> p;
     assert(p.get_deleter().test() == 5);

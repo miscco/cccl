@@ -233,7 +233,7 @@ __host__ __device__ TEST_CONSTEXPR_CXX23 void doDeleterTest()
 template <bool IsArray>
 __host__ __device__ TEST_CONSTEXPR_CXX23 void test_sfinae()
 {
-  using VT = typename cuda::std::conditional<IsArray, A[], A>::type;
+  using VT = cuda::std::conditional_t<IsArray, A[], A>;
 
   { // Test that different non-reference deleter types are allowed so long
     // as they convert to each other.
@@ -323,7 +323,7 @@ __host__ __device__ TEST_CONSTEXPR_CXX23 void test_sfinae()
 template <bool IsArray>
 __host__ __device__ TEST_CONSTEXPR_CXX23 void test_noexcept()
 {
-  using VT = typename cuda::std::conditional<IsArray, A[], A>::type;
+  using VT = cuda::std::conditional_t<IsArray, A[], A>;
   {
     using APtr = cuda::std::unique_ptr<const VT>;
     using BPtr = cuda::std::unique_ptr<VT>;
@@ -349,7 +349,7 @@ __host__ __device__ TEST_CONSTEXPR_CXX23 void test_noexcept()
 template <bool IsArray>
 __host__ __device__ void test_deleter_value_category()
 {
-  using VT  = typename cuda::std::conditional<IsArray, A[], A>::type;
+  using VT  = cuda::std::conditional_t<IsArray, A[], A>;
   using TD1 = TrackingDeleter<1>;
   using TD2 = TrackingDeleter<2>;
   TD1 d1;

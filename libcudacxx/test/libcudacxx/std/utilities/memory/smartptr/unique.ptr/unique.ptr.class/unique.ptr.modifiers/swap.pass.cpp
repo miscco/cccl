@@ -83,7 +83,7 @@ newValueInit(int size, int new_value)
 template <bool IsArray>
 __host__ __device__ TEST_CONSTEXPR_CXX23 void test_basic()
 {
-  using VT               = typename cuda::std::conditional<IsArray, TT[], TT>::type;
+  using VT               = cuda::std::conditional_t<IsArray, TT[], TT>;
   const int expect_alive = IsArray ? 5 : 1;
   {
     using U = cuda::std::unique_ptr<VT, Deleter<VT>>;

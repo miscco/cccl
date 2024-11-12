@@ -73,7 +73,8 @@ template <typename Element, typename Pointer, typename Derived>
 class reference
 {
 private:
-  using derived_type = typename std::conditional<std::is_same<Derived, use_default>::value, reference, Derived>::type;
+  using derived_type =
+    ::cuda::std::conditional_t<::cuda::std::is_same<Derived, use_default>::value, reference, Derived>;
 
 public:
   using pointer    = Pointer;
@@ -98,8 +99,9 @@ public:
     /*! \cond
      */
     ,
-    typename std::enable_if<std::is_convertible<typename reference<OtherElement, OtherPointer, OtherDerived>::pointer,
-                                                pointer>::value>::type* = nullptr
+    ::cuda::std::enable_if_t<
+      ::cuda::std::is_convertible_v<typename reference<OtherElement, OtherPointer, OtherDerived>::pointer, pointer>>* =
+      nullptr
     /*! \endcond
      */
     )

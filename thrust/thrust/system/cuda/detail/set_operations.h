@@ -301,7 +301,7 @@ struct SetOpAgent
     }; // union TempStorage
   }; // struct PtxPlan
 
-  using ptx_plan = typename core::detail::specialize_plan_msvc10_war<PtxPlan>::type::type;
+  using ptx_plan = typename core::detail::specialize_plan_msvc10_war<PtxPlan>::type;
 
   using KeysLoadIt1   = typename ptx_plan::KeysLoadIt1;
   using KeysLoadIt2   = typename ptx_plan::KeysLoadIt2;

@@ -33,6 +33,7 @@
 #include <cuda/std/__type_traits/underlying_type.h>
 #include <cuda/std/__utility/integer_sequence.h>
 #include <cuda/std/__utility/pod_tuple.h>
+#include <cuda/std/array>
 #include <cuda/std/atomic>
 
 #include <cuda/experimental/__detail/type_traits.cuh>
@@ -436,7 +437,7 @@ template <class... _Completions>
     }
     else
     {
-      std::array<size_t, sizeof...(_Completions)> __offsets = {
+      ::cuda::std::array<size_t, sizeof...(_Completions)> __offsets = {
         __value_types<_Completions, ::cuda::std::__type_list, ::cuda::std::__type_list_size>::value...};
       (void) ::cuda::std::exclusive_scan(__offsets.begin(), __offsets.end(), __offsets.begin(), std::size_t(0));
 
