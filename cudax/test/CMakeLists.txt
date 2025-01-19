@@ -121,6 +121,14 @@ foreach(cn_target IN LISTS cudax_TARGETS)
     containers/async_buffer/properties.cu
     containers/async_buffer/swap.cu
     containers/async_buffer/transform.cu
+    containers/async_mdarray/access.cu
+    containers/async_mdarray/assignment.cu
+    containers/async_mdarray/capacity.cu
+    containers/async_mdarray/comparison.cu
+    containers/async_mdarray/constructor.cu
+    containers/async_mdarray/conversion.cu
+    containers/async_mdarray/iterators.cu
+    containers/async_mdarray/properties.cu
   )
 
   cudax_add_catch2_test(test_target cuco ${cn_target}
