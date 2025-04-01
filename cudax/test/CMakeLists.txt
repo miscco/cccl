@@ -109,9 +109,12 @@ foreach(cn_target IN LISTS cudax_TARGETS)
     utility/ensure_current_device.cu
   )
 
-  cudax_add_catch2_test(test_target containers ${cn_target}
-    containers/uninitialized_buffer.cu
+  cudax_add_catch2_test(test_target uninitialized_buffer ${cn_target}
     containers/uninitialized_async_buffer.cu
+    containers/uninitialized_buffer.cu
+  )
+
+  cudax_add_catch2_test(test_target async_buffer ${cn_target}
     containers/async_buffer/access.cu
     containers/async_buffer/capacity.cu
     containers/async_buffer/constructor.cu
@@ -123,8 +126,17 @@ foreach(cn_target IN LISTS cudax_TARGETS)
     containers/async_buffer/transform.cu
   )
 
-  cudax_add_catch2_test(test_target cuco ${cn_target}
-    cuco/utility/hash_test.cu
+  cudax_add_catch2_test(test_target synchronous_buffer ${cn_target}
+    containers/synchronous_buffer/access.cu
+    containers/synchronous_buffer/assign.cu
+    containers/synchronous_buffer/capacity.cu
+    containers/synchronous_buffer/comparison.cu
+    containers/synchronous_buffer/constructor.cu
+    containers/synchronous_buffer/conversion.cu
+    containers/synchronous_buffer/copy.cu
+    containers/synchronous_buffer/iterators.cu
+    containers/synchronous_buffer/properties.cu
+    containers/synchronous_buffer/swap.cu
   )
 
   cudax_add_catch2_test(test_target memory_resource ${cn_target}

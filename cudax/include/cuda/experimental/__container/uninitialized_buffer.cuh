@@ -124,6 +124,38 @@ private:
     return {__self.__get_data(), __self.size()};
   }
 
+#  ifndef _CCCL_DOXYGEN_INVOKED
+  // This is needed to ensure that we do not do a deep copy in __replace_allocation
+  struct __fake_resource_ref
+  {
+    __resource* __resource_;
+
+    void* allocate(std::size_t __size, std::size_t __alignment)
+    {
+      return __resource_->allocate(__size, __alignment);
+    }
+
+    void deallocate(void* __ptr, std::size_t __size, std::size_t __alignment) noexcept
+    {
+      __resource_->deallocate(__ptr, __size, __alignment);
+    }
+
+    friend bool operator==(const __fake_resource_ref& __lhs, const __fake_resource_ref& __rhs) noexcept
+    {
+      return *__lhs.__resource_ == *__rhs.__resource_;
+    }
+    friend bool operator!=(const __fake_resource_ref& __lhs, const __fake_resource_ref& __rhs) noexcept
+    {
+      return *__lhs.__resource_ != *__rhs.__resource_;
+    }
+
+    //! @brief Forwards the passed properties
+    _CCCL_TEMPLATE(class _Property)
+    _CCCL_REQUIRES(::cuda::std::__is_included_in_v<_Property, _Properties...>)
+    _CCCL_HIDE_FROM_ABI friend constexpr void get_property(const __fake_resource_ref&, _Property) noexcept {}
+  };
+#  endif // _CCCL_DOXYGEN_INVOKED
+
 public:
   using value_type      = _Tp;
   using reference       = _Tp&;
@@ -281,7 +313,7 @@ public:
   _CCCL_HIDE_FROM_ABI uninitialized_buffer __replace_allocation(const size_t __count)
   {
     // Create a new buffer with a reference to the stored memory resource and swap allocation information
-    uninitialized_buffer __ret{synchronous_resource_ref<_Properties...>{__mr_}, __count};
+    uninitialized_buffer __ret{__fake_resource_ref{::cuda::std::addressof(__mr_)}, __count};
     ::cuda::std::swap(__count_, __ret.__count_);
     ::cuda::std::swap(__buf_, __ret.__buf_);
     return __ret;
