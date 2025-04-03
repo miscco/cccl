@@ -115,6 +115,7 @@ _CCCL_HOST_DEVICE bool normal_distribution<RealType>::equal(const normal_distrib
   return m_param == rhs.param();
 }
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename RealType>
 template <typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>& normal_distribution<RealType>::stream_out(std::basic_ostream<CharT, Traits>& os) const
@@ -156,6 +157,7 @@ std::basic_istream<CharT, Traits>& normal_distribution<RealType>::stream_in(std:
   is.flags(flags);
   return is;
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename RealType>
 _CCCL_HOST_DEVICE bool operator==(const normal_distribution<RealType>& lhs, const normal_distribution<RealType>& rhs)
@@ -169,6 +171,7 @@ _CCCL_HOST_DEVICE bool operator!=(const normal_distribution<RealType>& lhs, cons
   return !(lhs == rhs);
 }
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename RealType, typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const normal_distribution<RealType>& d)
@@ -181,6 +184,7 @@ std::basic_istream<CharT, Traits>& operator>>(std::basic_istream<CharT, Traits>&
 {
   return thrust::random::detail::random_core_access::stream_in(is, d);
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 } // namespace random
 

@@ -39,7 +39,9 @@
 #include <cuda/std/cstddef> // for size_t
 #include <cuda/std/type_traits>
 
-#include <iostream>
+#if !_CCCL_COMPILER(NVRTC)
+#  include <iostream>
+#endif // !_CCCL_COMPILER(NVRTC)
 
 THRUST_NAMESPACE_BEGIN
 
@@ -196,11 +198,13 @@ private:
 
   _CCCL_HOST_DEVICE bool equal(const xor_combine_engine& rhs) const;
 
+#if !_CCCL_COMPILER(NVRTC)
   template <typename CharT, typename Traits>
   std::basic_istream<CharT, Traits>& stream_in(std::basic_istream<CharT, Traits>& is);
 
   template <typename CharT, typename Traits>
   std::basic_ostream<CharT, Traits>& stream_out(std::basic_ostream<CharT, Traits>& os) const;
+#endif // !_CCCL_COMPILER(NVRTC)
 
   /*! \endcond
    */
@@ -224,6 +228,7 @@ template <typename Engine1_, size_t s1_, typename Engine2_, size_t s2_>
 _CCCL_HOST_DEVICE bool operator!=(const xor_combine_engine<Engine1_, s1_, Engine2_, s2_>& lhs,
                                   const xor_combine_engine<Engine1_, s1_, Engine2_, s2_>& rhs);
 
+#if !_CCCL_COMPILER(NVRTC)
 /*! This function streams a xor_combine_engine to a \p std::basic_ostream.
  *  \param os The \p basic_ostream to stream out to.
  *  \param e The \p xor_combine_engine to stream out.
@@ -241,6 +246,7 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const xor_combine_engine<Engin
 template <typename Engine1_, size_t s1_, typename Engine2_, size_t s2_, typename CharT, typename Traits>
 std::basic_istream<CharT, Traits>&
 operator>>(std::basic_istream<CharT, Traits>& is, xor_combine_engine<Engine1_, s1_, Engine2_, s2_>& e);
+#endif // !_CCCL_COMPILER(NVRTC)
 
 /*! \} // end random_number_engine_adaptors
  */

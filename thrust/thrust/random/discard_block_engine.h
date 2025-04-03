@@ -35,7 +35,9 @@
 
 #include <cuda/std/cstdint>
 
-#include <iostream>
+#if !_CCCL_COMPILER(NVRTC)
+#  include <iostream>
+#endif // !_CCCL_COMPILER(NVRTC)
 
 THRUST_NAMESPACE_BEGIN
 
@@ -182,11 +184,13 @@ private:
 
   _CCCL_HOST_DEVICE bool equal(const discard_block_engine& rhs) const;
 
+#if !_CCCL_COMPILER(NVRTC)
   template <typename CharT, typename Traits>
   std::basic_ostream<CharT, Traits>& stream_out(std::basic_ostream<CharT, Traits>& os) const;
 
   template <typename CharT, typename Traits>
   std::basic_istream<CharT, Traits>& stream_in(std::basic_istream<CharT, Traits>& is);
+#endif // !_CCCL_COMPILER(NVRTC)
   /*! \endcond
    */
 }; // end discard_block_engine
@@ -209,6 +213,7 @@ template <typename Engine, size_t p, size_t r>
 _CCCL_HOST_DEVICE bool
 operator!=(const discard_block_engine<Engine, p, r>& lhs, const discard_block_engine<Engine, p, r>& rhs);
 
+#if !_CCCL_COMPILER(NVRTC)
 /*! This function streams a discard_block_engine to a \p std::basic_ostream.
  *  \param os The \p basic_ostream to stream out to.
  *  \param e The \p discard_block_engine to stream out.
@@ -226,6 +231,7 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const discard_block_engine<Eng
 template <typename Engine, size_t p, size_t r, typename CharT, typename Traits>
 std::basic_istream<CharT, Traits>&
 operator>>(std::basic_istream<CharT, Traits>& is, discard_block_engine<Engine, p, r>& e);
+#endif // !_CCCL_COMPILER(NVRTC)
 
 /*! \} // end random_number_engine_adaptors
  */

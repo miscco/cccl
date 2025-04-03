@@ -43,7 +43,9 @@
 
 #include <cuda/std/cstddef> // for size_t
 
-#include <iostream>
+#if !_CCCL_COMPILER(NVRTC)
+#  include <iostream>
+#endif // !_CCCL_COMPILER(NVRTC)
 
 THRUST_NAMESPACE_BEGIN
 
@@ -158,11 +160,13 @@ private:
 
   _CCCL_HOST_DEVICE bool equal(const linear_feedback_shift_engine& rhs) const;
 
+#if !_CCCL_COMPILER(NVRTC)
   template <typename CharT, typename Traits>
   std::basic_ostream<CharT, Traits>& stream_out(std::basic_ostream<CharT, Traits>& os) const;
 
   template <typename CharT, typename Traits>
   std::basic_istream<CharT, Traits>& stream_in(std::basic_istream<CharT, Traits>& is);
+#endif // !_CCCL_COMPILER(NVRTC)
 
   /*! \endcond
    */
@@ -186,6 +190,7 @@ template <typename UIntType_, size_t w_, size_t k_, size_t q_, size_t s_>
 _CCCL_HOST_DEVICE bool operator!=(const linear_feedback_shift_engine<UIntType_, w_, k_, q_, s_>& lhs,
                                   const linear_feedback_shift_engine<UIntType_, w_, k_, q_, s_>& rhs);
 
+#if !_CCCL_COMPILER(NVRTC)
 /*! This function streams a linear_feedback_shift_engine to a \p std::basic_ostream.
  *  \param os The \p basic_ostream to stream out to.
  *  \param e The \p linear_feedback_shift_engine to stream out.
@@ -203,6 +208,7 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const linear_feedback_shift_en
 template <typename UIntType_, size_t w_, size_t k_, size_t q_, size_t s_, typename CharT, typename Traits>
 std::basic_istream<CharT, Traits>&
 operator>>(std::basic_istream<CharT, Traits>& is, linear_feedback_shift_engine<UIntType_, w_, k_, q_, s_>& e);
+#endif // !_CCCL_COMPILER(NVRTC)
 
 /*! \} // end random_number_engine_templates
  */

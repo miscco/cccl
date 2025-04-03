@@ -68,6 +68,7 @@ _CCCL_HOST_DEVICE void linear_congruential_engine<UIntType, a, c, m>::discard(un
   thrust::random::detail::linear_congruential_engine_discard::discard(*this, z);
 } // end linear_congruential_engine::discard()
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename UIntType, UIntType a, UIntType c, UIntType m>
 template <typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
@@ -114,6 +115,7 @@ linear_congruential_engine<UIntType, a, c, m>::stream_in(std::basic_istream<Char
 
   return is;
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename UIntType, UIntType a, UIntType c, UIntType m>
 _CCCL_HOST_DEVICE bool
@@ -136,6 +138,7 @@ _CCCL_HOST_DEVICE bool operator!=(const linear_congruential_engine<UIntType, a, 
   return !(lhs == rhs);
 }
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename UIntType_, UIntType_ a_, UIntType_ c_, UIntType_ m_, typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const linear_congruential_engine<UIntType_, a_, c_, m_>& e)
@@ -149,6 +152,7 @@ operator>>(std::basic_istream<CharT, Traits>& is, linear_congruential_engine<UIn
 {
   return detail::random_core_access::stream_in(is, e);
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 } // namespace random
 

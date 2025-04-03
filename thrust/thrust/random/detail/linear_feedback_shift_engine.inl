@@ -64,6 +64,7 @@ _CCCL_HOST_DEVICE void linear_feedback_shift_engine<UIntType, w, k, q, s>::disca
   } // end for
 } // end linear_feedback_shift_engine::discard()
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename UIntType, size_t w, size_t k, size_t q, size_t s>
 template <typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
@@ -110,6 +111,7 @@ linear_feedback_shift_engine<UIntType, w, k, q, s>::stream_in(std::basic_istream
 
   return is;
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename UIntType, size_t w, size_t k, size_t q, size_t s>
 _CCCL_HOST_DEVICE bool linear_feedback_shift_engine<UIntType, w, k, q, s>::equal(
@@ -132,6 +134,7 @@ _CCCL_HOST_DEVICE bool operator!=(const linear_feedback_shift_engine<UIntType, w
   return !(lhs == rhs);
 }
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename UIntType_, size_t w_, size_t k_, size_t q_, size_t s_, typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const linear_feedback_shift_engine<UIntType_, w_, k_, q_, s_>& e)
@@ -145,6 +148,7 @@ operator>>(std::basic_istream<CharT, Traits>& is, linear_feedback_shift_engine<U
 {
   return thrust::random::detail::random_core_access::stream_in(is, e);
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 } // namespace random
 

@@ -191,11 +191,11 @@ THRUST_RUNTIME_FUNCTION pair<KeyOutputIt, ValOutputIt> unique_by_key(
 
   // 32-bit offset-type dispatch
   using dispatch32_t =
-    DispatchUniqueByKey<Derived, KeyInputIt, ValInputIt, KeyOutputIt, ValOutputIt, BinaryPred, std::uint32_t>;
+    DispatchUniqueByKey<Derived, KeyInputIt, ValInputIt, KeyOutputIt, ValOutputIt, BinaryPred, ::cuda::std::uint32_t>;
 
   // 64-bit offset-type dispatch
   using dispatch64_t =
-    DispatchUniqueByKey<Derived, KeyInputIt, ValInputIt, KeyOutputIt, ValOutputIt, BinaryPred, std::uint64_t>;
+    DispatchUniqueByKey<Derived, KeyInputIt, ValInputIt, KeyOutputIt, ValOutputIt, BinaryPred, ::cuda::std::uint64_t>;
 
   // Query temporary storage requirements
   THRUST_INDEX_TYPE_DISPATCH2(
@@ -216,7 +216,7 @@ THRUST_RUNTIME_FUNCTION pair<KeyOutputIt, ValOutputIt> unique_by_key(
   cuda_cub::throw_on_error(status, "unique_by_key: failed on 1st step");
 
   // Allocate temporary storage.
-  thrust::detail::temporary_array<std::uint8_t, Derived> tmp(policy, temp_storage_bytes);
+  thrust::detail::temporary_array<::cuda::std::uint8_t, Derived> tmp(policy, temp_storage_bytes);
   void* temp_storage = static_cast<void*>(tmp.data().get());
 
   // Run algorithm

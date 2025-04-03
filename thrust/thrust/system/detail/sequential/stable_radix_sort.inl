@@ -122,15 +122,16 @@ struct RadixEncoder<long long>
 template <>
 struct RadixEncoder<float>
 {
-  _CCCL_HOST_DEVICE std::uint32_t operator()(float x) const
+  _CCCL_HOST_DEVICE ::cuda::std::uint32_t operator()(float x) const
   {
     union
     {
       float f;
-      std::uint32_t i;
+      ::cuda::std::uint32_t i;
     } u;
-    u.f                = x;
-    std::uint32_t mask = -static_cast<std::int32_t>(u.i >> 31) | (static_cast<std::uint32_t>(1) << 31);
+    u.f = x;
+    ::cuda::std::uint32_t mask =
+      -static_cast<::cuda::std::int32_t>(u.i >> 31) | (static_cast<::cuda::std::uint32_t>(1) << 31);
     return u.i ^ mask;
   }
 };
@@ -138,15 +139,16 @@ struct RadixEncoder<float>
 template <>
 struct RadixEncoder<double>
 {
-  _CCCL_HOST_DEVICE std::uint64_t operator()(double x) const
+  _CCCL_HOST_DEVICE ::cuda::std::uint64_t operator()(double x) const
   {
     union
     {
       double f;
-      std::uint64_t i;
+      ::cuda::std::uint64_t i;
     } u;
-    u.f                = x;
-    std::uint64_t mask = -static_cast<std::int64_t>(u.i >> 63) | (static_cast<std::uint64_t>(1) << 63);
+    u.f = x;
+    ::cuda::std::uint64_t mask =
+      -static_cast<::cuda::std::int64_t>(u.i >> 63) | (static_cast<::cuda::std::uint64_t>(1) << 63);
     return u.i ^ mask;
   }
 };

@@ -99,6 +99,7 @@ discard_block_engine<Engine, p, r>::base() const
   return m_e;
 }
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename Engine, size_t p, size_t r>
 template <typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
@@ -144,6 +145,7 @@ std::basic_istream<CharT, Traits>& discard_block_engine<Engine, p, r>::stream_in
   is.flags(flags);
   return is;
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename Engine, size_t p, size_t r>
 _CCCL_HOST_DEVICE bool discard_block_engine<Engine, p, r>::equal(const discard_block_engine<Engine, p, r>& rhs) const
@@ -151,6 +153,7 @@ _CCCL_HOST_DEVICE bool discard_block_engine<Engine, p, r>::equal(const discard_b
   return (m_e == rhs.m_e) && (m_n == rhs.m_n);
 }
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename Engine, size_t p, size_t r, typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const discard_block_engine<Engine, p, r>& e)
@@ -164,6 +167,7 @@ operator>>(std::basic_istream<CharT, Traits>& is, discard_block_engine<Engine, p
 {
   return thrust::random::detail::random_core_access::stream_in(is, e);
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename Engine, size_t p, size_t r>
 _CCCL_HOST_DEVICE bool

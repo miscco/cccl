@@ -336,7 +336,7 @@ extrema(execution_policy<Derived>& policy, InputIt first, Size num_items, Binary
   cuda_cub::throw_on_error(status, "extrema failed on 1st alias storage");
 
   // Allocate temporary storage.
-  thrust::detail::temporary_array<std::uint8_t, Derived> tmp(policy, storage_size);
+  thrust::detail::temporary_array<::cuda::std::uint8_t, Derived> tmp(policy, storage_size);
   void* ptr = static_cast<void*>(tmp.data().get());
 
   status = core::detail::alias_storage(ptr, storage_size, allocations, allocation_sizes);

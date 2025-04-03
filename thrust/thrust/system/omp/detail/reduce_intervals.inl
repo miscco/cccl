@@ -68,7 +68,7 @@ void reduce_intervals(
   // wrap binary_op
   thrust::detail::wrapped_function<BinaryFunction, OutputType> wrapped_binary_op{binary_op};
 
-  using index_type = std::intptr_t;
+  using index_type = ::cuda::std::intptr_t;
 
   index_type n = static_cast<index_type>(decomp.size());
 

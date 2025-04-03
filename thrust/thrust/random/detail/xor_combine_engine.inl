@@ -97,6 +97,7 @@ _CCCL_HOST_DEVICE void xor_combine_engine<Engine1, s1, Engine2, s2>::discard(uns
   } // end for
 } // end xor_combine_engine::discard()
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename Engine1, size_t s1, typename Engine2, size_t s2>
 template <typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
@@ -142,6 +143,7 @@ xor_combine_engine<Engine1, s1, Engine2, s2>::stream_in(std::basic_istream<CharT
   is.flags(flags);
   return is;
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename Engine1, size_t s1, typename Engine2, size_t s2>
 _CCCL_HOST_DEVICE bool
@@ -150,6 +152,7 @@ xor_combine_engine<Engine1, s1, Engine2, s2>::equal(const xor_combine_engine<Eng
   return (m_b1 == rhs.m_b1) && (m_b2 == rhs.m_b2);
 }
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename Engine1, size_t s1, typename Engine2, size_t s2, typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const xor_combine_engine<Engine1, s1, Engine2, s2>& e)
@@ -163,6 +166,7 @@ operator>>(std::basic_istream<CharT, Traits>& is, xor_combine_engine<Engine1, s1
 {
   return thrust::random::detail::random_core_access::stream_in(is, e);
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename Engine1, size_t s1, typename Engine2, size_t s2>
 _CCCL_HOST_DEVICE bool operator==(const xor_combine_engine<Engine1, s1, Engine2, s2>& lhs,

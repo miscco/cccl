@@ -34,8 +34,7 @@ struct contiguous_iterator_traits
   static_assert(thrust::is_contiguous_iterator_v<Iterator>,
                 "contiguous_iterator_traits requires a contiguous iterator.");
 
-  using raw_pointer =
-    typename thrust::detail::pointer_traits<decltype(&*::cuda::std::declval<Iterator>())>::raw_pointer;
+  using raw_pointer = typename thrust::detail::pointer_traits<decltype(&*_CUDA_VSTD::declval<Iterator>())>::raw_pointer;
 };
 } // namespace detail
 

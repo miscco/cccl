@@ -55,7 +55,7 @@ THRUST_NAMESPACE_BEGIN
  * constants</i></a> \see index_sequence \see make_integer_sequence \see make_reversed_integer_sequence \see
  * make_index_sequence \see make_reversed_index_sequence \see integer_sequence_push_front \see
  * integer_sequence_push_back \see <a
- * href="https://en.cppreference.com/w/cpp/utility/integer_sequence"><tt>std::integer_sequence</tt></a>
+ * href="https://en.cppreference.com/w/cpp/utility/integer_sequence"><tt>::cuda::std::integer_sequence</tt></a>
  */
 template <typename T, T... Is>
 using integer_sequence = ::cuda::std::integer_sequence<T, Is...>;

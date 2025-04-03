@@ -100,6 +100,7 @@ _CCCL_HOST_DEVICE void subtract_with_carry_engine<UIntType, w, s, r>::discard(un
   } // end for
 } // end subtract_with_carry_engine::discard()
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename UIntType, size_t w, size_t s, size_t r>
 template <typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
@@ -149,6 +150,7 @@ subtract_with_carry_engine<UIntType, w, s, r>::stream_in(std::basic_istream<Char
   is.flags(flags);
   return is;
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename UIntType, size_t w, size_t s, size_t r>
 _CCCL_HOST_DEVICE bool
@@ -168,6 +170,7 @@ subtract_with_carry_engine<UIntType, w, s, r>::equal(const subtract_with_carry_e
   return result;
 }
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename UIntType, size_t w, size_t s, size_t r, typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const subtract_with_carry_engine<UIntType, w, s, r>& e)
@@ -181,6 +184,7 @@ operator>>(std::basic_istream<CharType, Traits>& is, subtract_with_carry_engine<
 {
   return thrust::random::detail::random_core_access::stream_in(is, e);
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename UIntType, size_t w, size_t s, size_t r>
 _CCCL_HOST_DEVICE bool operator==(const subtract_with_carry_engine<UIntType, w, s, r>& lhs,

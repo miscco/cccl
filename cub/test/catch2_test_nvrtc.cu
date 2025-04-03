@@ -125,6 +125,38 @@ TEST_CASE("Test nvrtc", "[test][nvrtc]")
     #include <thrust/iterator/transform_output_iterator.h>
     #include <thrust/iterator/zip_iterator.h>
 
+    #include <thrust/random/discard_block_engine.h>
+    #include <thrust/random/linear_congruential_engine.h>
+    #include <thrust/random/linear_feedback_shift_engine.h>
+    #include <thrust/random/normal_distribution.h>
+    #include <thrust/random/subtract_with_carry_engine.h>
+    #include <thrust/random/uniform_int_distribution.h>
+    #include <thrust/random/uniform_real_distribution.h>
+    #include <thrust/random/xor_combine_engine.h>
+
+    #include <thrust/type_traits/integer_sequence.h>
+    #include <thrust/type_traits/is_contiguous_iterator.h>
+    #include <thrust/type_traits/is_execution_policy.h>
+    #include <thrust/type_traits/is_operator_less_or_greater_function_object.h>
+    #include <thrust/type_traits/is_operator_plus_function_object.h>
+    #include <thrust/type_traits/is_trivially_relocatable.h>
+    #include <thrust/type_traits/logical_metafunctions.h>
+    #include <thrust/type_traits/unwrap_contiguous_iterator.h>
+
+    #include <thrust/advance.h>
+    #include <thrust/distance.h>
+    #include <thrust/equal.h>
+    #include <thrust/fill.h>
+    #include <thrust/find.h>
+    #include <thrust/generate.h>
+    #include <thrust/limits.h>
+    #include <thrust/logical.h>
+    #include <thrust/memory.h>
+    #include <thrust/mismatch.h>
+    #include <thrust/pair.h>
+    #include <thrust/transform_reduce.h>
+    #include <thrust/tuple.h>
+
     extern "C" __global__ void kernel(int *ptr, int *errors)
     {
       constexpr int items_per_thread = 4;

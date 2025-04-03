@@ -32,7 +32,9 @@
 #include <thrust/pair.h>
 #include <thrust/random/detail/random_core_access.h>
 
-#include <iostream>
+#if !_CCCL_COMPILER(NVRTC)
+#  include <iostream>
+#endif // !_CCCL_COMPILER(NVRTC)
 
 THRUST_NAMESPACE_BEGIN
 
@@ -201,11 +203,13 @@ private:
 
   _CCCL_HOST_DEVICE bool equal(const uniform_real_distribution& rhs) const;
 
+#if !_CCCL_COMPILER(NVRTC)
   template <typename CharT, typename Traits>
   std::basic_ostream<CharT, Traits>& stream_out(std::basic_ostream<CharT, Traits>& os) const;
 
   template <typename CharT, typename Traits>
   std::basic_istream<CharT, Traits>& stream_in(std::basic_istream<CharT, Traits>& is);
+#endif // !_CCCL_COMPILER(NVRTC)
   /*! \endcond
    */
 }; // end uniform_real_distribution
@@ -228,6 +232,7 @@ template <typename RealType>
 _CCCL_HOST_DEVICE bool
 operator!=(const uniform_real_distribution<RealType>& lhs, const uniform_real_distribution<RealType>& rhs);
 
+#if !_CCCL_COMPILER(NVRTC)
 /*! This function streams a uniform_real_distribution to a \p std::basic_ostream.
  *  \param os The \p basic_ostream to stream out to.
  *  \param d The \p uniform_real_distribution to stream out.
@@ -245,6 +250,7 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const uniform_real_distributio
 template <typename RealType, typename CharT, typename Traits>
 std::basic_istream<CharT, Traits>&
 operator>>(std::basic_istream<CharT, Traits>& is, uniform_real_distribution<RealType>& d);
+#endif // !_CCCL_COMPILER(NVRTC)
 
 /*! \} // end random_number_distributions
  */

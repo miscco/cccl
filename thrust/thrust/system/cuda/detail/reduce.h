@@ -647,7 +647,7 @@ reduce_n_impl(execution_policy<Derived>& policy, InputIt first, Size num_items, 
   // aligned for any type of data. `malloc`/`cudaMalloc`/`new`/`std::allocator`
   // make this guarantee.
 
-  thrust::detail::temporary_array<std::uint8_t, Derived> tmp(policy, tmp_size + sizeof(T));
+  thrust::detail::temporary_array<::cuda::std::uint8_t, Derived> tmp(policy, tmp_size + sizeof(T));
 
   // Run reduction.
 

@@ -34,7 +34,9 @@
 
 #include <cuda/std/cstdint>
 
-#include <iostream>
+#if !_CCCL_COMPILER(NVRTC)
+#  include <iostream>
+#endif // !_CCCL_COMPILER(NVRTC)
 
 THRUST_NAMESPACE_BEGIN
 
@@ -195,7 +197,7 @@ public:
 private:
   result_type m_x;
 
-  static void transition(result_type& state);
+  _CCCL_HOST_DEVICE static void transition(result_type& state);
 
   friend struct thrust::random::detail::random_core_access;
 
@@ -203,11 +205,13 @@ private:
 
   _CCCL_HOST_DEVICE bool equal(const linear_congruential_engine& rhs) const;
 
+#if !_CCCL_COMPILER(NVRTC)
   template <typename CharT, typename Traits>
   std::basic_ostream<CharT, Traits>& stream_out(std::basic_ostream<CharT, Traits>& os) const;
 
   template <typename CharT, typename Traits>
   std::basic_istream<CharT, Traits>& stream_in(std::basic_istream<CharT, Traits>& is);
+#endif // !_CCCL_COMPILER(NVRTC)
 
   /*! \endcond
    */
@@ -231,6 +235,7 @@ template <typename UIntType_, UIntType_ a_, UIntType_ c_, UIntType_ m_>
 _CCCL_HOST_DEVICE bool operator!=(const linear_congruential_engine<UIntType_, a_, c_, m_>& lhs,
                                   const linear_congruential_engine<UIntType_, a_, c_, m_>& rhs);
 
+#if !_CCCL_COMPILER(NVRTC)
 /*! This function streams a linear_congruential_engine to a \p std::basic_ostream.
  *  \param os The \p basic_ostream to stream out to.
  *  \param e The \p linear_congruential_engine to stream out.
@@ -248,6 +253,7 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const linear_congruential_engi
 template <typename UIntType_, UIntType_ a_, UIntType_ c_, UIntType_ m_, typename CharT, typename Traits>
 std::basic_istream<CharT, Traits>&
 operator>>(std::basic_istream<CharT, Traits>& is, linear_congruential_engine<UIntType_, a_, c_, m_>& e);
+#endif // !_CCCL_COMPILER(NVRTC)
 
 /*! \} // random_number_engine_templates
  */
@@ -264,7 +270,7 @@ operator>>(std::basic_istream<CharT, Traits>& is, linear_congruential_engine<UIn
  *  \note The 10000th consecutive invocation of a default-constructed object of type \p minstd_rand0
  *        shall produce the value \c 1043618065 .
  */
-using minstd_rand0 = linear_congruential_engine<std::uint32_t, 16807, 0, 2147483647>;
+using minstd_rand0 = linear_congruential_engine<::cuda::std::uint32_t, 16807, 0, 2147483647>;
 
 /*! \typedef minstd_rand
  *  \brief A random number engine with predefined parameters which implements a version of
@@ -272,7 +278,7 @@ using minstd_rand0 = linear_congruential_engine<std::uint32_t, 16807, 0, 2147483
  *  \note The 10000th consecutive invocation of a default-constructed object of type \p minstd_rand
  *        shall produce the value \c 399268537 .
  */
-using minstd_rand = linear_congruential_engine<std::uint32_t, 48271, 0, 2147483647>;
+using minstd_rand = linear_congruential_engine<::cuda::std::uint32_t, 48271, 0, 2147483647>;
 
 /*! \} // predefined_random
  */

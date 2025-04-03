@@ -36,7 +36,9 @@
 #include <cuda/std/cstddef> // for size_t
 #include <cuda/std/cstdint>
 
-#include <iostream>
+#if !_CCCL_COMPILER(NVRTC)
+#  include <iostream>
+#endif // !_CCCL_COMPILER(NVRTC)
 
 THRUST_NAMESPACE_BEGIN
 
@@ -159,11 +161,13 @@ private:
 
   _CCCL_HOST_DEVICE bool equal(const subtract_with_carry_engine& rhs) const;
 
+#if !_CCCL_COMPILER(NVRTC)
   template <typename CharT, typename Traits>
   std::basic_ostream<CharT, Traits>& stream_out(std::basic_ostream<CharT, Traits>& os) const;
 
   template <typename CharT, typename Traits>
   std::basic_istream<CharT, Traits>& stream_in(std::basic_istream<CharT, Traits>& is);
+#endif // !_CCCL_COMPILER(NVRTC)
 
   /*! \endcond
    */
@@ -187,6 +191,7 @@ template <typename UIntType_, size_t w_, size_t s_, size_t r_>
 _CCCL_HOST_DEVICE bool operator!=(const subtract_with_carry_engine<UIntType_, w_, s_, r_>& lhs,
                                   const subtract_with_carry_engine<UIntType_, w_, s_, r_>& rhs);
 
+#if !_CCCL_COMPILER(NVRTC)
 /*! This function streams a subtract_with_carry_engine to a \p std::basic_ostream.
  *  \param os The \p basic_ostream to stream out to.
  *  \param e The \p subtract_with_carry_engine to stream out.
@@ -204,6 +209,7 @@ operator<<(std::basic_ostream<CharT, Traits>& os, const subtract_with_carry_engi
 template <typename UIntType_, size_t w_, size_t s_, size_t r_, typename CharT, typename Traits>
 std::basic_istream<CharT, Traits>&
 operator>>(std::basic_istream<CharT, Traits>& is, subtract_with_carry_engine<UIntType_, w_, s_, r_>& e);
+#endif // !_CCCL_COMPILER(NVRTC)
 
 /*! \} // end random_number_engine_templates
  */
@@ -220,7 +226,7 @@ operator>>(std::basic_istream<CharT, Traits>& is, subtract_with_carry_engine<UIn
  *  \note The 10000th consecutive invocation of a default-constructed object of type \p ranlux24_base
  *        shall produce the value \c 7937952 .
  */
-using ranlux24_base = subtract_with_carry_engine<std::uint32_t, 24, 10, 24>;
+using ranlux24_base = subtract_with_carry_engine<::cuda::std::uint32_t, 24, 10, 24>;
 
 // XXX N2111 uses uint_fast64_t here
 
@@ -230,7 +236,7 @@ using ranlux24_base = subtract_with_carry_engine<std::uint32_t, 24, 10, 24>;
  *  \note The 10000th consecutive invocation of a default-constructed object of type \p ranlux48_base
  *        shall produce the value \c 192113843633948 .
  */
-using ranlux48_base = subtract_with_carry_engine<std::uint64_t, 48, 5, 12>;
+using ranlux48_base = subtract_with_carry_engine<::cuda::std::uint64_t, 48, 5, 12>;
 
 /*! \} // end predefined_random
  */

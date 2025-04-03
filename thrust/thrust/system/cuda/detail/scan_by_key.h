@@ -102,7 +102,7 @@ _CCCL_HOST_DEVICE ValuesOutIt inclusive_scan_by_key_n(
     EqualityOpT,
     ScanOpT,
     cub::NullType,
-    std::uint32_t,
+    ::cuda::std::uint32_t,
     AccumT>;
   using Dispatch64 = cub::DispatchScanByKey<
     KeysInUnwrapIt,
@@ -111,7 +111,7 @@ _CCCL_HOST_DEVICE ValuesOutIt inclusive_scan_by_key_n(
     EqualityOpT,
     ScanOpT,
     cub::NullType,
-    std::uint64_t,
+    ::cuda::std::uint64_t,
     AccumT>;
 
   cudaStream_t stream = thrust::cuda_cub::stream(policy);
@@ -144,7 +144,7 @@ _CCCL_HOST_DEVICE ValuesOutIt inclusive_scan_by_key_n(
   // Run scan:
   {
     // Allocate temporary storage:
-    thrust::detail::temporary_array<std::uint8_t, Derived> tmp{policy, tmp_size};
+    thrust::detail::temporary_array<::cuda::std::uint8_t, Derived> tmp{policy, tmp_size};
 
     THRUST_UNSIGNED_INDEX_TYPE_DISPATCH2(
       status,
@@ -211,7 +211,7 @@ _CCCL_HOST_DEVICE ValuesOutIt exclusive_scan_by_key_n(
     EqualityOpT,
     ScanOpT,
     InitValueT,
-    std::uint32_t,
+    ::cuda::std::uint32_t,
     InitValueT>;
   using Dispatch64 = cub::DispatchScanByKey<
     KeysInUnwrapIt,
@@ -220,7 +220,7 @@ _CCCL_HOST_DEVICE ValuesOutIt exclusive_scan_by_key_n(
     EqualityOpT,
     ScanOpT,
     InitValueT,
-    std::uint64_t,
+    ::cuda::std::uint64_t,
     InitValueT>;
 
   cudaStream_t stream = thrust::cuda_cub::stream(policy);
@@ -253,7 +253,7 @@ _CCCL_HOST_DEVICE ValuesOutIt exclusive_scan_by_key_n(
   // Run scan:
   {
     // Allocate temporary storage:
-    thrust::detail::temporary_array<std::uint8_t, Derived> tmp{policy, tmp_size};
+    thrust::detail::temporary_array<::cuda::std::uint8_t, Derived> tmp{policy, tmp_size};
 
     THRUST_UNSIGNED_INDEX_TYPE_DISPATCH2(
       status,

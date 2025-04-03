@@ -37,8 +37,8 @@ namespace generic
 
 struct key_flag_tuple
 {
-  std::uint64_t key;
-  std::uint64_t flag;
+  ::cuda::std::uint64_t key;
+  ::cuda::std::uint64_t flag;
 };
 
 // scan only flags
@@ -52,13 +52,13 @@ struct key_flag_scan_op
 
 struct construct_key_flag_op
 {
-  std::uint64_t m;
+  ::cuda::std::uint64_t m;
   thrust::detail::feistel_bijection bijection;
-  _CCCL_HOST_DEVICE construct_key_flag_op(std::uint64_t m, thrust::detail::feistel_bijection bijection)
+  _CCCL_HOST_DEVICE construct_key_flag_op(::cuda::std::uint64_t m, thrust::detail::feistel_bijection bijection)
       : m(m)
       , bijection(bijection)
   {}
-  _CCCL_HOST_DEVICE key_flag_tuple operator()(std::uint64_t idx)
+  _CCCL_HOST_DEVICE key_flag_tuple operator()(::cuda::std::uint64_t idx)
   {
     auto gather_key = bijection(idx);
     return key_flag_tuple{gather_key, (gather_key < m) ? 1ull : 0ull};
@@ -68,7 +68,7 @@ struct construct_key_flag_op
 template <typename InputIterT, typename OutputIterT>
 struct write_output_op
 {
-  std::uint64_t m;
+  ::cuda::std::uint64_t m;
   InputIterT in;
   OutputIterT out;
   // flag contains inclusive scan of valid keys
@@ -108,11 +108,11 @@ _CCCL_HOST_DEVICE void shuffle_copy(
   // we have an available bijection of length n via a feistel cipher
   std::size_t m = last - first;
   thrust::detail::feistel_bijection bijection(m, g);
-  std::uint64_t n = bijection.nearest_power_of_two();
+  ::cuda::std::uint64_t n = bijection.nearest_power_of_two();
 
   // perform stream compaction over length n bijection to get length m
   // pseudorandom bijection over the original input
-  thrust::counting_iterator<std::uint64_t> indices(0);
+  thrust::counting_iterator<::cuda::std::uint64_t> indices(0);
   thrust::transform_iterator<construct_key_flag_op, decltype(indices), key_flag_tuple> key_flag_it(
     indices, construct_key_flag_op(m, bijection));
   write_output_op<RandomIterator, decltype(result)> write_functor{m, first, result};

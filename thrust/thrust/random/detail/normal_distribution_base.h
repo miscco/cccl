@@ -89,21 +89,21 @@ template <typename RealType>
 class normal_distribution_portable
 {
 protected:
-  normal_distribution_portable()
+  _CCCL_HOST_DEVICE normal_distribution_portable()
       : m_r1()
       , m_r2()
       , m_cached_rho()
       , m_valid(false)
   {}
 
-  normal_distribution_portable(const normal_distribution_portable& other)
+  _CCCL_HOST_DEVICE normal_distribution_portable(const normal_distribution_portable& other)
       : m_r1(other.m_r1)
       , m_r2(other.m_r2)
       , m_cached_rho(other.m_cached_rho)
       , m_valid(other.m_valid)
   {}
 
-  void reset()
+  _CCCL_HOST_DEVICE void reset()
   {
     m_valid = false;
   }

@@ -110,7 +110,7 @@ _CCCL_HOST_DEVICE OutputIterator inclusive_scan_by_key(
   AssociativeOperator binary_op)
 {
   using OutputType   = thrust::detail::it_value_t<InputIterator2>;
-  using HeadFlagType = std::uint8_t;
+  using HeadFlagType = ::cuda::std::uint8_t;
 
   const size_t n = last1 - first1;
 
@@ -197,7 +197,7 @@ _CCCL_HOST_DEVICE OutputIterator exclusive_scan_by_key(
   AssociativeOperator binary_op)
 {
   using OutputType   = T;
-  using HeadFlagType = std::uint8_t;
+  using HeadFlagType = ::cuda::std::uint8_t;
 
   const size_t n = last1 - first1;
 

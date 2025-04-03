@@ -71,9 +71,9 @@ merge(execution_policy<Derived>& policy,
      if (num_keys_out == 0) { return result_begin; }
 
      using dispatch32_t = cub::detail::merge::
-       dispatch_t<KeysIt1, cub::NullType*, KeysIt2, cub::NullType*, ResultIt, cub::NullType*, std::int32_t, CompareOp>;
+       dispatch_t<KeysIt1, cub::NullType*, KeysIt2, cub::NullType*, ResultIt, cub::NullType*, ::cuda::std::int32_t, CompareOp>;
      using dispatch64_t = cub::detail::merge::
-       dispatch_t<KeysIt1, cub::NullType*, KeysIt2, cub::NullType*, ResultIt, cub::NullType*, std::int64_t, CompareOp>;
+       dispatch_t<KeysIt1, cub::NullType*, KeysIt2, cub::NullType*, ResultIt, cub::NullType*, ::cuda::std::int64_t, CompareOp>;
 
      const auto stream = cuda_cub::stream(policy);
      cudaError_t status;
@@ -159,9 +159,9 @@ pair<KeysOutputIt, ItemsOutputIt> _CCCL_HOST_DEVICE merge_by_key(
      if (num_keys_out == 0) { return {keys_out_begin, items_out_begin}; }
 
      using dispatch32_t = cub::detail::merge::
-       dispatch_t<KeysIt1, ItemsIt1, KeysIt2, ItemsIt2, KeysOutputIt, ItemsOutputIt, std::int32_t, CompareOp>;
+       dispatch_t<KeysIt1, ItemsIt1, KeysIt2, ItemsIt2, KeysOutputIt, ItemsOutputIt, ::cuda::std::int32_t, CompareOp>;
      using dispatch64_t = cub::detail::merge::
-       dispatch_t<KeysIt1, ItemsIt1, KeysIt2, ItemsIt2, KeysOutputIt, ItemsOutputIt, std::int64_t, CompareOp>;
+       dispatch_t<KeysIt1, ItemsIt1, KeysIt2, ItemsIt2, KeysOutputIt, ItemsOutputIt, ::cuda::std::int64_t, CompareOp>;
 
      const auto stream = cuda_cub::stream(policy);
      cudaError_t status;

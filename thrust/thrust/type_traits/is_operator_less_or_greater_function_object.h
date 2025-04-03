@@ -154,9 +154,11 @@ struct is_operator_less_function_object_impl : false_type
 template <typename T>
 struct is_operator_less_function_object_impl<::cuda::std::less<T>> : true_type
 {};
+#if !_CCCL_COMPILER(NVRTC)
 template <typename T>
 struct is_operator_less_function_object_impl<std::less<T>> : true_type
 {};
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename T>
 struct is_operator_greater_function_object_impl : false_type
@@ -164,9 +166,11 @@ struct is_operator_greater_function_object_impl : false_type
 template <typename T>
 struct is_operator_greater_function_object_impl<::cuda::std::greater<T>> : true_type
 {};
+#if !_CCCL_COMPILER(NVRTC)
 template <typename T>
 struct is_operator_greater_function_object_impl<std::greater<T>> : true_type
 {};
+#endif // !_CCCL_COMPILER(NVRTC)
 
 } // namespace detail
 

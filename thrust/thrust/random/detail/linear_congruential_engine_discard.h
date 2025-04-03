@@ -52,12 +52,12 @@ struct linear_congruential_engine_discard_implementation
 
 // specialize for small integers and c == 0
 // XXX figure out a robust implementation of this for any unsigned integer type later
-template <std::uint32_t a, std::uint32_t m>
-struct linear_congruential_engine_discard_implementation<std::uint32_t, a, 0, m>
+template <::cuda::std::uint32_t a, ::cuda::std::uint32_t m>
+struct linear_congruential_engine_discard_implementation<::cuda::std::uint32_t, a, 0, m>
 {
-  _CCCL_HOST_DEVICE static void discard(std::uint32_t& state, unsigned long long z)
+  _CCCL_HOST_DEVICE static void discard(::cuda::std::uint32_t& state, unsigned long long z)
   {
-    const std::uint32_t modulus = m;
+    const ::cuda::std::uint32_t modulus = m;
 
     // XXX we need to use unsigned long long here or we will encounter overflow in the
     //     multiplies below
@@ -79,7 +79,7 @@ struct linear_congruential_engine_discard_implementation<std::uint32_t, a, 0, m>
       multiplier = (multiplier * multiplier) % modulus;
     }
 
-    state = static_cast<std::uint32_t>((multiplier_to_z * state) % modulus);
+    state = static_cast<::cuda::std::uint32_t>((multiplier_to_z * state) % modulus);
   }
 }; // end linear_congruential_engine_discard
 

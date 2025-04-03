@@ -122,6 +122,7 @@ _CCCL_HOST_DEVICE bool uniform_int_distribution<IntType>::equal(const uniform_in
   return param() == rhs.param();
 }
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename IntType>
 template <typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
@@ -164,6 +165,7 @@ std::basic_istream<CharT, Traits>& uniform_int_distribution<IntType>::stream_in(
   is.flags(flags);
   return is;
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 template <typename IntType>
 _CCCL_HOST_DEVICE bool
@@ -179,6 +181,7 @@ operator!=(const uniform_int_distribution<IntType>& lhs, const uniform_int_distr
   return !(lhs == rhs);
 }
 
+#if !_CCCL_COMPILER(NVRTC)
 template <typename IntType, typename CharT, typename Traits>
 std::basic_ostream<CharT, Traits>&
 operator<<(std::basic_ostream<CharT, Traits>& os, const uniform_int_distribution<IntType>& d)
@@ -192,6 +195,7 @@ operator>>(std::basic_istream<CharT, Traits>& is, uniform_int_distribution<IntTy
 {
   return thrust::random::detail::random_core_access::stream_in(is, d);
 }
+#endif // !_CCCL_COMPILER(NVRTC)
 
 } // namespace random
 

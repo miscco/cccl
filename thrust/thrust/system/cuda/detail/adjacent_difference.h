@@ -89,8 +89,10 @@ cudaError_t THRUST_RUNTIME_FUNCTION doit_step(
 
   constexpr cub::ReadOption read_left = cub::ReadOption::Left;
 
-  using Dispatch32 = cub::DispatchAdjacentDifference<InputIt, OutputIt, BinaryOp, std::int32_t, AliasOpt, read_left>;
-  using Dispatch64 = cub::DispatchAdjacentDifference<InputIt, OutputIt, BinaryOp, std::int64_t, AliasOpt, read_left>;
+  using Dispatch32 =
+    cub::DispatchAdjacentDifference<InputIt, OutputIt, BinaryOp, ::cuda::std::int32_t, AliasOpt, read_left>;
+  using Dispatch64 =
+    cub::DispatchAdjacentDifference<InputIt, OutputIt, BinaryOp, ::cuda::std::int64_t, AliasOpt, read_left>;
 
   cudaError_t status;
   THRUST_INDEX_TYPE_DISPATCH2(
@@ -166,7 +168,7 @@ adjacent_difference(execution_policy<Derived>& policy, InputIt first, InputIt la
   cuda_cub::throw_on_error(status, "adjacent_difference failed on 1st step");
 
   // Allocate temporary storage.
-  thrust::detail::temporary_array<std::uint8_t, Derived> tmp(policy, storage_size);
+  thrust::detail::temporary_array<::cuda::std::uint8_t, Derived> tmp(policy, storage_size);
 
   status = doit_step(
     static_cast<void*>(tmp.data().get()),

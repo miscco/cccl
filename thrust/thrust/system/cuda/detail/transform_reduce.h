@@ -84,7 +84,7 @@ THRUST_RUNTIME_FUNCTION T transform_reduce_n_impl(
 
   // Allocate temporary storage.
 
-  thrust::detail::temporary_array<std::uint8_t, Derived> tmp(policy, sizeof(T) + tmp_size);
+  thrust::detail::temporary_array<::cuda::std::uint8_t, Derived> tmp(policy, sizeof(T) + tmp_size);
 
   // Run reduction.
 

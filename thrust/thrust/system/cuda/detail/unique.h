@@ -202,8 +202,8 @@ select_unique(execution_policy<Derived>& policy, InputIt first, InputIt last, Ou
   cuda_cub::throw_on_error(status, "unique failed on 1st step");
 
   // Allocate temporary storage.
-  thrust::detail::temporary_array<std::uint8_t, Derived> tmp(policy, temp_storage_bytes);
-  void* temp_storage = static_cast<void*>(tmp.data().get());
+  thrust::detail::temporary_array<::cuda::std::uint8_t, Derived> tmp(policy, storage_size);
+  void* ptr = static_cast<void*>(tmp.data().get());
 
   // Run algorithm
   status = dispatch_select_unique<SelectionOpt>(

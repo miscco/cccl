@@ -1195,7 +1195,7 @@ THRUST_RUNTIME_FUNCTION pair<KeysOutputIt, ValuesOutputIt> set_operations(
   cuda_cub::throw_on_error(status, "set_operations failed on 1st alias_storage");
 
   // Allocate temporary storage.
-  thrust::detail::temporary_array<std::uint8_t, Derived> tmp(policy, storage_size);
+  thrust::detail::temporary_array<::cuda::std::uint8_t, Derived> tmp(policy, storage_size);
   void* ptr = static_cast<void*>(tmp.data().get());
 
   status = core::detail::alias_storage(ptr, storage_size, allocations, allocation_sizes);

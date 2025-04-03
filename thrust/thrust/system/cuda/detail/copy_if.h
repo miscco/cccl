@@ -200,20 +200,28 @@ THRUST_RUNTIME_FUNCTION OutputIt copy_if(
   // inputs larger than INT_MAX into partitions of up to `INT_MAX` items each, repeatedly invoking the respective
   // algorithm. With that approach, we can always use i64 offset types for DispatchSelectIf, because there's only very
   // limited performance upside for using i32 offset types. This avoids potentially duplicate kernel compilation.
-  using dispatch64_t = DispatchCopyIf<SelectionOpt, Derived, InputIt, StencilIt, OutputIt, Predicate, std::int64_t>;
+  using dispatch64_t =
+    DispatchCopyIf<SelectionOpt, Derived, InputIt, StencilIt, OutputIt, Predicate, ::cuda::std::int64_t>;
 
   // Query temporary storage requirements
   status = dispatch64_t::dispatch(
-    policy, nullptr, temp_storage_bytes, first, stencil, output, predicate, static_cast<std::int64_t>(num_items));
+    policy, nullptr, temp_storage_bytes, first, stencil, output, predicate, static_cast<::cuda::std::int64_t>(num_items));
   cuda_cub::throw_on_error(status, "copy_if failed on 1st step");
 
   // Allocate temporary storage.
-  thrust::detail::temporary_array<std::uint8_t, Derived> tmp(policy, temp_storage_bytes);
+  thrust::detail::temporary_array<::cuda::std::uint8_t, Derived> tmp(policy, temp_storage_bytes);
   void* temp_storage = static_cast<void*>(tmp.data().get());
 
   // Run algorithm
   status = dispatch64_t::dispatch(
-    policy, temp_storage, temp_storage_bytes, first, stencil, output, predicate, static_cast<std::int64_t>(num_items));
+    policy,
+    temp_storage,
+    temp_storage_bytes,
+    first,
+    stencil,
+    output,
+    predicate,
+    static_cast<::cuda::std::int64_t>(num_items));
   cuda_cub::throw_on_error(status, "copy_if failed on 2nd step");
 
   return output;

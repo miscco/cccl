@@ -98,9 +98,11 @@ struct is_operator_plus_function_object_impl : false_type
 template <typename T>
 struct is_operator_plus_function_object_impl<::cuda::std::plus<T>> : true_type
 {};
+#if !_CCCL_COMPILER(NVRTC)
 template <typename T>
 struct is_operator_plus_function_object_impl<std::plus<T>> : true_type
 {};
+#endif // !_CCCL_COMPILER(NVRTC)
 
 } // namespace detail
 
