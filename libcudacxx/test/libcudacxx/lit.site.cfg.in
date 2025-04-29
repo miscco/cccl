@@ -1,6 +1,5 @@
 @AUTO_GEN_COMMENT@
 config.cxx_under_test           = "@LIBCUDACXX_CUDA_COMPILER@"
-config.cxx_first_arg            = "@LIBCUDACXX_CUDA_COMPILER_ARG1@"
 config.project_obj_root         = "@CMAKE_BINARY_DIR@"
 config.libcudacxx_src_root      = "@LIBCUDACXX_SOURCE_DIR@"
 config.libcudacxx_obj_root      = "@LIBCUDACXX_BINARY_DIR@"

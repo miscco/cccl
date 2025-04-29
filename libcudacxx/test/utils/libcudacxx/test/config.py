@@ -303,7 +303,6 @@ class Configuration(object):
     def configure_cxx(self):
         # Gather various compiler parameters.
         cxx = self.get_lit_conf("cxx_under_test")
-        cxx_first_arg = self.get_lit_conf("cxx_first_arg")
         nvrtc = self.get_lit_bool("is_nvrtc", False)
 
         self.cxx_is_clang_cl = (
@@ -315,7 +314,6 @@ class Configuration(object):
             cxx_type = "nvrtcc"
             self.cxx = CXXCompiler(
                 path=cxx,
-                first_arg=cxx_first_arg,
                 cxx_type=cxx_type,
                 cxx_version=("1", "1", "1"),
             )
@@ -363,7 +361,6 @@ class Configuration(object):
             else:
                 self.cxx = CXXCompiler(
                     cxx,
-                    cxx_first_arg,
                     compile_flags=self.get_lit_conf("cmake_cxx_flags"),
                     cuda_path=self.get_lit_conf("cuda_path"),
                 )

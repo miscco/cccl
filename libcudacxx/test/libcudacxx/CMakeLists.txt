@@ -30,7 +30,6 @@ if (LIBCUDACXX_TEST_WITH_NVRTC)
     set(LIBCUDACXX_TEST_COMPILER_FLAGS "${LIBCUDACXX_TEST_COMPILER_FLAGS} -I'${include}'")
   endforeach()
   set(LIBCUDACXX_CUDA_COMPILER "${CMAKE_BINARY_DIR}/libcudacxx/test/utils/nvidia/nvrtc/nvrtcc")
-  set(LIBCUDACXX_CUDA_COMPILER_ARG1 "")
   set(LIBCUDACXX_CUDA_TEST_WITH_NVRTC "True")
   # Use the NVRTCC utility to run the built test outputs
   set(LIBCUDACXX_EXECUTOR "PrefixExecutor(['${LIBCUDACXX_CUDA_COMPILER}'], LocalExecutor())")
