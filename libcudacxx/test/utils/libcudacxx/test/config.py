@@ -75,11 +75,9 @@ class Configuration(object):
         self.cxx_library_root = None
         self.cxx_runtime_root = None
         self.abi_library_root = None
-        self.link_shared = self.get_lit_bool("enable_shared", default=True)
         self.debug_build = self.get_lit_bool("debug_build", default=False)
         self.exec_env = dict(os.environ)
         self.exec_env["CUDA_MODULE_LOADING"] = "EAGER"
-        self.use_target = False
         self.use_system_cxx_lib = False
         self.use_clang_verify = False
         self.long_tests = None
@@ -225,7 +223,6 @@ class Configuration(object):
         self.configure_execute_external()
         self.configure_ccache()
         self.configure_compile_flags()
-        self.configure_filesystem_compile_flags()
         self.configure_link_flags()
         self.configure_env()
         self.configure_color_diagnostics()
@@ -522,11 +519,6 @@ class Configuration(object):
         self.config.available_features.add(self.cxx_stdlib_under_test)
         if self.cxx_stdlib_under_test == "libstdc++":
             self.config.available_features.add("libstdc++")
-            # Manually enable the experimental and filesystem tests for libstdc++
-            # if the options aren't present.
-            # FIXME this is a hack.
-            if self.get_lit_conf("enable_experimental") is None:
-                self.config.enable_experimental = "true"
 
     def configure_use_clang_verify(self):
         if self.cxx.type == "nvrtcc":
@@ -635,9 +627,8 @@ class Configuration(object):
         if self.long_tests:
             self.config.available_features.add("long_tests")
 
-        if not self.get_lit_bool("enable_filesystem", default=True):
-            self.config.available_features.add("c++filesystem-disabled")
-            self.config.available_features.add("dylib-has-no-filesystem")
+        self.config.available_features.add("c++filesystem-disabled")
+        self.config.available_features.add("dylib-has-no-filesystem")
 
         # Run a compile test for the -fsized-deallocation flag. This is needed
         # in test/std/language.support/support.dynamic/new.delete
@@ -889,8 +880,6 @@ class Configuration(object):
         self.configure_compile_flags_rtti()
         self.configure_compile_flags_abi_version()
         enable_32bit = self.get_lit_bool("enable_32bit", False)
-        if enable_32bit:
-            self.cxx.flags += ["-m32"]
         # Use verbose output for better errors
         if not self.cxx.use_ccache or self.cxx.type == "msvc":
             self.cxx.flags += ["-v"]
@@ -906,13 +895,6 @@ class Configuration(object):
         # being elided.
         if self.is_windows and self.debug_build:
             self.cxx.compile_flags += ["-D_DEBUG"]
-        if self.use_target:
-            if not self.cxx.addFlagIfSupported(
-                ["--target=" + self.config.target_triple]
-            ):
-                self.lit_config.warning(
-                    "use_target is true but --target is not supported by the compiler"
-                )
         if self.use_deployment:
             arch, name, version = self.config.deployment
             self.cxx.flags += ["-arch", arch]
@@ -1063,68 +1045,22 @@ class Configuration(object):
             self.config.available_features.add("libcpp-no-exceptions")
 
     def configure_compile_flags_rtti(self):
-        enable_rtti = self.get_lit_bool("enable_rtti", True)
-        if not enable_rtti:
-            self.config.available_features.add("libcpp-no-rtti")
-            if self.cxx.type == "nvcc":
-                self.cxx.compile_flags += ["-Xcompiler"]
-            if "nvhpc" in self.config.available_features:
-                self.cxx.compile_flags += ["--no_rtti"]
-            elif "msvc" in self.config.available_features:
-                self.cxx.compile_flags += ["/GR-"]
-                self.cxx.compile_flags += ["-D_SILENCE_CXX20_CISO646_REMOVED_WARNING"]
-            else:
-                self.cxx.compile_flags += ["-fno-rtti"]
+        self.config.available_features.add("libcpp-no-rtti")
+        if self.cxx.type == "nvcc":
+            self.cxx.compile_flags += ["-Xcompiler"]
+        if "nvhpc" in self.config.available_features:
+            self.cxx.compile_flags += ["--no_rtti"]
+        elif "msvc" in self.config.available_features:
+            self.cxx.compile_flags += ["/GR-"]
+            self.cxx.compile_flags += ["-D_SILENCE_CXX20_CISO646_REMOVED_WARNING"]
+        else:
+            self.cxx.compile_flags += ["-fno-rtti"]
 
     def configure_compile_flags_abi_version(self):
         abi_unstable = self.get_lit_bool("abi_unstable")
         if abi_unstable:
             self.config.available_features.add("libcpp-abi-unstable")
             self.cxx.compile_flags += ["-D_LIBCUDACXX_ABI_UNSTABLE"]
-
-    def configure_filesystem_compile_flags(self):
-        if not self.get_lit_bool("enable_filesystem", default=True):
-            return
-
-        static_env = os.path.join(
-            self.libcudacxx_src_root,
-            "test",
-            "libcudacxx",
-            "std",
-            "input.output",
-            "filesystems",
-            "Inputs",
-            "static_test_env",
-        )
-        static_env = os.path.realpath(static_env)
-        assert os.path.isdir(static_env)
-        self.cxx.compile_flags += [
-            '-DLIBCXX_FILESYSTEM_STATIC_TEST_ROOT="%s"' % static_env
-        ]
-
-        dynamic_env = os.path.join(
-            self.config.test_exec_root, "filesystem", "Output", "dynamic_env"
-        )
-        dynamic_env = os.path.realpath(dynamic_env)
-        if not os.path.isdir(dynamic_env):
-            os.makedirs(dynamic_env)
-        self.cxx.compile_flags += [
-            '-DLIBCXX_FILESYSTEM_DYNAMIC_TEST_ROOT="%s"' % dynamic_env
-        ]
-        self.exec_env["LIBCXX_FILESYSTEM_DYNAMIC_TEST_ROOT"] = "%s" % dynamic_env
-
-        dynamic_helper = os.path.join(
-            self.libcudacxx_src_root,
-            "test",
-            "support",
-            "filesystem_dynamic_test_helper.py",
-        )
-        assert os.path.isfile(dynamic_helper)
-
-        self.cxx.compile_flags += [
-            '-DLIBCXX_FILESYSTEM_DYNAMIC_TEST_HELPER="%s %s"'
-            % (sys.executable, dynamic_helper)
-        ]
 
     def configure_link_flags(self):
         nvcc_host_compiler = self.get_lit_conf("nvcc_host_compiler")
@@ -1154,7 +1090,6 @@ class Configuration(object):
                         if self.cxx.type == "nvcc":
                             self.cxx.link_flags += ["-Xcompiler"]
                         self.cxx.link_flags += ["-nostdlib"]
-            self.configure_link_flags_cxx_library()
             self.configure_link_flags_abi_library()
             self.configure_extra_library_flags()
         elif self.cxx_stdlib_under_test == "libstdc++":
@@ -1175,8 +1110,6 @@ class Configuration(object):
         if not self.use_system_cxx_lib:
             if self.cxx_library_root:
                 self.cxx.link_flags += ["-L" + self.cxx_library_root]
-                if self.is_windows and self.link_shared:
-                    self.add_path(self.cxx.compile_env, self.cxx_library_root)
             if self.cxx_runtime_root:
                 if not self.is_windows:
                     if self.cxx.type == "nvcc":
@@ -1186,8 +1119,6 @@ class Configuration(object):
                         ]
                     else:
                         self.cxx.link_flags += ["-Wl,-rpath," + self.cxx_runtime_root]
-                elif self.is_windows and self.link_shared:
-                    self.add_path(self.exec_env, self.cxx_runtime_root)
         elif os.path.isdir(str(self.use_system_cxx_lib)):
             self.cxx.link_flags += ["-L" + self.use_system_cxx_lib]
             if not self.is_windows:
@@ -1198,8 +1129,6 @@ class Configuration(object):
                     ]
                 else:
                     self.cxx.link_flags += ["-Wl,-rpath," + self.use_system_cxx_lib]
-            if self.is_windows and self.link_shared:
-                self.add_path(self.cxx.compile_env, self.use_system_cxx_lib)
         additional_flags = self.get_lit_conf("test_linker_flags")
         if additional_flags:
             self.cxx.link_flags += shlex.split(additional_flags)
@@ -1219,14 +1148,6 @@ class Configuration(object):
                     self.cxx.link_flags += ["-Wl,-rpath," + self.abi_library_root]
             else:
                 self.add_path(self.exec_env, self.abi_library_root)
-
-    def configure_link_flags_cxx_library(self):
-        libcxx_experimental = self.get_lit_bool("enable_experimental", default=False)
-        if libcxx_experimental:
-            self.config.available_features.add("c++experimental")
-            self.cxx.link_flags += ["-lc++experimental"]
-        if self.link_shared:
-            self.cxx.link_flags += ["-lc++"]
 
     def configure_link_flags_abi_library(self):
         cxx_abi = self.get_lit_conf("cxx_abi", "libcxxabi")
@@ -1564,22 +1485,14 @@ class Configuration(object):
     def configure_triple(self):
         # Get or infer the target triple.
         target_triple = self.get_lit_conf("target_triple")
-        self.use_target = self.get_lit_bool("use_target", False)
-        if self.use_target and target_triple:
-            self.lit_config.warning("use_target is true but no triple is specified")
 
         # Use deployment if possible.
-        self.use_deployment = not self.use_target and self.can_use_deployment()
+        self.use_deployment = self.can_use_deployment()
         if self.use_deployment:
             return
 
         # Save the triple (and warn on Apple platforms).
         self.config.target_triple = target_triple
-        if self.use_target and "apple" in target_triple:
-            self.lit_config.warning(
-                "consider using arch and platform instead"
-                " of target_triple on Apple platforms"
-            )
 
         # If no target triple was given, try to infer it from the compiler
         # under test.
@@ -1609,7 +1522,6 @@ class Configuration(object):
 
     def configure_deployment(self):
         assert self.use_deployment is not None
-        assert self.use_target is not None
         if not self.use_deployment:
             # Warn about ignored parameters.
             if self.get_lit_conf("arch"):
@@ -1618,7 +1530,6 @@ class Configuration(object):
                 self.lit_config.warning("ignoring platform, using target_triple")
             return
 
-        assert not self.use_target
         assert self.target_info.is_host_macosx()
 
         # Always specify deployment explicitly on Apple platforms, since

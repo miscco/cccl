@@ -220,14 +220,12 @@ class LinuxLocalTI(DefaultTargetInfo):
             "libcpp-has-no-threads" not in self.full_config.config.available_features
         )
         llvm_unwinder = self.full_config.get_lit_bool("llvm_unwinder", False)
-        shared_libcxx = self.full_config.get_lit_bool("enable_shared", True)
         flags += ["-lm"]
         if not llvm_unwinder:
             flags += ["-lgcc_s", "-lgcc"]
         if enable_threads:
             flags += ["-lpthread"]
-            if not shared_libcxx:
-                flags += ["-lrt"]
+            flags += ["-lrt"]
         flags += ["-lc"]
         if llvm_unwinder:
             flags += ["-lunwind", "-ldl"]
