@@ -136,7 +136,8 @@ _CCCL_HOST_DEVICE cudaError_t synchronize_optional(Policy& policy)
 
 #if !_CCCL_COMPILER(NVRTC)
 template <class Type>
-THRUST_HOST_FUNCTION cudaError_t trivial_copy_from_device(Type* dst, Type const* src, size_t count, cudaStream_t stream)
+THRUST_HOST_FUNCTION cudaError_t
+trivial_copy_from_device(Type* dst, Type const* src, size_t count, cudaStream_t stream, bool __must_synchronize = true)
 {
   cudaError status = cudaSuccess;
   if (count == 0)
@@ -145,12 +146,16 @@ THRUST_HOST_FUNCTION cudaError_t trivial_copy_from_device(Type* dst, Type const*
   }
 
   status = ::cudaMemcpyAsync(dst, src, sizeof(Type) * count, cudaMemcpyDeviceToHost, stream);
-  cudaStreamSynchronize(stream);
+  if (__must_synchronize)
+  {
+    cudaStreamSynchronize(stream);
+  }
   return status;
 }
 
 template <class Type>
-THRUST_HOST_FUNCTION cudaError_t trivial_copy_to_device(Type* dst, Type const* src, size_t count, cudaStream_t stream)
+THRUST_HOST_FUNCTION cudaError_t
+trivial_copy_to_device(Type* dst, Type const* src, size_t count, cudaStream_t stream, bool __must_synchronize = true)
 {
   cudaError status = cudaSuccess;
   if (count == 0)
@@ -159,7 +164,10 @@ THRUST_HOST_FUNCTION cudaError_t trivial_copy_to_device(Type* dst, Type const* s
   }
 
   status = ::cudaMemcpyAsync(dst, src, sizeof(Type) * count, cudaMemcpyHostToDevice, stream);
-  cudaStreamSynchronize(stream);
+  if (__must_synchronize)
+  {
+    cudaStreamSynchronize(stream);
+  }
   return status;
 }
 

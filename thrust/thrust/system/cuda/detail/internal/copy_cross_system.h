@@ -62,7 +62,8 @@ THRUST_HOST_FUNCTION void trivial_device_copy(
   thrust::cpp::execution_policy<H>&, thrust::cuda_cub::execution_policy<D>& device_s, T* dst, T const* src, Size count)
 {
   cudaError status;
-  status = cuda_cub::trivial_copy_to_device(dst, src, count, cuda_cub::stream(device_s));
+  status = cuda_cub::trivial_copy_to_device(
+    dst, src, count, cuda_cub::stream(device_s), cuda_cub::must_perform_optional_synchronization(device_s));
   cuda_cub::throw_on_error(status, "__copy::trivial_device_copy H->D: failed");
 }
 
@@ -71,7 +72,8 @@ THRUST_HOST_FUNCTION void trivial_device_copy(
   thrust::cuda_cub::execution_policy<D>& device_s, thrust::cpp::execution_policy<H>&, T* dst, T const* src, Size count)
 {
   cudaError status;
-  status = cuda_cub::trivial_copy_from_device(dst, src, count, cuda_cub::stream(device_s));
+  status = cuda_cub::trivial_copy_from_device(
+    dst, src, count, cuda_cub::stream(device_s), cuda_cub::must_perform_optional_synchronization(device_s));
   cuda_cub::throw_on_error(status, "trivial_device_copy D->H failed");
 }
 
@@ -126,9 +128,13 @@ OutputIt _CCCL_HOST cross_system_copy_n(
   // allocate device temporary storage
   thrust::detail::temporary_array<InputTy, D> d_in_ptr(device_s, num_items);
 
+  // Check whether we can get away without synchronization
+  const bool must_synchronize = cuda_cub::must_perform_optional_synchronization(device_s)
+                             || cuda_cub::must_perform_optional_synchronization(host_s);
+
   // trivial copy data from host to device
-  cudaError status =
-    cuda_cub::trivial_copy_to_device(d_in_ptr.data().get(), temp.data().get(), num_items, cuda_cub::stream(device_s));
+  cudaError status = cuda_cub::trivial_copy_to_device(
+    d_in_ptr.data().get(), temp.data().get(), num_items, cuda_cub::stream(device_s), must_synchronize);
   cuda_cub::throw_on_error(status, "__copy:: H->D: failed");
 
   // device->device copy
@@ -163,10 +169,14 @@ OutputIt _CCCL_HOST cross_system_copy_n(
   // allocate host temp storage
   thrust::detail::temporary_array<InputTy, H> temp(host_s, num_items);
 
+  // Check whether we can get away without synchronization
+  const bool must_synchronize = cuda_cub::must_perform_optional_synchronization(device_s)
+                             || cuda_cub::must_perform_optional_synchronization(host_s);
+
   // trivial copy from device to host
   cudaError status;
-  status =
-    cuda_cub::trivial_copy_from_device(temp.data().get(), d_in_ptr.data().get(), num_items, cuda_cub::stream(device_s));
+  status = cuda_cub::trivial_copy_from_device(
+    temp.data().get(), d_in_ptr.data().get(), num_items, cuda_cub::stream(device_s), must_synchronize);
   cuda_cub::throw_on_error(status, "__copy:: D->H: failed");
 
   // host->host copy
