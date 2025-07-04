@@ -46,16 +46,7 @@
 
 #include <cuda/std/__cccl/prologue.h>
 
-#ifdef LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_OPERATIONS
-#  ifndef LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_MULTIPLICATION
-#    define LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_MULTIPLICATION
-#  endif // LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_MULTIPLICATION
-#  ifndef LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_DIVISION
-#    define LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_DIVISION
-#  endif // LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_DIVISION
-#endif // LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_OPERATIONS
-
-_CCCL_BEGIN_NAMESPACE_CUDA_STD
+_LIBCUDACXX_BEGIN_NAMESPACE_STD
 
 template <class _Tp>
 struct __get_complex_impl;
@@ -282,108 +273,37 @@ operator*(const complex<_Tp>& __z, const complex<_Tp>& __w)
   _Tp __c = __w.real();
   _Tp __d = __w.imag();
 
-#if defined(_CCCL_BUILTIN_IS_CONSTANT_EVALUATED)
-  // Avoid floating point operations that are invalid during constant evaluation
-  if (::cuda::std::is_constant_evaluated())
+  // Annex G.5.1 Multiplicative operators
+  // if one operand is an infinity and the other operand is a nonzero finite number or an
+  // infinity, then the result of the * operator is an infinity;
+  if (::cuda::std::isinf(__a) || ::cuda::std::isinf(__b))
   {
-    bool __z_zero = __a == _Tp(0) && __b == _Tp(0);
-    bool __w_zero = __c == _Tp(0) && __d == _Tp(0);
-    bool __z_inf  = ::cuda::std::isinf(__a) || ::cuda::std::isinf(__b);
-    bool __w_inf  = ::cuda::std::isinf(__c) || ::cuda::std::isinf(__d);
-    bool __z_nan  = !__z_inf
-                && ((::cuda::std::isnan(__a) && ::cuda::std::isnan(__b)) || (::cuda::std::isnan(__a) && __b == _Tp(0))
-                    || (__a == _Tp(0) && ::cuda::std::isnan(__b)));
-    bool __w_nan = !__w_inf
-                && ((::cuda::std::isnan(__c) && ::cuda::std::isnan(__d)) || (::cuda::std::isnan(__c) && __d == _Tp(0))
-                    || (__c == _Tp(0) && ::cuda::std::isnan(__d)));
-    if (__z_nan || __w_nan)
+    if (::cuda::std::isinf(__c) || ::cuda::std::isinf(__d))
     {
-      return complex<_Tp>(_Tp(numeric_limits<_Tp>::quiet_NaN()), _Tp(0));
-    }
-    if (__z_inf || __w_inf)
-    {
-      if (__z_zero || __w_zero)
-      {
-        return complex<_Tp>(_Tp(numeric_limits<_Tp>::quiet_NaN()), _Tp(0));
-      }
       return complex<_Tp>(_Tp(numeric_limits<_Tp>::infinity()), _Tp(numeric_limits<_Tp>::infinity()));
     }
-    bool __z_nonzero_nan = !__z_inf && !__z_nan && (::cuda::std::isnan(__a) || ::cuda::std::isnan(__b));
-    bool __w_nonzero_nan = !__w_inf && !__w_nan && (::cuda::std::isnan(__c) || ::cuda::std::isnan(__d));
-    if (__z_nonzero_nan || __w_nonzero_nan)
+
+    if ((__c != _Tp(0) && !::cuda::std::isnan(__c)) || (__d != _Tp(0) && !::cuda::std::isnan(__d)))
     {
-      return complex<_Tp>(_Tp(numeric_limits<_Tp>::quiet_NaN()), _Tp(0));
+      return complex<_Tp>(_Tp(numeric_limits<_Tp>::infinity()), _Tp(numeric_limits<_Tp>::infinity()));
     }
   }
-#endif // _CCCL_BUILTIN_IS_CONSTANT_EVALUATED
+  else if (::cuda::std::isinf(__c) || ::cuda::std::isinf(__d))
+  {
+    if ((__a != _Tp(0) && !::cuda::std::isnan(__a)) || (__b != _Tp(0) && !::cuda::std::isnan(__b)))
+    {
+      return complex<_Tp>(_Tp(numeric_limits<_Tp>::infinity()), _Tp(numeric_limits<_Tp>::infinity()));
+    }
+  }
+  else if (::cuda::std::isnan(__a) || ::cuda::std::isnan(__b) || ::cuda::std::isnan(__c) || ::cuda::std::isnan(__d))
+  {
+    return complex<_Tp>(_Tp(numeric_limits<_Tp>::quiet_NaN()), _Tp(0));
+  }
 
   __abcd_results<_Tp> __partials = __complex_calculate_partials(__a, __b, __c, __d);
 
   _Tp __x = __partials.__ac - __partials.__bd;
   _Tp __y = __partials.__ad + __partials.__bc;
-#ifndef LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_MULTIPLICATION
-  if (::cuda::std::isnan(__x) && ::cuda::std::isnan(__y))
-  {
-    bool __recalc = false;
-    if (::cuda::std::isinf(__a) || ::cuda::std::isinf(__b))
-    {
-      __a = ::cuda::std::copysign(::cuda::std::isinf(__a) ? _Tp(1) : _Tp(0), __a);
-      __b = ::cuda::std::copysign(::cuda::std::isinf(__b) ? _Tp(1) : _Tp(0), __b);
-      if (::cuda::std::isnan(__c))
-      {
-        __c = ::cuda::std::copysign(_Tp(0), __c);
-      }
-      if (::cuda::std::isnan(__d))
-      {
-        __d = ::cuda::std::copysign(_Tp(0), __d);
-      }
-      __recalc = true;
-    }
-    if (::cuda::std::isinf(__c) || ::cuda::std::isinf(__d))
-    {
-      __c = ::cuda::std::copysign(::cuda::std::isinf(__c) ? _Tp(1) : _Tp(0), __c);
-      __d = ::cuda::std::copysign(::cuda::std::isinf(__d) ? _Tp(1) : _Tp(0), __d);
-      if (::cuda::std::isnan(__a))
-      {
-        __a = ::cuda::std::copysign(_Tp(0), __a);
-      }
-      if (::cuda::std::isnan(__b))
-      {
-        __b = ::cuda::std::copysign(_Tp(0), __b);
-      }
-      __recalc = true;
-    }
-    if (!__recalc
-        && (::cuda::std::isinf(__partials.__ac) || ::cuda::std::isinf(__partials.__bd)
-            || ::cuda::std::isinf(__partials.__ad) || ::cuda::std::isinf(__partials.__bc)))
-    {
-      if (::cuda::std::isnan(__a))
-      {
-        __a = ::cuda::std::copysign(_Tp(0), __a);
-      }
-      if (::cuda::std::isnan(__b))
-      {
-        __b = ::cuda::std::copysign(_Tp(0), __b);
-      }
-      if (::cuda::std::isnan(__c))
-      {
-        __c = ::cuda::std::copysign(_Tp(0), __c);
-      }
-      if (::cuda::std::isnan(__d))
-      {
-        __d = ::cuda::std::copysign(_Tp(0), __d);
-      }
-      __recalc = true;
-    }
-    if (__recalc)
-    {
-      __partials = __complex_calculate_partials(__a, __b, __c, __d);
-
-      __x = numeric_limits<_Tp>::infinity() * (__partials.__ac - __partials.__bd);
-      __y = numeric_limits<_Tp>::infinity() * (__partials.__ad + __partials.__bc);
-    }
-  }
-#endif // LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_MULTIPLICATION
   return complex<_Tp>(__x, __y);
 }
 
