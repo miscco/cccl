@@ -417,8 +417,8 @@ operator/(const complex<_Tp>& __z, const complex<_Tp>& __w)
   if (::cuda::std::isfinite(__logbw))
   {
     __ilogbw = static_cast<int>(__logbw);
-    __c      = ::cuda::std::__constexpr_scalbn(__c, -__ilogbw);
-    __d      = ::cuda::std::__constexpr_scalbn(__d, -__ilogbw);
+    __c      = ::cuda::std::scalbn(__c, -__ilogbw);
+    __d      = ::cuda::std::scalbn(__d, -__ilogbw);
   }
 
 #if defined(_CCCL_BUILTIN_IS_CONSTANT_EVALUATED)
@@ -472,8 +472,8 @@ operator/(const complex<_Tp>& __z, const complex<_Tp>& __w)
   __ab_results<_Tp> __denom_vec  = __complex_piecewise_mul(__c, __d, __c, __d);
 
   _Tp __denom = __denom_vec.__a + __denom_vec.__b;
-  _Tp __x     = ::cuda::std::__constexpr_scalbn((__partials.__ac + __partials.__bd) / __denom, -__ilogbw);
-  _Tp __y     = ::cuda::std::__constexpr_scalbn((__partials.__bc - __partials.__ad) / __denom, -__ilogbw);
+  _Tp __x     = ::cuda::std::scalbn((__partials.__ac + __partials.__bd) / __denom, -__ilogbw);
+  _Tp __y     = ::cuda::std::scalbn((__partials.__bc - __partials.__ad) / __denom, -__ilogbw);
 #ifndef LIBCUDACXX_ENABLE_SIMPLIFIED_COMPLEX_DIVISION
   if (::cuda::std::isnan(__x) && ::cuda::std::isnan(__y))
   {

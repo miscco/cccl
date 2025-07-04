@@ -33,6 +33,20 @@
 
 _CCCL_BEGIN_NAMESPACE_CUDA_STD
 
+// __fp_zero
+
+template <__fp_format _Fmt>
+[[nodiscard]] _CCCL_API constexpr __fp_storage_t<_Fmt> __fp_zero() noexcept
+{
+  return 0;
+}
+
+template <class _Tp>
+[[nodiscard]] _CCCL_API constexpr _Tp __fp_zero() noexcept
+{
+  return _CUDA_VSTD::__fp_from_storage<_Tp>(_CUDA_VSTD::__fp_zero<__fp_format_of_v<_Tp>>());
+}
+
 // __fp_inf
 
 template <__fp_format _Fmt>
