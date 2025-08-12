@@ -207,6 +207,18 @@ OutputIt THRUST_FUNCTION cub_transform_many(
 template <class Derived, class Offset, class... InputIts, class OutputIt, class TransformOp>
 OutputIt THRUST_FUNCTION cub_transform_many(
   execution_policy<Derived>& policy,
+  ::cuda::std::tuple<thrust::zip_iterator<InputIts...>> firsts,
+  OutputIt result,
+  Offset num_items,
+  thrust::zip_function<TransformOp> transform_op)
+{
+  return cub_transform_many(
+    policy, get<0>(firsts).get_iterator_tuple(), result, num_items, transform_op.underlying_function());
+}
+
+template <class Derived, class Offset, class... InputIts, class OutputIt, class TransformOp>
+OutputIt THRUST_FUNCTION cub_transform_many(
+  execution_policy<Derived>& policy,
   ::cuda::std::tuple<thrust::zip_iterator<::cuda::std::tuple<InputIts...>>> firsts,
   OutputIt result,
   Offset num_items,

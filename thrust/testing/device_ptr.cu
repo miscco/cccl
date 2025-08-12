@@ -123,3 +123,21 @@ void TestDevicePointerBoolConversion()
   ASSERT_EQUAL_QUIET(false, b);
 }
 DECLARE_GENERIC_UNITTEST(TestDevicePointerBoolConversion);
+
+void TestDevicePtrToAddress()
+{
+  int meow = 42;
+  thrust::device_ptr<int> ptr{&meow};
+
+  ASSERT_EQUAL(&meow, cuda::std::pointer_traits<thrust::device_ptr<int>>::to_address(ptr));
+  ASSERT_EQUAL(&meow, cuda::std::to_address(ptr));
+  ASSERT_EQUAL(&meow, cuda::std::__to_address(ptr));
+
+  thrust::device_vector<int> vec{1, 2, 3, 4, 5};
+  auto* pointer = thrust::raw_pointer_cast(vec.data());
+  auto iter     = vec.begin();
+  ASSERT_EQUAL(pointer, cuda::std::pointer_traits<decltype(iter)>::to_address(iter));
+  ASSERT_EQUAL(pointer, cuda::std::to_address(iter));
+  ASSERT_EQUAL(pointer, cuda::std::__to_address(iter));
+}
+DECLARE_UNITTEST(TestDevicePtrToAddress);
