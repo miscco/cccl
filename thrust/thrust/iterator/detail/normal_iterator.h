@@ -33,6 +33,8 @@
 #include <thrust/iterator/iterator_adaptor.h>
 #include <thrust/type_traits/is_contiguous_iterator.h>
 
+#include <cuda/std/__memory/pointer_traits.h>
+
 THRUST_NAMESPACE_BEGIN
 namespace detail
 {
@@ -67,3 +69,18 @@ struct proclaim_contiguous_iterator<detail::normal_iterator<T>> : true_type
 {};
 
 THRUST_NAMESPACE_END
+
+_LIBCUDACXX_BEGIN_NAMESPACE_STD
+template <class Pointer>
+struct pointer_traits<THRUST_NS_QUALIFIER::detail::normal_iterator<Pointer>>
+{
+  using pointer         = THRUST_NS_QUALIFIER::detail::normal_iterator<Pointer>;
+  using element_type    = typename pointer_traits<Pointer>::element_type;
+  using difference_type = typename pointer_traits<Pointer>::difference_type;
+
+  _CCCL_API static constexpr element_type* to_address(const pointer& iter) noexcept
+  {
+    return _CUDA_VSTD::to_address(iter.base());
+  }
+};
+_LIBCUDACXX_END_NAMESPACE_STD

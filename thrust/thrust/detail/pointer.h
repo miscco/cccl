@@ -38,6 +38,7 @@
 #include <thrust/iterator/iterator_adaptor.h>
 #include <thrust/iterator/iterator_traversal_tags.h>
 
+#include <cuda/std/__memory/pointer_traits.h>
 #include <cuda/std/cstddef>
 #include <cuda/std/type_traits>
 
@@ -307,3 +308,18 @@ public:
  */
 
 THRUST_NAMESPACE_END
+
+_LIBCUDACXX_BEGIN_NAMESPACE_STD
+template <typename Element, typename Tag, typename Reference, typename Derived>
+struct pointer_traits<THRUST_NS_QUALIFIER::pointer<Element, Tag, Reference, Derived>>
+{
+  using pointer         = THRUST_NS_QUALIFIER::pointer<Element, Tag, Reference, Derived>;
+  using element_type    = Element;
+  using difference_type = typename pointer::difference_type;
+
+  _CCCL_API static constexpr element_type* to_address(const pointer& iter) noexcept
+  {
+    return iter.get();
+  }
+};
+_LIBCUDACXX_END_NAMESPACE_STD
