@@ -61,19 +61,19 @@ template <class _ExecutionPolicy>
 struct __select_backend;
 
 template <>
-struct __select_backend<_CUDA_VEXEC::sequenced_policy>
+struct __select_backend<_CUDA_STD_EXEC::sequenced_policy>
 {
   using type = __cpu_backend_tag;
 };
 
 template <>
-struct __select_backend<_CUDA_VEXEC::unsequenced_policy_host>
+struct __select_backend<_CUDA_STD_EXEC::unsequenced_policy_host>
 {
   using type = __cpu_backend_tag;
 };
 
 template <>
-struct __select_backend<_CUDA_VEXEC::unsequenced_policy_device>
+struct __select_backend<_CUDA_STD_EXEC::unsequenced_policy_device>
 {
   // TODO: fixme
   using type = __cpu_backend_tag;
@@ -81,26 +81,26 @@ struct __select_backend<_CUDA_VEXEC::unsequenced_policy_device>
 
 #if defined(_LIBCUDACXX_PSTL_CPU_BACKEND_SERIAL)
 template <>
-struct __select_backend<_CUDA_VEXEC::parallel_policy_host>
+struct __select_backend<_CUDA_STD_EXEC::parallel_policy_host>
 {
   using type = __cpu_backend_tag;
 };
 
 template <>
-struct __select_backend<_CUDA_VEXEC::parallel_policy_device>
+struct __select_backend<_CUDA_STD_EXEC::parallel_policy_device>
 {
   // TODO: fixme
   using type = __cpu_backend_tag;
 };
 
 template <>
-struct __select_backend<_CUDA_VEXEC::parallel_unsequenced_policy_host>
+struct __select_backend<_CUDA_STD_EXEC::parallel_unsequenced_policy_host>
 {
   using type = __cpu_backend_tag;
 };
 
 template <>
-struct __select_backend<_CUDA_VEXEC::parallel_unsequenced_policy_device>
+struct __select_backend<_CUDA_STD_EXEC::parallel_unsequenced_policy_device>
 {
   // TODO: fixme
   using type = __cpu_backend_tag;

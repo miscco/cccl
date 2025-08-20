@@ -65,7 +65,7 @@ struct __pstl_generic_for_each_n
   {
     if constexpr (random_access_iterator<_ForwardIterator>)
     {
-      _RawPolicy __policy{_CUDA_VEXEC::__disable_user_instantiations_tag{}};
+      _RawPolicy __policy{_CUDA_STD_EXEC::__cccl_disable_user_instantiations_tag{}};
       _CUDA_VSTD::for_each(__policy, _CUDA_VSTD::move(__g_first), __g_first + __g_size, _CUDA_VSTD::move(__g_func));
       return __pstl_optional<__empty>{__empty{}};
     }

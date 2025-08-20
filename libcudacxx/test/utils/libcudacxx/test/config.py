@@ -424,6 +424,10 @@ class Configuration(object):
                     )
                 )
 
+            if self.get_lit_bool('use_openmp', True):
+                self.cxx.link_flags += ['-lgomp']
+                self.cxx.compile_flags += ['-Xcompiler=-fopenmp']
+
     def _configure_clang_cl(self, clang_path):
         def _split_env_var(var):
             return [p.strip() for p in os.environ.get(var, "").split(";") if p.strip()]
