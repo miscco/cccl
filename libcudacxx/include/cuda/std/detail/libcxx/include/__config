@@ -230,6 +230,9 @@ extern "C++" {
       _CCCL_HIDE_FROM_ABI constexpr __class() noexcept = default;
 #  endif // ^^^ no workaround ^^^
 
+// FIXME: obvious hack
+#  define _LIBCUDACXX_PSTL_CPU_BACKEND_SERIAL
+
 #endif // __cplusplus
 
 #endif // _LIBCUDACXX_CONFIG
