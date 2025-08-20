@@ -66,9 +66,25 @@ struct Test
   }
 };
 
+template <class Iter>
+struct TestRanges
+{
+  template <class Policy>
+  __host__ __device__ void operator()(Policy&& policy)
+  {
+    for (size_t i = 0; i < num_tests; ++i)
+    {
+      cuda::std::fill(cuda::std::begin(data), cuda::std::end(data), Bool{false});
+      cuda::std::ranges::for_each_n(policy, Iter(data), sizes[i], test_functor{});
+      assert(cuda::std::all_of(data, data + sizes[i], convert_to_bool{}));
+    }
+  }
+};
+
 int main(int, char**)
 {
   types::for_each(types::forward_iterator_list<Bool*>{}, TestIteratorWithPolicies<Test>{});
+  types::for_each(types::forward_iterator_list<Bool*>{}, TestIteratorWithPolicies<TestRanges>{});
 
   return 0;
 }

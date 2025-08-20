@@ -21,13 +21,18 @@
 #endif // no system header
 
 #include <cuda/std/__algorithm/in_fun_result.h>
+#include <cuda/std/__algorithm/pstl_backend.h>
+#include <cuda/std/__algorithm/pstl_backends/optional.h>
+#include <cuda/std/__algorithm/pstl_frontend_dispatch.h>
 #include <cuda/std/__functional/identity.h>
 #include <cuda/std/__functional/invoke.h>
 #include <cuda/std/__iterator/concepts.h>
 #include <cuda/std/__iterator/projected.h>
+#include <cuda/std/__new/bad_alloc.h>
 #include <cuda/std/__ranges/access.h>
 #include <cuda/std/__ranges/concepts.h>
 #include <cuda/std/__ranges/dangling.h>
+#include <cuda/std/__type_traits/is_execution_policy.h>
 #include <cuda/std/__utility/move.h>
 
 #include <cuda/std/__cccl/prologue.h>
@@ -69,6 +74,55 @@ public:
   {
     return __for_each_impl(::cuda::std::ranges::begin(__range), ::cuda::std::ranges::end(__range), __func, __proj);
   }
+
+  _CCCL_TEMPLATE(class _ExecutionPolicy,
+                 class _Iter,
+                 class _Sent,
+                 class _Func,
+                 class _Proj      = identity,
+                 class _RawPolicy = remove_cvref_t<_ExecutionPolicy>)
+  _CCCL_REQUIRES(is_execution_policy_v<_RawPolicy> _CCCL_AND forward_iterator<_Iter> _CCCL_AND
+                   indirectly_unary_invocable<_Func, projected<_Iter, _Proj>>)
+  _CCCL_API constexpr for_each_result<_Iter, _Func>
+  operator()(_ExecutionPolicy&& __policy, _Iter __first, _Sent __last, _Func __func, _Proj __proj = {}) const
+  {
+    using _Backend = _CUDA_VSTD::__select_backend_t<_RawPolicy>;
+    auto __res     = _CUDA_VSTD::__pstl_ranges_for_each<_RawPolicy>(
+      _Backend{},
+      _CUDA_VSTD::move(__first),
+      _CUDA_VSTD::move(__last),
+      _CUDA_VSTD::move(__func),
+      _CUDA_VSTD::move(__proj));
+    if (!__res)
+    {
+      _CUDA_VSTD::__throw_bad_alloc();
+    }
+    return __res.__val_;
+  }
+
+  _CCCL_TEMPLATE(class _ExecutionPolicy,
+                 class _Range,
+                 class _Func,
+                 class _Proj      = identity,
+                 class _RawPolicy = remove_cvref_t<_ExecutionPolicy>)
+  _CCCL_REQUIRES(is_execution_policy_v<_RawPolicy> _CCCL_AND forward_range<_Range> _CCCL_AND
+                   indirectly_unary_invocable<_Func, projected<iterator_t<_Range>, _Proj>>)
+  _CCCL_API constexpr for_each_result<borrowed_iterator_t<_Range>, _Func>
+  operator()(_ExecutionPolicy&& __policy, _Range&& __range, _Func __func, _Proj __proj = {}) const
+  {
+    using _Backend = _CUDA_VSTD::__select_backend_t<_RawPolicy>;
+    auto __res     = _CUDA_VSTD::__pstl_ranges_for_each<_RawPolicy>(
+      _Backend{},
+      _CUDA_VRANGES::begin(__range),
+      _CUDA_VRANGES::end(__range),
+      _CUDA_VSTD::move(__func),
+      _CUDA_VSTD::move(__proj));
+    if (!__res)
+    {
+      _CUDA_VSTD::__throw_bad_alloc();
+    }
+    return __res.__val_;
+  }
 };
 _CCCL_END_NAMESPACE_CPO
 
@@ -76,6 +130,14 @@ inline namespace __cpo
 {
 _CCCL_GLOBAL_CONSTANT auto for_each = __for_each::__fn{};
 } // namespace __cpo
+
+template <class _Iter, class _Sent, class _Func, class _Proj>
+_CCCL_API constexpr in_fun_result<_Iter, _Func>
+__ranges_for_each_indirection(_Iter __first, _Sent __last, _Func __func, _Proj __proj)
+{
+  return for_each(
+    _CUDA_VSTD::move(__first), _CUDA_VSTD::move(__last), _CUDA_VSTD::move(__func), _CUDA_VSTD::move(__proj));
+}
 
 _CCCL_END_NAMESPACE_RANGES
 
