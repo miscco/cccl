@@ -25,6 +25,7 @@
 #include <cuda/std/__mdspan/concepts.h>
 #include <cuda/std/__mdspan/extents.h>
 #include <cuda/std/__mdspan/layout_left.h>
+#include <cuda/std/__mdspan/layout_left_padded.h>
 #include <cuda/std/__mdspan/layout_right.h>
 #include <cuda/std/__mdspan/layout_stride.h>
 #include <cuda/std/__mdspan/mdspan.h>

@@ -30,6 +30,7 @@
 
 #include <cuda/std/__fwd/extents.h>
 #include <cuda/std/__type_traits/void_t.h>
+#include <cuda/std/cstddef>
 
 #include <cuda/std/__cccl/prologue.h>
 
@@ -57,6 +58,15 @@ struct layout_right
 struct layout_stride
 {
   template <class Extents>
+  class mapping;
+};
+
+// layout_left_padded provides a layout mapping that behaves like layout_left​::​mapping, except that the padding
+// stride stride(1) can be greater than or equal to extent(0).
+template <size_t _PaddingValue>
+struct layout_left_padded
+{
+  template <class _Extents>
   class mapping;
 };
 

@@ -28,6 +28,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cuda/__cmath/ceil_div.h>
 #include <cuda/std/__concepts/concept_macros.h>
 #include <cuda/std/__concepts/convertible_to.h>
 #include <cuda/std/__concepts/copyable.h>
@@ -133,6 +134,23 @@ template <class _AccessorPolicy>
 _CCCL_CONCEPT __has_detect_invalidity =
   _CCCL_REQUIRES_EXPR((_AccessorPolicy), _AccessorPolicy __ap)(__ap.__detectably_invalid(
     ::cuda::std::declval<typename _AccessorPolicy::data_handle_type>(), ::cuda::std::declval<::cuda::std::size_t>()));
+
+_CCCL_TEMPLATE(typename _Integer)
+_CCCL_REQUIRES(is_integral_v<_Integer>)
+[[nodiscard]] _CCCL_API constexpr _Integer __least_multiple_at_least(const _Integer __x, const _Integer __y) noexcept
+{
+  // [mdspan.layout.general#2.4]
+  if constexpr (is_signed_v<_Integer>)
+  {
+    _CCCL_ASSERT(__x >= 0 && __y >= 0, "LEAST-MULTIPLE-AT-LEAST: x and y must be nonnegative!");
+  }
+
+  if (__x == 0)
+  {
+    return __y;
+  }
+  return static_cast<_Integer>(::cuda::ceil_div(__y, __x) * __x);
+}
 
 _CCCL_END_NAMESPACE_CUDA_STD
 
