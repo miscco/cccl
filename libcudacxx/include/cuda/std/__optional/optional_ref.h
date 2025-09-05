@@ -70,6 +70,9 @@ private:
   template <class>
   friend struct __optional_storage_base;
 
+  template <class>
+  friend struct __optional_move_assign_base;
+
   [[nodiscard]] _CCCL_API constexpr _Tp& __get() noexcept
   {
     return *__value_;

@@ -55,6 +55,252 @@ _CCCL_BEGIN_NAMESPACE_CUDA_STD
 struct __optional_construct_from_invoke_tag
 {};
 
+#if _CCCL_HAS_CONCEPTS()
+template <class _Tp>
+struct __optional_move_assign_base
+{
+  using value_type = _Tp;
+  static_assert(is_object_v<value_type>, "instantiation of optional with a non-object type is undefined behavior");
+
+  union __storage
+  {
+    char __null_state_;
+    remove_cv_t<value_type> __val_;
+
+    _CCCL_API constexpr __storage() noexcept
+        : __null_state_()
+    {}
+
+    _CCCL_EXEC_CHECK_DISABLE
+    template <class... _Args>
+    _CCCL_API constexpr __storage(in_place_t,
+                                  _Args&&... __args) noexcept(is_nothrow_constructible_v<value_type, _Args...>)
+        : __val_(::cuda::std::forward<_Args>(__args)...)
+    {}
+    _CCCL_EXEC_CHECK_DISABLE
+    template <class _Fp, class... _Args>
+    _CCCL_API constexpr __storage(__optional_construct_from_invoke_tag, _Fp&& __f, _Args&&... __args)
+        : __val_(::cuda::std::invoke(::cuda::std::forward<_Fp>(__f), ::cuda::std::forward<_Args>(__args)...))
+    {}
+
+    // Destructors
+    _CCCL_EXEC_CHECK_DISABLE
+    _CCCL_HIDE_FROM_ABI constexpr ~__storage() noexcept
+      requires is_trivially_destructible_v<_Tp>
+    = default;
+
+    _CCCL_HIDE_FROM_ABI constexpr ~__storage() noexcept
+      requires(!is_destructible_v<_Tp>)
+    = delete;
+
+    _CCCL_EXEC_CHECK_DISABLE
+    _CCCL_API constexpr ~__storage() noexcept
+    {
+      __val_.~value_type();
+    }
+  };
+  __storage __storage_;
+  bool __engaged_;
+
+  _CCCL_API constexpr __optional_move_assign_base() noexcept
+      : __storage_()
+      , __engaged_(false)
+  {}
+
+  // Copy constructor
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_HIDE_FROM_ABI constexpr __optional_move_assign_base(const __optional_move_assign_base&)
+    requires is_trivially_copy_constructible_v<_Tp>
+  = default;
+
+  _CCCL_HIDE_FROM_ABI constexpr __optional_move_assign_base(const __optional_move_assign_base&)
+    requires(!is_copy_constructible_v<_Tp>)
+  = delete;
+
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_API constexpr __optional_move_assign_base(const __optional_move_assign_base& __other) noexcept(
+    is_nothrow_copy_constructible_v<_Tp>)
+      : __storage_()
+      , __engaged_(__other.__engaged_)
+  {
+    if (__engaged_)
+    {
+      ::cuda::std::construct_at(&__storage_, in_place, __other.__storage_.__val_);
+    }
+  }
+
+  // Move constructor
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_HIDE_FROM_ABI constexpr __optional_move_assign_base(__optional_move_assign_base&&)
+    requires is_trivially_move_constructible_v<_Tp>
+  = default;
+
+  _CCCL_HIDE_FROM_ABI constexpr __optional_move_assign_base(__optional_move_assign_base&&)
+    requires(!is_move_constructible_v<_Tp>)
+  = delete;
+
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_API constexpr __optional_move_assign_base(__optional_move_assign_base&& __other) noexcept(
+    is_nothrow_move_constructible_v<_Tp>)
+      : __storage_()
+      , __engaged_(__other.__engaged_)
+  {
+    if (__engaged_)
+    {
+      ::cuda::std::construct_at(&__storage_, in_place, ::cuda::std::move(__other.__storage_.__val_));
+    }
+  }
+
+  // Other constructors
+  template <class... _Args>
+  _CCCL_API constexpr explicit __optional_move_assign_base(in_place_t, _Args&&... __args) noexcept(
+    is_nothrow_constructible_v<value_type, _Args...>)
+      : __storage_(in_place, ::cuda::std::forward<_Args>(__args)...)
+      , __engaged_(true)
+  {}
+
+  template <class _Fp, class... _Args>
+  _CCCL_API constexpr __optional_move_assign_base(__optional_construct_from_invoke_tag, _Fp&& __f, _Args&&... __args)
+      : __storage_(__optional_construct_from_invoke_tag{},
+                   ::cuda::std::forward<_Fp>(__f),
+                   ::cuda::std::forward<_Args>(__args)...)
+      , __engaged_(true)
+  {}
+
+  // Copy assignment
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_HIDE_FROM_ABI constexpr __optional_move_assign_base& operator=(const __optional_move_assign_base&)
+    requires is_trivially_destructible_v<_Tp> && is_trivially_copy_constructible_v<_Tp>
+            && is_trivially_copy_assignable_v<_Tp>
+  = default;
+
+  _CCCL_HIDE_FROM_ABI constexpr __optional_move_assign_base& operator=(const __optional_move_assign_base&)
+    requires(!(is_destructible_v<_Tp> && is_copy_constructible_v<_Tp> && is_copy_assignable_v<_Tp>) )
+  = delete;
+
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_API constexpr __optional_move_assign_base& operator=(const __optional_move_assign_base& __other) noexcept(
+    is_nothrow_copy_constructible_v<_Tp> && is_nothrow_copy_assignable_v<_Tp>)
+  {
+    __assign_from(__other);
+    return *this;
+  }
+
+  // Move assignment
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_HIDE_FROM_ABI constexpr __optional_move_assign_base& operator=(__optional_move_assign_base&&)
+    requires is_trivially_destructible_v<_Tp> && is_trivially_move_constructible_v<_Tp>
+            && is_trivially_move_assignable_v<_Tp>
+  = default;
+
+  _CCCL_HIDE_FROM_ABI constexpr __optional_move_assign_base& operator=(__optional_move_assign_base&&)
+    requires(!(is_destructible_v<_Tp> && is_move_constructible_v<_Tp> && is_move_assignable_v<_Tp>) )
+  = delete;
+
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_API constexpr __optional_move_assign_base& operator=(__optional_move_assign_base&& __other) noexcept(
+    is_nothrow_copy_constructible_v<_Tp> && is_nothrow_copy_assignable_v<_Tp>)
+  {
+    this->__assign_from(::cuda::std::move(__other));
+    return *this;
+  }
+
+  // Destructors
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_HIDE_FROM_ABI constexpr ~__optional_move_assign_base() noexcept
+    requires is_trivially_destructible_v<_Tp>
+  = default;
+
+  _CCCL_HIDE_FROM_ABI constexpr ~__optional_move_assign_base() noexcept
+    requires(!is_destructible_v<_Tp>)
+  = delete;
+
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_API constexpr ~__optional_move_assign_base() noexcept
+  {
+    if (__engaged_)
+    {
+      __storage_.__val_.~value_type();
+    }
+  }
+
+  _CCCL_EXEC_CHECK_DISABLE
+  _CCCL_API inline _CCCL_CONSTEXPR_CXX20 void reset() noexcept
+  {
+    if (__engaged_)
+    {
+      __storage_.__val_.~value_type();
+      __engaged_ = false;
+    }
+  }
+
+  [[nodiscard]] _CCCL_API constexpr bool has_value() const noexcept
+  {
+    return __engaged_;
+  }
+
+  [[nodiscard]] _CCCL_API constexpr value_type& __get() & noexcept
+  {
+    return __storage_.__val_;
+  }
+  [[nodiscard]] _CCCL_API constexpr const value_type& __get() const& noexcept
+  {
+    return __storage_.__val_;
+  }
+  [[nodiscard]] _CCCL_API constexpr value_type&& __get() && noexcept
+  {
+    return ::cuda::std::move(__storage_.__val_);
+  }
+  [[nodiscard]] _CCCL_API constexpr const value_type&& __get() const&& noexcept
+  {
+    return ::cuda::std::move(__storage_.__val_);
+  }
+
+  _CCCL_EXEC_CHECK_DISABLE
+  template <class... _Args>
+  _CCCL_API inline constexpr void __construct(_Args&&... __args)
+  {
+    _CCCL_ASSERT(__engaged_, "__construct called for engaged __optional_storage");
+    ::cuda::std::construct_at(&__storage_, in_place, ::cuda::std::forward<_Args>(__args)...);
+    __engaged_ = true;
+  }
+
+  template <class _That>
+  _CCCL_API constexpr void __construct_from(_That&& __opt)
+  {
+    if (__opt.__engaged_)
+    {
+      ::cuda::std::construct_at(&__storage_, in_place, ::cuda::std::forward<_That>(__opt).__get());
+    }
+  }
+
+  _CCCL_EXEC_CHECK_DISABLE
+  template <class _That>
+  _CCCL_API constexpr void __assign_from(_That&& __opt)
+  {
+    if (__engaged_ == __opt.__engaged_)
+    {
+      if (__engaged_)
+      {
+        __storage_.__val_ = ::cuda::std::forward<_That>(__opt).__get();
+      }
+    }
+    else
+    {
+      if (__engaged_)
+      {
+        reset();
+      }
+      else
+      {
+        ::cuda::std::construct_at(&__storage_, in_place, ::cuda::std::forward<_That>(__opt).__get());
+      }
+    }
+  }
+};
+
+#else
+
 template <class _Tp, bool = is_trivially_destructible_v<_Tp>>
 struct __optional_destruct_base;
 
@@ -422,6 +668,8 @@ struct __optional_move_assign_base<_Tp, __smf_availability::__deleted> : __optio
   _CCCL_HIDE_FROM_ABI __optional_move_assign_base& operator=(const __optional_move_assign_base&) = default;
   _CCCL_HIDE_FROM_ABI __optional_move_assign_base& operator=(__optional_move_assign_base&&)      = delete;
 };
+
+#endif // !_CCCL_HAS_CONCEPTS()
 
 _CCCL_END_NAMESPACE_CUDA_STD
 
