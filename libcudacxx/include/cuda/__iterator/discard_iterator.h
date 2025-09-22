@@ -75,8 +75,7 @@ private:
 public:
   struct __discard_proxy
   {
-    _CCCL_TEMPLATE(class _Tp)
-    _CCCL_REQUIRES((!::cuda::std::is_same_v<::cuda::std::remove_cvref_t<_Tp>, __discard_proxy>) )
+    template <class _Tp>
     _CCCL_API constexpr const __discard_proxy& operator=(_Tp&&) const noexcept
     {
       return *this;
