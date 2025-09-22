@@ -30,7 +30,6 @@
 #include <cub/device/device_select.cuh>
 
 #include <thrust/detail/raw_pointer_cast.h>
-#include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 
@@ -181,7 +180,7 @@ C2H_TEST("DeviceSelect::UniqueByKey handles none equal", "[device][select_unique
   select_unique_by_key(
     cuda::counting_iterator<type>(0),
     vals_in.begin(),
-    thrust::discard_iterator<>(),
+    cuda::discard_iterator{},
     vals_out.begin(),
     d_first_num_selected_out,
     num_items);
@@ -238,8 +237,8 @@ C2H_TEST("DeviceSelect::UniqueByKey does not change input", "[device][select_uni
   select_unique_by_key(
     keys_in.begin(),
     vals_in.begin(),
-    thrust::discard_iterator<>(),
-    thrust::discard_iterator<>(),
+    cuda::discard_iterator{},
+    cuda::discard_iterator{},
     d_first_num_selected_out,
     num_items);
 
@@ -494,8 +493,8 @@ C2H_TEST("DeviceSelect::UniqueByKey works for very large outputs that needs 64-b
   select_unique_by_key(
     keys_in,
     values_in,
-    thrust::make_discard_iterator(),
-    thrust::make_discard_iterator(),
+    cuda::make_discard_iterator(),
+    cuda::make_discard_iterator(),
     d_first_num_selected_out,
     num_items);
 

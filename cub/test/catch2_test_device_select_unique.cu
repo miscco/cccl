@@ -30,7 +30,6 @@
 #include <cub/device/device_select.cuh>
 
 #include <thrust/iterator/constant_iterator.h>
-#include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/tabulate_output_iterator.h>
 
 #include <cuda/cmath>
@@ -143,7 +142,7 @@ C2H_TEST("DeviceSelect::Unique handles none equal", "[device][select_unique]", t
   c2h::device_vector<int> num_selected_out(1, 0);
   int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
 
-  select_unique(cuda::counting_iterator<type>(0), thrust::discard_iterator<>(), d_first_num_selected_out, num_items);
+  select_unique(cuda::counting_iterator<type>(0), cuda::discard_iterator{}, d_first_num_selected_out, num_items);
 
   REQUIRE(num_selected_out[0] == num_items);
 }

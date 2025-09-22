@@ -376,7 +376,7 @@ C2H_TEST("Device three-way partition handles reverse iterator", "[partition][dev
   partition(
     in.cbegin(),
     first_and_unselected_part.begin(),
-    thrust::make_discard_iterator(),
+    cuda::make_discard_iterator(),
     first_and_unselected_part.rbegin(),
     num_selected_out.begin(),
     num_items,

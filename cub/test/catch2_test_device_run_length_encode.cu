@@ -30,7 +30,6 @@
 #include <cub/device/device_run_length_encode.cuh>
 
 #include <thrust/iterator/constant_iterator.h>
-#include <thrust/iterator/discard_iterator.h>
 #include <thrust/sequence.h>
 
 #include <cuda/iterator>

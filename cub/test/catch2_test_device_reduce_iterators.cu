@@ -30,7 +30,8 @@
 #include <cub/device/device_reduce.cuh>
 
 #include <thrust/iterator/constant_iterator.h>
-#include <thrust/iterator/discard_iterator.h>
+
+#include <cuda/iterator>
 
 #include <cstdint>
 
@@ -142,5 +143,5 @@ C2H_TEST("Device reduce compiles with discard output iterator", "[reduce][device
   auto reduction_op = op_t{};
 
   // Run test
-  device_reduce(in_it, thrust::make_discard_iterator(), num_items, reduction_op, init_t{});
+  device_reduce(in_it, cuda::make_discard_iterator(), num_items, reduction_op, init_t{});
 }

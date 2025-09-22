@@ -6,7 +6,6 @@
 #include <cub/device/device_segmented_reduce.cuh>
 #include <cub/thread/thread_operators.cuh>
 
-#include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
 
 #include <cuda/iterator>
@@ -127,7 +126,7 @@ C2H_TEST("Device reduce fails for large number of segments if the iterator canno
     d_temp_storage,
     temp_storage_bytes,
     input_data_it,
-    thrust::make_discard_iterator(),
+    cuda::make_discard_iterator(),
     num_segments,
     begin_offsets_it,
     end_offsets_it);
@@ -138,7 +137,7 @@ C2H_TEST("Device reduce fails for large number of segments if the iterator canno
     d_temp_storage,
     temp_storage_bytes,
     input_data_it,
-    thrust::make_discard_iterator(),
+    cuda::make_discard_iterator(),
     num_segments,
     begin_offsets_it,
     end_offsets_it);

@@ -39,7 +39,7 @@
 THRUST_NAMESPACE_BEGIN
 
 template <typename>
-class discard_iterator;
+class CCCL_DEPRECATED_BECAUSE("Use cuda::make_discard_iterator instead") discard_iterator;
 
 namespace detail
 {
@@ -108,7 +108,8 @@ _CCCL_DIAG_SUPPRESS_MSVC(4244 4267) // possible loss of data
 //!
 //! \see make_discard_iterator
 template <typename System = use_default>
-class discard_iterator : public detail::make_discard_iterator_base<System>::type
+class CCCL_DEPRECATED_BECAUSE("Use cuda::discard_iterator instead") discard_iterator
+    : public detail::make_discard_iterator_base<System>::type
 {
   //! \cond
   friend class iterator_core_access;
@@ -150,7 +151,8 @@ private: // Core iterator interface
 //! \return A new \p discard_iterator with index as given by \p i.
 //! \see constant_iterator
 template <typename System = use_default>
-inline _CCCL_HOST_DEVICE discard_iterator<System> make_discard_iterator(::cuda::std::ptrdiff_t i = 0)
+CCCL_DEPRECATED_BECAUSE("Use cuda::make_discard_iterator instead")
+_CCCL_API discard_iterator<System> make_discard_iterator(::cuda::std::ptrdiff_t i = 0)
 {
   return discard_iterator<System>{i};
 }
