@@ -201,22 +201,23 @@ public:
 
   //! @brief Constructs a @c zip_iterator from a tuple of iterators
   //! @param __iters A tuple or pair of iterators
-  _CCCL_API constexpr explicit zip_iterator(__tuple_or_pair<_Iterators...> __iters)
-      : __current_(::cuda::std::move(__iters))
+  _CCCL_API constexpr explicit zip_iterator(__tuple_or_pair<_Iterators...>&& __iters)
+      : __current_(::cuda::std::forward<__tuple_or_pair<_Iterators...>>(__iters))
   {}
 
   //! @brief Constructs a @c zip_iterator from a tuple of iterators
   //! @param __iters A tuple of iterators
   _CCCL_TEMPLATE(size_t _NumIterators = sizeof...(_Iterators))
   _CCCL_REQUIRES((_NumIterators == 2))
-  _CCCL_API constexpr explicit zip_iterator(::cuda::std::tuple<_Iterators...> __iters)
-      : __current_(::cuda::std::get<0>(::cuda::std::move(__iters)), ::cuda::std::get<1>(::cuda::std::move(__iters)))
+  _CCCL_API constexpr explicit zip_iterator(::cuda::std::tuple<_Iterators...>&& __iters)
+      : __current_(::cuda::std::get<0>(::cuda::std::forward<::cuda::std::tuple<_Iterators...>>(__iters)),
+                   ::cuda::std::get<1>(::cuda::std::forward<::cuda::std::tuple<_Iterators...>>(__iters)))
   {}
 
   //! @brief Constructs a @c zip_iterator from variadic set of iterators
   //! @param __iters The input iterators
-  _CCCL_API constexpr explicit zip_iterator(_Iterators... __iters)
-      : __current_(::cuda::std::move(__iters)...)
+  _CCCL_API constexpr explicit zip_iterator(_Iterators&&... __iters)
+      : __current_(::cuda::std::forward<_Iterators>(__iters)...)
   {}
 
   using iterator_concept = decltype(__get_zip_view_iterator_tag<_Iterators...>());
