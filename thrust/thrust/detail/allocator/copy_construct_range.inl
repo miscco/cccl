@@ -33,8 +33,9 @@
 #include <thrust/distance.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/tuple.h>
+
+#include <cuda/iterator>
 
 THRUST_NAMESPACE_BEGIN
 namespace detail
@@ -93,10 +94,9 @@ _CCCL_HOST_DEVICE enable_if_convertible_t<FromSystem, ToSystem, Pointer> uniniti
   Pointer result)
 {
   // zip up the iterators
-  using IteratorTuple = thrust::tuple<InputIterator, Pointer>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<InputIterator, Pointer>;
 
-  ZipIterator begin = thrust::make_zip_iterator(first, result);
+  ZipIterator begin = ::cuda::make_zip_iterator(first, result);
   ZipIterator end   = begin;
 
   // get a zip_iterator pointing to the end
@@ -129,10 +129,9 @@ _CCCL_HOST_DEVICE enable_if_convertible_t<FromSystem, ToSystem, Pointer> uniniti
   Pointer result)
 {
   // zip up the iterators
-  using IteratorTuple = thrust::tuple<InputIterator, Pointer>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<InputIterator, Pointer>;
 
-  ZipIterator begin = thrust::make_zip_iterator(first, result);
+  ZipIterator begin = ::cuda::make_zip_iterator(first, result);
 
   // create a functor
   using InputType  = it_value_t<InputIterator>;

@@ -42,10 +42,10 @@ static void grayscale(nvbench::state& state, nvbench::type_list<T, OffsetT>)
 
   thrust::device_vector<pixel_t> input(n, thrust::no_init);
   thrust::transform(
-    thrust::make_zip_iterator(r_data.begin(), g_data.begin(), b_data.begin()),
-    thrust::make_zip_iterator(r_data.end(), g_data.end(), b_data.end()),
+    cuda::make_zip_iterator(r_data.begin(), g_data.begin(), b_data.begin()),
+    cuda::make_zip_iterator(r_data.end(), g_data.end(), b_data.end()),
     input.begin(),
-    thrust::make_zip_function([] __device__(T r, T g, T b) {
+    cuda::make_zip_function([] __device__(T r, T g, T b) {
       return pixel_t{r, g, b};
     }));
 

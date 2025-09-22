@@ -5,7 +5,6 @@
 #include <thrust/host_vector.h>
 #include <thrust/iterator/tabulate_output_iterator.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/sequence.h>
 
@@ -131,7 +130,7 @@ void TestTabulateOutputIterator()
   // Prepare input
   thrust::sequence(input.begin(), input.end(), 1);
   auto iota_it   = cuda::make_counting_iterator(0);
-  auto zipped_in = thrust::make_zip_iterator(input.begin(), iota_it);
+  auto zipped_in = cuda::make_zip_iterator(input.begin(), iota_it);
 
   // Run copy_if using tabulate_output_iterator as the output iterator
   static constexpr std::size_t select_every_nth = 3;

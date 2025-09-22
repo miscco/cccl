@@ -1,11 +1,9 @@
 #include <thrust/detail/config.h>
 
 #include <thrust/device_vector.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/transform.h>
-#include <thrust/zip_function.h>
 
 #include <cuda/iterator>
 
@@ -100,8 +98,7 @@ struct TestZipFunctionMixed
     thrust::device_vector<float> vecC{88.0f, 88.0f, 89.0f, 89.0f};
     thrust::device_vector<float> expected{88.0f, 89.0f};
 
-    auto inputKeyItBegin =
-      thrust::make_zip_iterator(thrust::make_zip_iterator(vecA.begin(), vecB.begin()), vecC.begin());
+    auto inputKeyItBegin = cuda::make_zip_iterator(cuda::make_zip_iterator(vecA.begin(), vecB.begin()), vecC.begin());
     auto endIt =
       thrust::remove_if(inputKeyItBegin, inputKeyItBegin + vecA.size(), thrust::make_zip_function(RemovePred{}));
     auto numEle = endIt - inputKeyItBegin;
@@ -138,12 +135,12 @@ struct TestNestedZipFunction
     thrust::device_vector<uint32_t> ST{1, 2, 3};
     thrust::device_vector<float> vecC{88.0f, 88.0f, 89.0f, 89.0f};
 
-    auto segIt = thrust::make_zip_iterator(
-      thrust::make_zip_iterator(thrust::make_permutation_iterator(PX.begin(), SS.begin()),
-                                thrust::make_permutation_iterator(PY.begin(), SS.begin())),
-      thrust::make_zip_iterator(thrust::make_permutation_iterator(PX.begin(), ST.begin()),
-                                thrust::make_permutation_iterator(PY.begin(), ST.begin())));
-    auto idAndSegIt = thrust::make_zip_iterator(cuda::make_counting_iterator(0u), segIt);
+    auto segIt = cuda::make_zip_iterator(
+      cuda::make_zip_iterator(thrust::make_permutation_iterator(PX.begin(), SS.begin()),
+                              thrust::make_permutation_iterator(PY.begin(), SS.begin())),
+      cuda::make_zip_iterator(thrust::make_permutation_iterator(PX.begin(), ST.begin()),
+                              thrust::make_permutation_iterator(PY.begin(), ST.begin())));
+    auto idAndSegIt = cuda::make_zip_iterator(cuda::make_counting_iterator(0u), segIt);
 
     thrust::device_vector<bool> isMH{false, false, false};
     thrust::device_vector<bool> expected{false, false, true};
@@ -171,8 +168,8 @@ struct TestNestedZipFunction2
     thrust::device_vector<int> C(5);
     auto n = A.size();
 
-    auto tupleIt       = thrust::make_zip_iterator(cuda::std::begin(A), cuda::std::begin(B));
-    auto nestedTupleIt = thrust::make_zip_iterator(tupleIt, cuda::std::begin(C));
+    auto tupleIt       = cuda::make_zip_iterator(cuda::std::begin(A), cuda::std::begin(B));
+    auto nestedTupleIt = cuda::make_zip_iterator(tupleIt, cuda::std::begin(C));
     thrust::sort(nestedTupleIt, nestedTupleIt + n, SortPred{});
   }
 };

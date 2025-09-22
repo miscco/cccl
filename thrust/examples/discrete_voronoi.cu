@@ -175,7 +175,7 @@ void vector_to_pgm(thrust::host_vector<int>& t, int m, int n, const char* out)
 void jfa(thrust::device_vector<int>& in, thrust::device_vector<int>& out, unsigned int k, int m, int n)
 {
   thrust::transform(
-    thrust::make_zip_iterator(
+    cuda::make_zip_iterator(
       in.begin(),
       in.begin() + k,
       in.begin() + m * k,
@@ -186,7 +186,7 @@ void jfa(thrust::device_vector<int>& in, thrust::device_vector<int>& out, unsign
       in.begin() - k + m * k,
       in.begin() - k - m * k,
       cuda::counting_iterator<int>(0)),
-    thrust::make_zip_iterator(
+    cuda::make_zip_iterator(
       in.begin(),
       in.begin() + k,
       in.begin() + m * k,

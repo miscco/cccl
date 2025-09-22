@@ -3,7 +3,6 @@
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/pair.h>
 #include <thrust/tuple.h>
 #include <thrust/type_traits/is_contiguous_iterator.h>
@@ -42,12 +41,10 @@ void TestIsContiguousIterator()
   ASSERT_EQUAL(thrust::is_contiguous_iterator_v<const thrust::device_ptr<int>&>, true);
   ASSERT_EQUAL(thrust::is_contiguous_iterator_v<volatile thrust::device_ptr<int>&>, true);
 
-  using HostIteratorTuple = thrust::tuple<HostVector::iterator, HostVector::iterator>;
-
   using ConstantIterator  = thrust::constant_iterator<int>;
   using CountingIterator  = cuda::counting_iterator<int>;
   using TransformIterator = thrust::transform_iterator<cuda::std::identity, HostVector::iterator>;
-  using ZipIterator       = thrust::zip_iterator<HostIteratorTuple>;
+  using ZipIterator       = cuda::zip_iterator<HostVector::iterator, HostVector::iterator>;
 
   ASSERT_EQUAL(thrust::is_contiguous_iterator_v<ConstantIterator>, false);
   ASSERT_EQUAL(thrust::is_contiguous_iterator_v<CountingIterator>, false);

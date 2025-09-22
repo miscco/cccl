@@ -488,7 +488,7 @@ C2H_TEST("Warp sort on keys-value pairs works",
   // Prepare verification data
   c2h::host_vector<key_type> h_keys_in_out     = d_keys_in;
   c2h::host_vector<value_type> h_values_in_out = d_values_in;
-  auto cpu_kv_pairs = thrust::make_zip_iterator(h_keys_in_out.begin(), h_values_in_out.begin());
+  auto cpu_kv_pairs = cuda::make_zip_iterator(h_keys_in_out.begin(), h_values_in_out.begin());
   compute_host_reference(
     cpu_kv_pairs,
     segment_sizes,
@@ -533,7 +533,7 @@ C2H_TEST("Warp sort on key-value pairs of a partial warp-tile works",
   c2h::host_vector<key_type> h_keys_in_out     = d_keys_in;
   c2h::host_vector<value_type> h_values_in_out = d_values_in;
   c2h::host_vector<int> segment_sizes          = d_segment_sizes;
-  auto cpu_kv_pairs = thrust::make_zip_iterator(h_keys_in_out.begin(), h_values_in_out.begin());
+  auto cpu_kv_pairs = cuda::make_zip_iterator(h_keys_in_out.begin(), h_values_in_out.begin());
   compute_host_reference(
     cpu_kv_pairs,
     segment_sizes,

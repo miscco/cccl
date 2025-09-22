@@ -1,9 +1,10 @@
 #include <thrust/count.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/retag.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/partition.h>
 #include <thrust/sort.h>
+
+#include <cuda/iterator>
 
 #include <unittest/unittest.h>
 
@@ -836,12 +837,11 @@ void TestPartitionZipIterator()
   Vector data1{1, 2, 1, 1, 2};
   Vector data2{2, 1, 2, 2, 1};
 
-  using Iterator      = typename Vector::iterator;
-  using IteratorTuple = thrust::tuple<Iterator, Iterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using Iterator    = typename Vector::iterator;
+  using ZipIterator = cuda::zip_iterator<Iterator, Iterator>;
 
-  ZipIterator begin = thrust::make_zip_iterator(data1.begin(), data2.begin());
-  ZipIterator end   = thrust::make_zip_iterator(data1.end(), data2.end());
+  ZipIterator begin = cuda::make_zip_iterator(data1.begin(), data2.begin());
+  ZipIterator end   = cuda::make_zip_iterator(data1.end(), data2.end());
 
   ZipIterator iter = thrust::partition(begin, end, is_ordered());
 
@@ -862,11 +862,10 @@ void TestPartitionStencilZipIterator()
   Vector stencil1{1, 2, 1, 1, 2};
   Vector stencil2{2, 1, 2, 2, 1};
 
-  using Iterator      = typename Vector::iterator;
-  using IteratorTuple = thrust::tuple<Iterator, Iterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using Iterator    = typename Vector::iterator;
+  using ZipIterator = cuda::zip_iterator<Iterator, Iterator>;
 
-  ZipIterator stencil_begin = thrust::make_zip_iterator(stencil1.begin(), stencil2.begin());
+  ZipIterator stencil_begin = cuda::make_zip_iterator(stencil1.begin(), stencil2.begin());
 
   Iterator iter = thrust::partition(data.begin(), data.end(), stencil_begin, is_ordered());
 
@@ -883,12 +882,11 @@ void TestStablePartitionZipIterator()
   Vector data1{1, 2, 1, 1, 2};
   Vector data2{2, 0, 3, 2, 1};
 
-  using Iterator      = typename Vector::iterator;
-  using IteratorTuple = thrust::tuple<Iterator, Iterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using Iterator    = typename Vector::iterator;
+  using ZipIterator = cuda::zip_iterator<Iterator, Iterator>;
 
-  ZipIterator begin = thrust::make_zip_iterator(data1.begin(), data2.begin());
-  ZipIterator end   = thrust::make_zip_iterator(data1.end(), data2.end());
+  ZipIterator begin = cuda::make_zip_iterator(data1.begin(), data2.begin());
+  ZipIterator end   = cuda::make_zip_iterator(data1.end(), data2.end());
 
   ZipIterator iter = thrust::stable_partition(begin, end, is_ordered());
 
@@ -909,11 +907,10 @@ void TestStablePartitionStencilZipIterator()
   Vector stencil1{1, 2, 1, 1, 2};
   Vector stencil2{2, 0, 3, 2, 1};
 
-  using Iterator      = typename Vector::iterator;
-  using IteratorTuple = thrust::tuple<Iterator, Iterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using Iterator    = typename Vector::iterator;
+  using ZipIterator = cuda::zip_iterator<Iterator, Iterator>;
 
-  ZipIterator stencil_begin = thrust::make_zip_iterator(stencil1.begin(), stencil2.begin());
+  ZipIterator stencil_begin = cuda::make_zip_iterator(stencil1.begin(), stencil2.begin());
 
   Iterator mid = thrust::stable_partition(data.begin(), data.end(), stencil_begin, is_ordered());
 

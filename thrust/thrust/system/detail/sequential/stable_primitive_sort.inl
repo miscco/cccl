@@ -27,10 +27,11 @@
 #endif // no system header
 #include <thrust/detail/type_traits.h>
 #include <thrust/functional.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/system/detail/sequential/partition.h>
 #include <thrust/system/detail/sequential/stable_primitive_sort.h>
 #include <thrust/system/detail/sequential/stable_radix_sort.h>
+
+#include <cuda/iterator>
 
 THRUST_NAMESPACE_BEGIN
 namespace system::detail::sequential
@@ -85,8 +86,8 @@ typename enable_if_bool_sort<RandomAccessIterator1>::type _CCCL_HOST_DEVICE stab
   // stable_partition puts true values first, so we need to logical_not
   sequential::stable_partition(
     exec,
-    thrust::make_zip_iterator(keys_first, values_first),
-    thrust::make_zip_iterator(keys_last, values_first),
+    ::cuda::make_zip_iterator(keys_first, values_first),
+    ::cuda::make_zip_iterator(keys_last, values_first),
     logical_not_first());
 }
 

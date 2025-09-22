@@ -28,9 +28,10 @@
 #include <thrust/detail/internal_functional.h>
 #include <thrust/detail/static_assert.h>
 #include <thrust/functional.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/merge.h>
 #include <thrust/system/detail/generic/merge.h>
+
+#include <cuda/__iterator/zip_iterator.h>
 
 THRUST_NAMESPACE_BEGIN
 namespace system::detail::generic
@@ -87,21 +88,19 @@ _CCCL_HOST_DEVICE thrust::pair<OutputIterator1, OutputIterator2> merge_by_key(
   OutputIterator2 values_result,
   Compare comp)
 {
-  using iterator_tuple1 = thrust::tuple<InputIterator1, InputIterator3>;
-  using iterator_tuple2 = thrust::tuple<InputIterator2, InputIterator4>;
   using iterator_tuple3 = thrust::tuple<OutputIterator1, OutputIterator2>;
 
-  using zip_iterator1 = thrust::zip_iterator<iterator_tuple1>;
-  using zip_iterator2 = thrust::zip_iterator<iterator_tuple2>;
-  using zip_iterator3 = thrust::zip_iterator<iterator_tuple3>;
+  using zip_iterator1 = ::cuda::zip_iterator<InputIterator1, InputIterator3>;
+  using zip_iterator2 = ::cuda::zip_iterator<InputIterator2, InputIterator4>;
+  using zip_iterator3 = ::cuda::zip_iterator<OutputIterator1, OutputIterator2>;
 
-  zip_iterator1 zipped_first1 = thrust::make_zip_iterator(keys_first1, values_first1);
-  zip_iterator1 zipped_last1  = thrust::make_zip_iterator(keys_last1, values_first1);
+  zip_iterator1 zipped_first1 = ::cuda::make_zip_iterator(keys_first1, values_first1);
+  zip_iterator1 zipped_last1  = ::cuda::make_zip_iterator(keys_last1, values_first1);
 
-  zip_iterator2 zipped_first2 = thrust::make_zip_iterator(keys_first2, values_first2);
-  zip_iterator2 zipped_last2  = thrust::make_zip_iterator(keys_last2, values_first2);
+  zip_iterator2 zipped_first2 = ::cuda::make_zip_iterator(keys_first2, values_first2);
+  zip_iterator2 zipped_last2  = ::cuda::make_zip_iterator(keys_last2, values_first2);
 
-  zip_iterator3 zipped_result = thrust::make_zip_iterator(keys_result, values_result);
+  zip_iterator3 zipped_result = ::cuda::make_zip_iterator(keys_result, values_result);
 
   thrust::detail::compare_first<Compare> comp_first{comp};
 

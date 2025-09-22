@@ -31,11 +31,11 @@
 #include <thrust/detail/type_traits.h>
 #include <thrust/detail/type_traits/iterator/is_output_iterator.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/scan.h>
 #include <thrust/scatter.h>
 #include <thrust/transform.h>
 
+#include <cuda/__iterator/zip_iterator.h>
 #include <cuda/std/iterator>
 #include <cuda/std/limits>
 
@@ -117,9 +117,9 @@ _CCCL_HOST_DEVICE thrust::pair<OutputIterator1, OutputIterator2> reduce_by_key(
 
   thrust::inclusive_scan(
     exec,
-    thrust::make_zip_iterator(values_first, head_flags.begin()),
-    thrust::make_zip_iterator(values_last, head_flags.end()),
-    thrust::make_zip_iterator(scanned_values.begin(), scanned_tail_flags.begin()),
+    ::cuda::make_zip_iterator(values_first, head_flags.begin()),
+    ::cuda::make_zip_iterator(values_last, head_flags.end()),
+    ::cuda::make_zip_iterator(scanned_values.begin(), scanned_tail_flags.begin()),
     detail::reduce_by_key_functor<ValueType, FlagType, BinaryFunction>(binary_op));
 
   thrust::exclusive_scan(

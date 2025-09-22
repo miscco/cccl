@@ -1,5 +1,6 @@
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/sort.h>
+
+#include <cuda/iterator>
 
 #include <unittest/unittest.h>
 

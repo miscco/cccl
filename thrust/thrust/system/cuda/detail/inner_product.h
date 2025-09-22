@@ -39,9 +39,10 @@
 #if _CCCL_HAS_CUDA_COMPILER()
 #  include <thrust/distance.h>
 #  include <thrust/iterator/transform_iterator.h>
-#  include <thrust/iterator/zip_iterator.h>
 #  include <thrust/system/cuda/detail/reduce.h>
-#  include <thrust/zip_function.h>
+
+#  include <cuda/__iterator/zip_function.h>
+#  include <cuda/__iterator/zip_iterator.h>
 
 THRUST_NAMESPACE_BEGIN
 

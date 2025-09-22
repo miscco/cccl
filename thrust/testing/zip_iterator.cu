@@ -15,7 +15,7 @@ void TestZipIteratorTraits()
 {
   using base_it = thrust::host_vector<int>::iterator;
 
-  using it        = thrust::zip_iterator<thrust::tuple<base_it, base_it>>;
+  using it        = thrust::zip_iterator<base_it, base_it>;
   using traits    = cuda::std::iterator_traits<it>;
   using reference = thrust::detail::tuple_of_iterator_references<int&, int&>;
 
@@ -56,8 +56,7 @@ struct TestZipIteratorConstructionFromIterators
     sequence(v1.begin(), v1.end());
     sequence(v2.begin(), v2.end());
 
-    using IteratorTuple = tuple<typename Vector::iterator, typename Vector::iterator>;
-    using ZipIterator   = zip_iterator<IteratorTuple>;
+    using ZipIterator = zip_iterator<typename Vector::iterator, typename Vector::iterator>;
 
     // test construction
     zip_iterator iter0(v0.begin(), v1.begin());
@@ -90,9 +89,8 @@ struct TestZipIteratorManipulation
     sequence(v1.begin(), v1.end());
     sequence(v2.begin(), v2.end());
 
-    using IteratorTuple = tuple<typename Vector::iterator, typename Vector::iterator>;
-    IteratorTuple t     = make_tuple(v0.begin(), v1.begin());
-    using ZipIterator   = zip_iterator<IteratorTuple>;
+    IteratorTuple t   = make_tuple(v0.begin(), v1.begin());
+    using ZipIterator = zip_iterator<typename Vector::iterator, typename Vector::iterator>;
 
     // test construction from tuple
     ZipIterator iter0 = make_zip_iterator(t);
@@ -162,7 +160,7 @@ struct TestZipIteratorManipulation
   }
 };
 SimpleUnitTest<TestZipIteratorManipulation, type_list<int>> TestZipIteratorManipulationInstance;
-static_assert(cuda::std::is_trivially_copy_constructible<thrust::zip_iterator<thrust::tuple<int*, int*>>>::value, "");
+static_assert(cuda::std::is_trivially_copy_constructible<thrust::zip_iterator<int*, int*>>::value, "");
 
 template <typename T>
 struct TestZipIteratorReference
@@ -172,10 +170,9 @@ struct TestZipIteratorReference
     using namespace thrust;
 
     // test host types
-    using Iterator1      = typename host_vector<T>::iterator;
-    using Iterator2      = typename host_vector<T>::const_iterator;
-    using IteratorTuple1 = tuple<Iterator1, Iterator2>;
-    using ZipIterator1   = zip_iterator<IteratorTuple1>;
+    using Iterator1    = typename host_vector<T>::iterator;
+    using Iterator2    = typename host_vector<T>::const_iterator;
+    using ZipIterator1 = zip_iterator<Iterator1, Iterator2>;
 
     using zip_iterator_reference_type1 = thrust::detail::it_reference_t<ZipIterator1>;
 
@@ -191,10 +188,9 @@ struct TestZipIteratorReference
     ASSERT_EQUAL(get<1>(ref1), get<1>(test1));
 
     // test device types
-    using Iterator3      = typename device_vector<T>::iterator;
-    using Iterator4      = typename device_vector<T>::const_iterator;
-    using IteratorTuple2 = tuple<Iterator3, Iterator4>;
-    using ZipIterator2   = zip_iterator<IteratorTuple2>;
+    using Iterator3    = typename device_vector<T>::iterator;
+    using Iterator4    = typename device_vector<T>::const_iterator;
+    using ZipIterator2 = zip_iterator<Iterator3, Iterator4>;
 
     using zip_iterator_reference_type2 = thrust::detail::it_reference_t<ZipIterator2>;
 
@@ -307,9 +303,9 @@ void TestZipIteratorCopyAoSToSoA()
   using host_array_of_structures   = host_vector<structure>;
   using device_array_of_structures = device_vector<structure>;
 
-  using host_structure_of_arrays = zip_iterator<tuple<host_vector<int>::iterator, host_vector<int>::iterator>>;
+  using host_structure_of_arrays = zip_iterator<host_vector<int>::iterator, host_vector<int>::iterator>;
 
-  using device_structure_of_arrays = zip_iterator<tuple<device_vector<int>::iterator, device_vector<int>::iterator>>;
+  using device_structure_of_arrays = zip_iterator<device_vector<int>::iterator, device_vector<int>::iterator>;
 
   host_array_of_structures h_aos(n, make_tuple(7, 13));
   device_array_of_structures d_aos(n, make_tuple(7, 13));
@@ -354,9 +350,9 @@ void TestZipIteratorCopySoAToAoS()
   using host_array_of_structures   = host_vector<structure>;
   using device_array_of_structures = device_vector<structure>;
 
-  using host_structure_of_arrays = zip_iterator<tuple<host_vector<int>::iterator, host_vector<int>::iterator>>;
+  using host_structure_of_arrays = zip_iterator<host_vector<int>::iterator, host_vector<int>::iterator>;
 
-  using device_structure_of_arrays = zip_iterator<tuple<device_vector<int>::iterator, device_vector<int>::iterator>>;
+  using device_structure_of_arrays = zip_iterator<device_vector<int>::iterator, device_vector<int>::iterator>;
 
   host_vector<int> h_field0(n, 7), h_field1(n, 13);
   device_vector<int> d_field0(n, 7), d_field1(n, 13);

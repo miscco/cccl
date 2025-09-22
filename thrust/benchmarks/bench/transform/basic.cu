@@ -29,11 +29,10 @@
 #include <thrust/count.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
-#include <thrust/zip_function.h>
 
 #include <cuda/__functional/address_stability.h>
+#include <cuda/iterator>
 
 #include <nvbench_helper.cuh>
 
@@ -212,10 +211,10 @@ static void nstream(nvbench::state& state, nvbench::type_list<T>)
   const T scalar = startScalar;
   bench_transform(
     state,
-    thrust::make_zip_iterator(a.begin(), b.begin(), c.begin()),
-    thrust::make_zip_iterator(a.end(), b.end(), c.end()),
+    cuda::make_zip_iterator(a.begin(), b.begin(), c.begin()),
+    cuda::make_zip_iterator(a.end(), b.end(), c.end()),
     a.begin(),
-    thrust::make_zip_function(cuda::proclaim_copyable_arguments([=] _CCCL_DEVICE(const T& ai, const T& bi, const T& ci) {
+    cuda::make_zip_function(cuda::proclaim_copyable_arguments([=] _CCCL_DEVICE(const T& ai, const T& bi, const T& ci) {
       return ai + bi + scalar * ci;
     })));
 }

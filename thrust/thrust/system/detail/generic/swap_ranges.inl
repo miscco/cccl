@@ -27,10 +27,10 @@
 #endif // no system header
 #include <thrust/detail/internal_functional.h>
 #include <thrust/for_each.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/system/detail/generic/swap_ranges.h>
 #include <thrust/tuple.h>
 
+#include <cuda/__iterator/zip_iterator.h>
 #include <cuda/std/utility>
 
 THRUST_NAMESPACE_BEGIN
@@ -61,13 +61,12 @@ _CCCL_HOST_DEVICE ForwardIterator2 swap_ranges(
   ForwardIterator1 last1,
   ForwardIterator2 first2)
 {
-  using IteratorTuple = thrust::tuple<ForwardIterator1, ForwardIterator2>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<ForwardIterator1, ForwardIterator2>;
 
   ZipIterator result = thrust::for_each(
     exec,
-    thrust::make_zip_iterator(first1, first2),
-    thrust::make_zip_iterator(last1, first2),
+    ::cuda::make_zip_iterator(first1, first2),
+    ::cuda::make_zip_iterator(last1, first2),
     detail::swap_pair_elements());
   return thrust::get<1>(result.get_iterator_tuple());
 } // end swap_ranges()

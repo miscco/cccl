@@ -33,7 +33,6 @@
 #include <thrust/detail/raw_pointer_cast.h>
 #include <thrust/equal.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/random.h>
 #include <thrust/sequence.h>
 #include <thrust/shuffle.h>
@@ -286,7 +285,7 @@ C2H_TEST("DeviceMergeSort::StableSortKeysCopy works and performs a stable sort w
   c2h::gen(C2H_SEED(2), key_ranks, offset_t{}, static_cast<offset_t>(128));
   c2h::device_vector<key_t> keys_in(num_items);
   auto key_value_it = cuda::make_counting_iterator(offset_t{});
-  auto key_init_it  = thrust::make_zip_iterator(key_ranks.begin(), key_value_it);
+  auto key_init_it  = cuda::make_zip_iterator(key_ranks.begin(), key_value_it);
   thrust::transform(
     c2h::device_policy, key_init_it, key_init_it + num_items, keys_in.begin(), tuple_to_custom_op_t<key_t>{});
 
@@ -410,7 +409,7 @@ C2H_TEST(
   // Prepare host data for verification
   c2h::host_vector<key_t> keys_expected(keys_in_out);
   c2h::host_vector<data_t> values_expected(values_in_out);
-  auto zipped_expected_it = thrust::make_zip_iterator(keys_expected.begin(), values_expected.begin());
+  auto zipped_expected_it = cuda::make_zip_iterator(keys_expected.begin(), values_expected.begin());
   std::stable_sort(zipped_expected_it, zipped_expected_it + num_items, compare_first_lt_op_t{});
 
   // Perform sort

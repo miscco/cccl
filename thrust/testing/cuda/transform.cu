@@ -404,8 +404,8 @@ void TestTransformZipIteratorUnwrapping()
   thrust::device_vector<double> result(num_items);
   // SECTION("once") // TODO(bgruber): enable sections when we migrate to Catch2
   {
-    const auto z = thrust::make_zip_iterator(a.begin(), b.begin(), c.begin(), d.begin(), e.begin());
-    thrust::transform(z, z + num_items, result.begin(), thrust::make_zip_function(sum_five{}));
+    const auto z = cuda::make_zip_iterator(a.begin(), b.begin(), c.begin(), d.begin(), e.begin());
+    thrust::transform(z, z + num_items, result.begin(), cuda::make_zip_function(sum_five{}));
 
     // compute reference and verify
     thrust::device_vector<double> reference(num_items, 1 + 2 + 3 + 4 + 5);
@@ -413,12 +413,12 @@ void TestTransformZipIteratorUnwrapping()
   }
   // SECTION("trice")
   {
-    const auto z = thrust::make_zip_iterator(
-      thrust::make_zip_iterator(thrust::make_zip_iterator(a.begin(), b.begin(), c.begin(), d.begin(), e.begin())));
+    const auto z = cuda::make_zip_iterator(
+      cuda::make_zip_iterator(cuda::make_zip_iterator(a.begin(), b.begin(), c.begin(), d.begin(), e.begin())));
     thrust::transform(z,
                       z + num_items,
                       result.begin(),
-                      thrust::make_zip_function(thrust::make_zip_function(thrust::make_zip_function(sum_five{}))));
+                      cuda::make_zip_function(cuda::make_zip_function(cuda::make_zip_function(sum_five{}))));
 
     // compute reference and verify
     thrust::device_vector<double> reference(num_items, 1 + 2 + 3 + 4 + 5);

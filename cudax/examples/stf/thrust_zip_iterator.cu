@@ -18,8 +18,9 @@
 #include <thrust/device_vector.h>
 #include <thrust/functional.h>
 #include <thrust/host_vector.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/transform.h>
+
+#include <cuda/iterator>
 
 #include <cuda/experimental/stf.cuh>
 
@@ -66,7 +67,7 @@ void thrust_algorithm(context& ctx, ZippedIt& first, ZippedIt& last, OutIt& outp
   ctx.task(lA.read(), lB.read(), lC.write())->*[](cudaStream_t stream, auto dA, auto dB, auto dC) {
     // Reconstruct a zipped iterator from the data instances passed to the lambda function
     size_t num_elements = dA.size();
-    auto dfirst         = thrust::make_zip_iterator(thrust::make_tuple(dA.data_handle(), dB.data_handle()));
+    auto dfirst         = cuda::make_zip_iterator(thrust::make_tuple(dA.data_handle(), dB.data_handle()));
     auto dlast          = dfirst + num_elements;
 
     // Create a device pointer from the raw pointer
@@ -94,8 +95,8 @@ int main()
   B[1] = 'y';
   B[2] = 'z';
 
-  auto first = thrust::make_zip_iterator(thrust::make_tuple(A.begin(), B.begin()));
-  auto last  = thrust::make_zip_iterator(thrust::make_tuple(A.end(), B.end()));
+  auto first = cuda::make_zip_iterator(thrust::make_tuple(A.begin(), B.begin()));
+  auto last  = cuda::make_zip_iterator(thrust::make_tuple(A.end(), B.end()));
 
   thrust_algorithm(ctx, first, last, C, data_place::current_device());
 
@@ -114,8 +115,8 @@ int main()
   hB[1] = 'y';
   hB[2] = 'z';
 
-  auto hfirst = thrust::make_zip_iterator(thrust::make_tuple(hA.begin(), hB.begin()));
-  auto hlast  = thrust::make_zip_iterator(thrust::make_tuple(hA.end(), hB.end()));
+  auto hfirst = cuda::make_zip_iterator(thrust::make_tuple(hA.begin(), hB.begin()));
+  auto hlast  = cuda::make_zip_iterator(thrust::make_tuple(hA.end(), hB.end()));
 
   thrust_algorithm(ctx, hfirst, hlast, hC, data_place::host());
 

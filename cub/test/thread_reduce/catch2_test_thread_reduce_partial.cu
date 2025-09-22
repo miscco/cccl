@@ -264,8 +264,8 @@ C2H_TEST("ThreadReduce Container Tests", "[reduce][thread]")
 C2H_TEST("ThreadReducePartial does not invoke the reduction operator on invalid elements", "[reduce][thread]")
 {
   const auto in_it = cuda::make_transform_iterator(
-    thrust::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
-                              cuda::counting_iterator<segment::offset_t>{2}),
+    cuda::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
+                            cuda::counting_iterator<segment::offset_t>{2}),
     tuple_to_segment_op{});
   const int valid_items = GENERATE_COPY(
     take(3, random(2, max_size - 1)),

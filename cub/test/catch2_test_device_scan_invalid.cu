@@ -6,7 +6,6 @@
 #include <cub/device/device_scan.cuh>
 
 #include <thrust/detail/raw_pointer_cast.h>
-#include <thrust/iterator/zip_iterator.h>
 
 #include <cuda/cmath>
 #include <cuda/iterator>
@@ -154,8 +153,7 @@ C2H_TEST("Device scan avoids invalid data with all device interfaces", "[scan][d
   CAPTURE(num_items);
 
   const auto d_in_it = cuda::make_transform_iterator(
-    thrust::make_zip_iterator(cuda::counting_iterator<segment_offset_t>{1},
-                              cuda::counting_iterator<segment_offset_t>{2}),
+    cuda::make_zip_iterator(cuda::counting_iterator<segment_offset_t>{1}, cuda::counting_iterator<segment_offset_t>{2}),
     tuple_to_wrapper_op<input_t>{});
 
   SECTION("inclusive scan")

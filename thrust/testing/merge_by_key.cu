@@ -297,9 +297,9 @@ void TestMergeByKeyFromCuDFDremel()
 
   auto input_parent_rep_it = thrust::make_constant_iterator(level);
   auto input_parent_def_it = thrust::make_transform_iterator(empties_idx.begin(), def_level_fn{});
-  auto input_parent_zip_it = thrust::make_zip_iterator(input_parent_rep_it, input_parent_def_it);
-  auto input_child_zip_it  = thrust::make_zip_iterator(temp_rep_vals.begin(), temp_def_vals.begin());
-  auto output_zip_it       = thrust::make_zip_iterator(rep_level.begin(), def_level.begin());
+  auto input_parent_zip_it = cuda::make_zip_iterator(input_parent_rep_it, input_parent_def_it);
+  auto input_child_zip_it  = cuda::make_zip_iterator(temp_rep_vals.begin(), temp_def_vals.begin());
+  auto output_zip_it       = cuda::make_zip_iterator(rep_level.begin(), def_level.begin());
 
   thrust::merge_by_key(
     transformed_empties,

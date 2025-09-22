@@ -56,10 +56,10 @@ int main()
 
   // remove points where x^2 + y^2 > 1 and determine new array sizes
   size_t new_size =
-    thrust::remove_if(thrust::make_zip_iterator(x.begin(), y.begin()),
-                      thrust::make_zip_iterator(x.end(), y.end()),
+    thrust::remove_if(cuda::make_zip_iterator(x.begin(), y.begin()),
+                      cuda::make_zip_iterator(x.end(), y.end()),
                       is_outside_circle<float>())
-    - thrust::make_zip_iterator(x.begin(), y.begin());
+    - cuda::make_zip_iterator(x.begin(), y.begin());
 
   // resize the vectors (note: this does not free any memory)
   x.resize(new_size);

@@ -1,7 +1,8 @@
 #include <thrust/detail/raw_reference_cast.h>
 #include <thrust/device_vector.h>
 #include <thrust/iterator/discard_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
+
+#include <cuda/iterator>
 
 #include <vector>
 
@@ -25,11 +26,11 @@ void TestRawReferenceCast()
     static_assert(is_same_v<decltype(thrust::raw_reference_cast(*vec.begin())), int&>);
     static_assert(is_same_v<decltype(thrust::raw_reference_cast(*vec.cbegin())), const int&>);
 
-    [[maybe_unused]] auto zip = thrust::make_zip_iterator(vec.begin(), vec.begin());
+    [[maybe_unused]] auto zip = cuda::make_zip_iterator(vec.begin(), vec.begin());
     static_assert(
       is_same_v<decltype(thrust::raw_reference_cast(*zip)), thrust::detail::tuple_of_iterator_references<int&, int&>>);
 
-    [[maybe_unused]] auto zip2 = thrust::make_zip_iterator(zip, zip);
+    [[maybe_unused]] auto zip2 = cuda::make_zip_iterator(zip, zip);
     static_assert(
       is_same_v<decltype(thrust::raw_reference_cast(*zip2)),
                 thrust::detail::tuple_of_iterator_references<thrust::detail::tuple_of_iterator_references<int&, int&>,
@@ -40,11 +41,11 @@ void TestRawReferenceCast()
     static_assert(is_same_v<decltype(thrust::raw_reference_cast(*vec.begin())), int&>);
     static_assert(is_same_v<decltype(thrust::raw_reference_cast(*vec.cbegin())), const int&>);
 
-    [[maybe_unused]] auto zip = thrust::make_zip_iterator(vec.begin(), vec.begin());
+    [[maybe_unused]] auto zip = cuda::make_zip_iterator(vec.begin(), vec.begin());
     static_assert(
       is_same_v<decltype(thrust::raw_reference_cast(*zip)), thrust::detail::tuple_of_iterator_references<int&, int&>>);
 
-    [[maybe_unused]] auto zip2 = thrust::make_zip_iterator(zip, zip);
+    [[maybe_unused]] auto zip2 = cuda::make_zip_iterator(zip, zip);
     static_assert(
       is_same_v<decltype(thrust::raw_reference_cast(*zip2)),
                 thrust::detail::tuple_of_iterator_references<thrust::detail::tuple_of_iterator_references<int&, int&>,

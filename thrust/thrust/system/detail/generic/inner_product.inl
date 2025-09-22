@@ -29,7 +29,9 @@
 #include <thrust/functional.h>
 #include <thrust/system/detail/generic/inner_product.h>
 #include <thrust/transform_reduce.h>
-#include <thrust/zip_function.h>
+
+#include <cuda/__iterator/zip_function.h>
+#include <cuda/__iterator/zip_iterator.h>
 
 THRUST_NAMESPACE_BEGIN
 namespace system::detail::generic
@@ -63,9 +65,9 @@ _CCCL_HOST_DEVICE OutputType inner_product(
   BinaryFunction1 binary_op1,
   BinaryFunction2 binary_op2)
 {
-  const auto first = thrust::make_zip_iterator(first1, first2);
-  const auto last  = thrust::make_zip_iterator(last1, first2); // only first iterator matters
-  return thrust::transform_reduce(exec, first, last, thrust::make_zip_function(binary_op2), init, binary_op1);
+  const auto first = ::cuda::make_zip_iterator(first1, first2);
+  const auto last  = ::cuda::make_zip_iterator(last1, first2); // only first iterator matters
+  return thrust::transform_reduce(exec, first, last, ::cuda::make_zip_function(binary_op2), init, binary_op1);
 } // end inner_product()
 
 } // namespace system::detail::generic

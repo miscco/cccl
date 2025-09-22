@@ -1,6 +1,7 @@
 #include <thrust/detail/trivial_sequence.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/type_traits/is_contiguous_iterator.h>
+
+#include <cuda/iterator>
 
 #include <unittest/unittest.h>
 
@@ -36,7 +37,7 @@ void TestTrivialSequence()
   Vector A{0, 2, 1, 0, 1};
   Vector B{11, 11, 13, 10, 12};
 
-  test(thrust::make_zip_iterator(A.begin(), B.begin()), thrust::make_zip_iterator(A.end(), B.end()));
+  test(cuda::make_zip_iterator(A.begin(), B.begin()), cuda::make_zip_iterator(A.end(), B.end()));
 
   Vector refA{0, 2, 1, 0, 1};
   ASSERT_EQUAL(A, refA);

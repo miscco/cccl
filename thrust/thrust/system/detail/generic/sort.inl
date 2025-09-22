@@ -30,9 +30,10 @@
 #include <thrust/find.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/system/detail/generic/sort.h>
 #include <thrust/tuple.h>
+
+#include <cuda/__iterator/zip_iterator.h>
 
 THRUST_NAMESPACE_BEGIN
 namespace system::detail::generic
@@ -134,14 +135,13 @@ _CCCL_HOST_DEVICE ForwardIterator is_sorted_until(
     return last;
   }
 
-  using IteratorTuple = thrust::tuple<ForwardIterator, ForwardIterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<ForwardIterator, ForwardIterator>;
 
   ForwardIterator first_plus_one = first;
   ::cuda::std::advance(first_plus_one, 1);
 
-  ZipIterator zipped_first = thrust::make_zip_iterator(first_plus_one, first);
-  ZipIterator zipped_last  = thrust::make_zip_iterator(last, first);
+  ZipIterator zipped_first = ::cuda::make_zip_iterator(first_plus_one, first);
+  ZipIterator zipped_last  = ::cuda::make_zip_iterator(last, first);
 
   return thrust::get<0>(
     thrust::find_if(exec, zipped_first, zipped_last, thrust::detail::tuple_binary_predicate<Compare>{comp})

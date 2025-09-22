@@ -40,10 +40,10 @@
 #  include <thrust/system/cuda/config.h>
 
 #  include <thrust/iterator/transform_iterator.h>
-#  include <thrust/iterator/zip_iterator.h>
 #  include <thrust/system/cuda/detail/execution_policy.h>
 
 #  include <cuda/__iterator/counting_iterator.h>
+#  include <cuda/__iterator/zip_iterator.h>
 #  include <cuda/std/__algorithm/min.h>
 #  include <cuda/std/__functional/not_fn.h>
 #  include <cuda/std/__iterator/distance.h>
@@ -68,6 +68,8 @@ THRUST_NAMESPACE_END
 
 #  include <thrust/system/cuda/detail/reduce.h>
 
+#  include <cuda/iterator>
+
 THRUST_NAMESPACE_BEGIN
 namespace cuda_cub
 {
@@ -83,7 +85,7 @@ struct functor
     // select the smallest index among true results
     if (thrust::get<0>(lhs) && thrust::get<0>(rhs))
     {
-      return TupleType(true, (::cuda::std::min) (thrust::get<1>(lhs), thrust::get<1>(rhs)));
+      return TupleType(true, (::cuda::std::min)(thrust::get<1>(lhs), thrust::get<1>(rhs)));
     }
     else if (thrust::get<0>(lhs))
     {
@@ -213,19 +215,16 @@ find_if_n(execution_policy<Derived>& policy, InputIt first, Size num_items, Pred
 
   // TODO incorporate sizeof(InputType) into interval_threshold and round to multiple of 32
   const Size interval_threshold = 1 << 20;
-  const Size interval_size      = (::cuda::std::min) (interval_threshold, num_items);
+  const Size interval_size      = (::cuda::std::min)(interval_threshold, num_items);
 
   // FIXME(bgruber): we should also be able to use transform_iterator here, but it makes nvc++ hang. See:
   // https://github.com/NVIDIA/cccl/issues/3594. The problem does not occur with nvcc, so we could not add a test :/
   using XfrmIterator = __find_if::transform_input_iterator_t<bool, InputIt, Predicate>;
   // using XfrmIterator  = transform_iterator<Predicate, InputIt>;
-  using IteratorTuple = thrust::tuple<XfrmIterator, ::cuda::counting_iterator<Size>>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<XfrmIterator, ::cuda::counting_iterator<Size>>;
 
-  IteratorTuple iter_tuple = thrust::make_tuple(XfrmIterator(first, predicate), ::cuda::counting_iterator<Size>(0));
-
-  ZipIterator begin = thrust::make_zip_iterator(iter_tuple);
-  ZipIterator end   = begin + num_items;
+  ZipIterator begin{XfrmIterator(first, predicate), ::cuda::counting_iterator<Size>{0}};
+  ZipIterator end = begin + num_items;
 
   for (ZipIterator interval_begin = begin; interval_begin < end; interval_begin += interval_size)
   {

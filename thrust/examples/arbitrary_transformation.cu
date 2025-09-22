@@ -2,8 +2,8 @@
 
 #include <thrust/device_vector.h>
 #include <thrust/for_each.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/zip_function.h>
+
+#include <cuda/iterator>
 
 #include <iostream>
 
@@ -67,8 +67,8 @@ int main()
   thrust::device_vector<float> D1(5);
 
   // apply the transformation
-  thrust::for_each(thrust::make_zip_iterator(A.begin(), B.begin(), C.begin(), D1.begin()),
-                   thrust::make_zip_iterator(A.end(), B.end(), C.end(), D1.end()),
+  thrust::for_each(cuda::make_zip_iterator(A.begin(), B.begin(), C.begin(), D1.begin()),
+                   cuda::make_zip_iterator(A.end(), B.end(), C.end(), D1.end()),
                    arbitrary_functor1());
 
   // print the output
@@ -80,9 +80,9 @@ int main()
 
   // apply the transformation using zip_function
   thrust::device_vector<float> D2(5);
-  thrust::for_each(thrust::make_zip_iterator(A.begin(), B.begin(), C.begin(), D2.begin()),
-                   thrust::make_zip_iterator(A.end(), B.end(), C.end(), D2.end()),
-                   thrust::make_zip_function(arbitrary_functor2()));
+  thrust::for_each(cuda::make_zip_iterator(A.begin(), B.begin(), C.begin(), D2.begin()),
+                   cuda::make_zip_iterator(A.end(), B.end(), C.end(), D2.end()),
+                   cuda::make_zip_function(arbitrary_functor2()));
 
   // print the output
   std::cout << "N-ary functor" << std::endl;

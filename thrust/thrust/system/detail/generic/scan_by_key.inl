@@ -29,12 +29,12 @@
 #include <thrust/detail/temporary_array.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/replace.h>
 #include <thrust/scan.h>
 #include <thrust/system/detail/generic/scan_by_key.h>
 #include <thrust/transform.h>
 
+#include <cuda/__iterator/zip_iterator.h>
 #include <cuda/std/cstdint>
 
 THRUST_NAMESPACE_BEGIN
@@ -124,9 +124,9 @@ _CCCL_HOST_DEVICE OutputIterator inclusive_scan_by_key(
     //    http://mgarland.org/files/papers/nvr-2008-003.pdf
     thrust::inclusive_scan(
       exec,
-      thrust::make_zip_iterator(first2, flags.begin()),
-      thrust::make_zip_iterator(first2, flags.begin()) + n,
-      thrust::make_zip_iterator(result, flags.begin()),
+      ::cuda::make_zip_iterator(first2, flags.begin()),
+      ::cuda::make_zip_iterator(first2, flags.begin()) + n,
+      ::cuda::make_zip_iterator(result, flags.begin()),
       detail::segmented_scan_functor<OutputType, HeadFlagType, AssociativeOperator>(binary_op));
   }
 
@@ -219,9 +219,9 @@ _CCCL_HOST_DEVICE OutputIterator exclusive_scan_by_key(
     //    http://mgarland.org/files/papers/nvr-2008-003.pdf
     thrust::inclusive_scan(
       exec,
-      thrust::make_zip_iterator(temp.begin(), flags.begin()),
-      thrust::make_zip_iterator(temp.begin(), flags.begin()) + n,
-      thrust::make_zip_iterator(result, flags.begin()),
+      ::cuda::make_zip_iterator(temp.begin(), flags.begin()),
+      ::cuda::make_zip_iterator(temp.begin(), flags.begin()) + n,
+      ::cuda::make_zip_iterator(result, flags.begin()),
       detail::segmented_scan_functor<OutputType, HeadFlagType, AssociativeOperator>(binary_op));
   }
 

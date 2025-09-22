@@ -165,8 +165,8 @@ static std::pair<c2h::device_vector<key>, c2h::device_vector<value>> reference_s
   c2h::host_vector<value> result_values(d_values.size());
   thrust::gather(h_permutation.cbegin(),
                  h_permutation.cend(),
-                 thrust::make_zip_iterator(h_keys.cbegin(), h_values.cbegin()),
-                 thrust::make_zip_iterator(result_keys.begin(), result_values.begin()));
+                 cuda::make_zip_iterator(h_keys.cbegin(), h_values.cbegin()),
+                 cuda::make_zip_iterator(result_keys.begin(), result_values.begin()));
 
   return std::make_pair(result_keys, result_values);
 }

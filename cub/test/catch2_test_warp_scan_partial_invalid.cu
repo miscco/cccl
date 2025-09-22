@@ -163,8 +163,8 @@ C2H_TEST(
   c2h::device_vector<type> d_out(params::tile_size);
   c2h::device_vector<type> d_in(params::tile_size);
   const auto in_it = cuda::make_transform_iterator(
-    thrust::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
-                              cuda::counting_iterator<segment::offset_t>{2}),
+    cuda::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
+                            cuda::counting_iterator<segment::offset_t>{2}),
     tuple_to_segment_op{});
   for (size_t i = 0; i < params::tile_size; i += params::logical_warp_threads)
   {
@@ -216,8 +216,8 @@ C2H_TEST("Partial warp scan does not apply op to invalid elements and returns va
   c2h::device_vector<type> d_out(params::tile_size);
   c2h::device_vector<type> d_in(params::tile_size);
   const auto in_it = cuda::make_transform_iterator(
-    thrust::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
-                              cuda::counting_iterator<segment::offset_t>{2}),
+    cuda::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
+                            cuda::counting_iterator<segment::offset_t>{2}),
     tuple_to_segment_op{});
   for (size_t i = 0; i < params::tile_size; i += params::logical_warp_threads)
   {
@@ -279,8 +279,8 @@ C2H_TEST("Partial warp scan does not apply op to invalid elements and works with
   c2h::device_vector<type> d_out(params::tile_size);
   c2h::device_vector<type> d_in(params::tile_size);
   const auto in_it = cuda::make_transform_iterator(
-    thrust::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
-                              cuda::counting_iterator<segment::offset_t>{2}),
+    cuda::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
+                            cuda::counting_iterator<segment::offset_t>{2}),
     tuple_to_segment_op{});
   for (size_t i = 0; i < params::tile_size; i += params::logical_warp_threads)
   {
@@ -325,8 +325,8 @@ C2H_TEST("Partial warp scan with initial value does not apply op to invalid elem
   c2h::device_vector<type> d_out(params::tile_size);
   c2h::device_vector<type> d_in(params::tile_size);
   const auto in_it = cuda::make_transform_iterator(
-    thrust::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
-                              cuda::counting_iterator<segment::offset_t>{2}),
+    cuda::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
+                            cuda::counting_iterator<segment::offset_t>{2}),
     tuple_to_segment_op{});
   for (size_t i = 0; i < params::tile_size; i += params::logical_warp_threads)
   {
@@ -378,8 +378,8 @@ C2H_TEST("Partial warp combination scan does not apply op to invalid elements", 
   c2h::device_vector<type> d_exclusive_out(tile_size);
   c2h::device_vector<type> d_in(tile_size);
   const auto in_it = cuda::make_transform_iterator(
-    thrust::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
-                              cuda::counting_iterator<segment::offset_t>{2}),
+    cuda::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
+                            cuda::counting_iterator<segment::offset_t>{2}),
     tuple_to_segment_op{});
   for (size_t i = 0; i < tile_size; i += logical_warp_threads)
   {
@@ -439,8 +439,8 @@ C2H_TEST("Partial warp combination custom scan does not apply op to invalid elem
   c2h::device_vector<type> d_exclusive_out(total_warps * logical_warp_threads);
   c2h::device_vector<type> d_in(total_warps * logical_warp_threads);
   const auto in_it = cuda::make_transform_iterator(
-    thrust::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
-                              cuda::counting_iterator<segment::offset_t>{2}),
+    cuda::make_zip_iterator(cuda::counting_iterator<segment::offset_t>{1},
+                            cuda::counting_iterator<segment::offset_t>{2}),
     tuple_to_segment_op{});
   for (size_t i = 0; i < tile_size; i += logical_warp_threads)
   {

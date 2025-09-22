@@ -1,7 +1,8 @@
 #include <thrust/fill.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/retag.h>
-#include <thrust/iterator/zip_iterator.h>
+
+#include <cuda/iterator>
 
 #include <algorithm>
 
@@ -217,8 +218,8 @@ void TestFillZipIterator()
   Vector v2(3, T(0));
   Vector v3(3, T(0));
 
-  thrust::fill(thrust::make_zip_iterator(v1.begin(), v2.begin(), v3.begin()),
-               thrust::make_zip_iterator(v1.end(), v2.end(), v3.end()),
+  thrust::fill(cuda::make_zip_iterator(v1.begin(), v2.begin(), v3.begin()),
+               cuda::make_zip_iterator(v1.end(), v2.end(), v3.end()),
                thrust::tuple<T, T, T>(4, 7, 13));
 
   Vector ref1{4, 4, 4};

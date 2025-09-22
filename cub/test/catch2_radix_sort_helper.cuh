@@ -35,11 +35,11 @@
 #include <cub/util_type.cuh>
 
 #include <thrust/gather.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/memory.h>
 #include <thrust/scan.h>
 #include <thrust/sequence.h>
 
+#include <cuda/iterator>
 #include <cuda/std/__algorithm_>
 #include <cuda/std/bit>
 #include <cuda/std/functional>
@@ -331,8 +331,8 @@ std::pair<c2h::host_vector<KeyT>, c2h::host_vector<ValueT>> radix_sort_reference
   c2h::host_vector<ValueT> h_values(d_values);
   thrust::gather(h_permutation.cbegin(),
                  h_permutation.cend(),
-                 thrust::make_zip_iterator(h_keys.cbegin(), h_values.cbegin()),
-                 thrust::make_zip_iterator(result.first.begin(), result.second.begin()));
+                 cuda::make_zip_iterator(h_keys.cbegin(), h_values.cbegin()),
+                 cuda::make_zip_iterator(result.first.begin(), result.second.begin()));
 
   return result;
 }
@@ -378,8 +378,8 @@ std::pair<c2h::host_vector<KeyT>, c2h::host_vector<ValueT>> segmented_radix_sort
   c2h::host_vector<ValueT> h_values(d_values);
   thrust::gather(h_permutation.cbegin(),
                  h_permutation.cend(),
-                 thrust::make_zip_iterator(h_keys.cbegin(), h_values.cbegin()),
-                 thrust::make_zip_iterator(result.first.begin(), result.second.begin()));
+                 cuda::make_zip_iterator(h_keys.cbegin(), h_values.cbegin()),
+                 cuda::make_zip_iterator(result.first.begin(), result.second.begin()));
 
   return result;
 }

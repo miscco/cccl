@@ -41,13 +41,14 @@
 
 #  include <cub/device/device_transform.cuh>
 
-#  include <thrust/iterator/zip_iterator.h>
 #  include <thrust/system/cuda/detail/dispatch.h>
 #  include <thrust/system/cuda/detail/parallel_for.h>
 #  include <thrust/system/cuda/detail/util.h>
-#  include <thrust/zip_function.h>
 
 #  include <cuda/__functional/address_stability.h>
+#  include <cuda/__iterator/zip_function.h>
+#  include <cuda/__iterator/zip_iterator.h>
+#  include <cuda/iterator>
 #  include <cuda/std/__algorithm/transform.h>
 #  include <cuda/std/__iterator/distance.h>
 #  include <cuda/std/cstdint>
@@ -193,10 +194,22 @@ OutputIt THRUST_FUNCTION cub_transform_many(
 template <class Derived, class Offset, class... InputIts, class OutputIt, class TransformOp>
 OutputIt THRUST_FUNCTION cub_transform_many(
   execution_policy<Derived>& policy,
+  ::cuda::std::tuple<::cuda::zip_iterator<InputIts...>> firsts,
+  OutputIt result,
+  Offset num_items,
+  ::cuda::zip_function<TransformOp> transform_op)
+{
+  return cub_transform_many(
+    policy, get<0>(firsts).get_iterator_tuple(), result, num_items, transform_op.underlying_function());
+}
+
+template <class Derived, class Offset, class... InputIts, class OutputIt, class TransformOp>
+OutputIt THRUST_FUNCTION cub_transform_many(
+  execution_policy<Derived>& policy,
   ::cuda::std::tuple<zip_iterator<::cuda::std::tuple<InputIts...>>> firsts,
   OutputIt result,
   Offset num_items,
-  zip_function<TransformOp> transform_op)
+  thrust::zip_function<TransformOp> transform_op)
 {
   return cub_transform_many(
     policy, get<0>(firsts).get_iterator_tuple(), result, num_items, transform_op.underlying_function());

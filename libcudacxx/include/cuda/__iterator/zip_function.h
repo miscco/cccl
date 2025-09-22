@@ -23,6 +23,7 @@
 #include <cuda/__fwd/zip_iterator.h>
 #include <cuda/std/__concepts/constructible.h>
 #include <cuda/std/__functional/invoke.h>
+#include <cuda/std/__type_traits/decay.h>
 #include <cuda/std/__type_traits/is_nothrow_copy_constructible.h>
 #include <cuda/std/__type_traits/is_nothrow_default_constructible.h>
 #include <cuda/std/__type_traits/is_nothrow_move_constructible.h>
@@ -92,6 +93,12 @@ public:
     return ::cuda::std::apply(__fun_, ::cuda::std::forward<_Tuple>(__tuple));
   }
 };
+
+template <typename _Fn>
+_CCCL_HOST_DEVICE zip_function<::cuda::std::decay_t<_Fn>> make_zip_function(_Fn&& __fun)
+{
+  return zip_function<::cuda::std::decay_t<_Fn>>{::cuda::std::forward<_Fn>(__fun)};
+}
 
 //! @}
 

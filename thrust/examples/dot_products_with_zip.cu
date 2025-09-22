@@ -1,11 +1,12 @@
 #include <thrust/device_vector.h>
 #include <thrust/functional.h>
 #include <thrust/host_vector.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/random.h>
 #include <thrust/transform.h>
 
-// This example shows how thrust::zip_iterator can be used to create a
+#include <cuda/iterator>
+
+// This example shows how cuda::zip_iterator can be used to create a
 // 'virtual' array of structures.  In this case the structure is a 3d
 // vector type (Float3) whose (x,y,z) components will be stored in
 // three separate float arrays.  The zip_iterator "zips" these arrays
@@ -72,14 +73,13 @@ int main()
 
   // METHOD #1
   // Defining a zip_iterator type can be a little cumbersome ...
-  using FloatIterator      = thrust::device_vector<float>::iterator;
-  using FloatIteratorTuple = thrust::tuple<FloatIterator, FloatIterator, FloatIterator>;
-  using Float3Iterator     = thrust::zip_iterator<FloatIteratorTuple>;
+  using FloatIterator  = thrust::device_vector<float>::iterator;
+  using Float3Iterator = cuda::zip_iterator<FloatIterator, FloatIterator, FloatIterator>;
 
   // Now we'll create some zip_iterators for A and B
-  Float3Iterator A_first = thrust::make_zip_iterator(A0.begin(), A1.begin(), A2.begin());
-  Float3Iterator A_last  = thrust::make_zip_iterator(A0.end(), A1.end(), A2.end());
-  Float3Iterator B_first = thrust::make_zip_iterator(B0.begin(), B1.begin(), B2.begin());
+  Float3Iterator A_first = cuda::make_zip_iterator(A0.begin(), A1.begin(), A2.begin());
+  Float3Iterator A_last  = cuda::make_zip_iterator(A0.end(), A1.end(), A2.end());
+  Float3Iterator B_first = cuda::make_zip_iterator(B0.begin(), B1.begin(), B2.begin());
 
   // Finally, we pass the zip_iterators into transform() as if they
   // were 'normal' iterators for a device_vector<Float3>.
@@ -89,9 +89,9 @@ int main()
   // Alternatively, we can avoid creating variables for X_first, X_last,
   // and Y_first and invoke transform() directly.
   thrust::transform(
-    thrust::make_zip_iterator(A0.begin(), A1.begin(), A2.begin()),
-    thrust::make_zip_iterator(A0.end(), A1.end(), A2.end()),
-    thrust::make_zip_iterator(B0.begin(), B1.begin(), B2.begin()),
+    cuda::make_zip_iterator(A0.begin(), A1.begin(), A2.begin()),
+    cuda::make_zip_iterator(A0.end(), A1.end(), A2.end()),
+    cuda::make_zip_iterator(B0.begin(), B1.begin(), B2.begin()),
     result.begin(),
     DotProduct());
 

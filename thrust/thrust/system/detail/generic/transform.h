@@ -29,10 +29,11 @@
 #include <thrust/detail/internal_functional.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/system/detail/generic/tag.h>
 #include <thrust/system/detail/generic/transform.h>
 #include <thrust/tuple.h>
+
+#include <cuda/__iterator/zip_iterator.h>
 
 THRUST_NAMESPACE_BEGIN
 
@@ -119,11 +120,10 @@ _CCCL_HOST_DEVICE OutputIterator transform(
   using UnaryTransformFunctor = thrust::detail::unary_transform_functor<UnaryFunction>;
 
   // make an iterator tuple
-  using IteratorTuple = thrust::tuple<InputIterator, OutputIterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<InputIterator, OutputIterator>;
 
   ZipIterator zipped_result = thrust::for_each(
-    exec, thrust::make_zip_iterator(first, result), thrust::make_zip_iterator(last, result), UnaryTransformFunctor{op});
+    exec, ::cuda::make_zip_iterator(first, result), ::cuda::make_zip_iterator(last, result), UnaryTransformFunctor{op});
 
   return thrust::get<1>(zipped_result.get_iterator_tuple());
 }
@@ -145,13 +145,12 @@ _CCCL_HOST_DEVICE OutputIterator transform(
   using BinaryTransformFunctor = thrust::detail::binary_transform_functor<BinaryFunction>;
 
   // make an iterator tuple
-  using IteratorTuple = thrust::tuple<InputIterator1, InputIterator2, OutputIterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<InputIterator1, InputIterator2, OutputIterator>;
 
   ZipIterator zipped_result = thrust::for_each(
     exec,
-    thrust::make_zip_iterator(first1, first2, result),
-    thrust::make_zip_iterator(last1, first2, result),
+    ::cuda::make_zip_iterator(first1, first2, result),
+    ::cuda::make_zip_iterator(last1, first2, result),
     BinaryTransformFunctor{op});
 
   return thrust::get<2>(zipped_result.get_iterator_tuple());
@@ -173,13 +172,12 @@ _CCCL_HOST_DEVICE ForwardIterator transform_if(
   using UnaryTransformIfFunctor = thrust::detail::unary_transform_if_functor<UnaryFunction, Predicate>;
 
   // make an iterator tuple
-  using IteratorTuple = thrust::tuple<InputIterator, ForwardIterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<InputIterator, ForwardIterator>;
 
   ZipIterator zipped_result = thrust::for_each(
     exec,
-    thrust::make_zip_iterator(first, result),
-    thrust::make_zip_iterator(last, result),
+    ::cuda::make_zip_iterator(first, result),
+    ::cuda::make_zip_iterator(last, result),
     UnaryTransformIfFunctor{unary_op, pred});
 
   return thrust::get<1>(zipped_result.get_iterator_tuple());
@@ -203,13 +201,12 @@ _CCCL_HOST_DEVICE ForwardIterator transform_if(
   using UnaryTransformIfFunctor = thrust::detail::unary_transform_if_with_stencil_functor<UnaryFunction, Predicate>;
 
   // make an iterator tuple
-  using IteratorTuple = thrust::tuple<InputIterator1, InputIterator2, ForwardIterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<InputIterator1, InputIterator2, ForwardIterator>;
 
   ZipIterator zipped_result = thrust::for_each(
     exec,
-    thrust::make_zip_iterator(first, stencil, result),
-    thrust::make_zip_iterator(last, stencil, result),
+    ::cuda::make_zip_iterator(first, stencil, result),
+    ::cuda::make_zip_iterator(last, stencil, result),
     UnaryTransformIfFunctor{unary_op, pred});
 
   return thrust::get<2>(zipped_result.get_iterator_tuple());
@@ -235,13 +232,12 @@ _CCCL_HOST_DEVICE ForwardIterator transform_if(
   using BinaryTransformIfFunctor = thrust::detail::binary_transform_if_functor<BinaryFunction, Predicate>;
 
   // make an iterator tuple
-  using IteratorTuple = thrust::tuple<InputIterator1, InputIterator2, InputIterator3, ForwardIterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<InputIterator1, InputIterator2, InputIterator3, ForwardIterator>;
 
   ZipIterator zipped_result = thrust::for_each(
     exec,
-    thrust::make_zip_iterator(first1, first2, stencil, result),
-    thrust::make_zip_iterator(last1, first2, stencil, result),
+    ::cuda::make_zip_iterator(first1, first2, stencil, result),
+    ::cuda::make_zip_iterator(last1, first2, stencil, result),
     BinaryTransformIfFunctor{binary_op, pred});
 
   return thrust::get<3>(zipped_result.get_iterator_tuple());

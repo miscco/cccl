@@ -2,8 +2,9 @@
 #include <thrust/functional.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/retag.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/remove.h>
+
+#include <cuda/iterator>
 
 #include <stdexcept>
 
@@ -465,22 +466,19 @@ void TestRemoveCopyToDiscardIteratorZipped(const size_t n)
   size_t num_zeros    = thrust::count(h_data.begin(), h_data.end(), T(0));
   size_t num_nonzeros = h_data.size() - num_zeros;
 
-  using Tuple1 = thrust::tuple<typename thrust::host_vector<T>::iterator, thrust::discard_iterator<>>;
-  using Tuple2 = thrust::tuple<typename thrust::device_vector<T>::iterator, thrust::discard_iterator<>>;
-
-  using ZipIterator1 = thrust::zip_iterator<Tuple1>;
-  using ZipIterator2 = thrust::zip_iterator<Tuple2>;
+  using ZipIterator1 = cuda::zip_iterator<typename thrust::host_vector<T>::iterator, thrust::discard_iterator<>>;
+  using ZipIterator2 = cuda::zip_iterator<typename thrust::device_vector<T>::iterator, thrust::discard_iterator<>>;
 
   ZipIterator1 h_result = thrust::remove_copy(
-    thrust::make_zip_iterator(h_data.begin(), h_data.begin()),
-    thrust::make_zip_iterator(h_data.end(), h_data.end()),
-    thrust::make_zip_iterator(h_output.begin(), thrust::make_discard_iterator()),
+    cuda::make_zip_iterator(h_data.begin(), h_data.begin()),
+    cuda::make_zip_iterator(h_data.end(), h_data.end()),
+    cuda::make_zip_iterator(h_output.begin(), thrust::make_discard_iterator()),
     thrust::make_tuple(T(0), T(0)));
 
   ZipIterator2 d_result = thrust::remove_copy(
-    thrust::make_zip_iterator(d_data.begin(), d_data.begin()),
-    thrust::make_zip_iterator(d_data.end(), d_data.end()),
-    thrust::make_zip_iterator(d_output.begin(), thrust::make_discard_iterator()),
+    cuda::make_zip_iterator(d_data.begin(), d_data.begin()),
+    cuda::make_zip_iterator(d_data.end(), d_data.end()),
+    cuda::make_zip_iterator(d_output.begin(), thrust::make_discard_iterator()),
     thrust::make_tuple(T(0), T(0)));
 
   thrust::discard_iterator<> reference(num_nonzeros);

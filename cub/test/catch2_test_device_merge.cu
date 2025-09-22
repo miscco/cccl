@@ -118,9 +118,9 @@ C2H_TEST("DeviceMerge::MergeKeys no operator<", "[merge][device]")
 namespace
 {
 template <typename... Its>
-auto zip(Its... its) -> decltype(thrust::make_zip_iterator(its...))
+auto zip(Its... its) -> decltype(cuda::make_zip_iterator(its...))
 {
-  return thrust::make_zip_iterator(its...);
+  return cuda::make_zip_iterator(its...);
 }
 
 template <typename Value>

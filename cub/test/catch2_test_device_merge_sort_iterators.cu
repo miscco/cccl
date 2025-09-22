@@ -32,7 +32,6 @@
 #include <thrust/copy.h>
 #include <thrust/equal.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/reverse.h>
 #include <thrust/sequence.h>
 
@@ -85,7 +84,7 @@ C2H_TEST("DeviceMergeSort::StableSortKeysCopy works with iterators and is stable
   const offset_t num_items = GENERATE_COPY(take(2, random(1, 1000000)), values({500, 1000000}));
   auto sort_key_it = thrust::make_transform_iterator(cuda::make_counting_iterator(key_t{}), mod_op_t<key_t>{128});
   auto key_idx_it  = cuda::make_counting_iterator(offset_t{});
-  auto keys_in_it  = thrust::make_zip_iterator(sort_key_it, key_idx_it);
+  auto keys_in_it  = cuda::make_zip_iterator(sort_key_it, key_idx_it);
 
   // Perform sort
   c2h::device_vector<thrust::tuple<key_t, offset_t>> keys_out(

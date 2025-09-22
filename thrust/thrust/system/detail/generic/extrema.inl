@@ -34,12 +34,12 @@
 #include <thrust/extrema.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/pair.h>
 #include <thrust/reduce.h>
 #include <thrust/transform_reduce.h>
 
 #include <cuda/__iterator/counting_iterator.h>
+#include <cuda/__iterator/zip_iterator.h>
 
 THRUST_NAMESPACE_BEGIN
 namespace system::detail::generic
@@ -176,8 +176,8 @@ _CCCL_HOST_DEVICE ForwardIterator min_element(
 
   thrust::tuple<InputType, IndexType> result = thrust::reduce(
     exec,
-    thrust::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)),
-    thrust::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)) + (last - first),
+    ::cuda::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)),
+    ::cuda::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)) + (last - first),
     thrust::tuple<InputType, IndexType>(thrust::detail::get_iterator_value(derived_cast(exec), first), 0),
     detail::min_element_reduction<InputType, IndexType, BinaryPredicate>(comp));
 
@@ -207,8 +207,8 @@ _CCCL_HOST_DEVICE ForwardIterator max_element(
 
   thrust::tuple<InputType, IndexType> result = thrust::reduce(
     exec,
-    thrust::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)),
-    thrust::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)) + (last - first),
+    ::cuda::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)),
+    ::cuda::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)) + (last - first),
     thrust::tuple<InputType, IndexType>(thrust::detail::get_iterator_value(derived_cast(exec), first), 0),
     detail::max_element_reduction<InputType, IndexType, BinaryPredicate>(comp));
 
@@ -239,8 +239,8 @@ _CCCL_HOST_DEVICE thrust::pair<ForwardIterator, ForwardIterator> minmax_element(
   thrust::tuple<thrust::tuple<InputType, IndexType>, thrust::tuple<InputType, IndexType>> result =
     thrust::transform_reduce(
       exec,
-      thrust::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)),
-      thrust::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)) + (last - first),
+      ::cuda::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)),
+      ::cuda::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>(0)) + (last - first),
       detail::duplicate_tuple<InputType, IndexType>(),
       detail::duplicate_tuple<InputType, IndexType>()(
         thrust::tuple<InputType, IndexType>(thrust::detail::get_iterator_value(derived_cast(exec), first), 0)),

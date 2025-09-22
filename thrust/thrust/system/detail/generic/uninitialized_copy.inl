@@ -61,10 +61,9 @@ _CCCL_HOST_DEVICE ForwardIterator uninitialized_copy(
   thrust::detail::false_type) // ::cuda::std::is_trivially_copy_constructible
 {
   // zip up the iterators
-  using IteratorTuple = thrust::tuple<InputIterator, ForwardIterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<InputIterator, ForwardIterator>;
 
-  ZipIterator begin = thrust::make_zip_iterator(first, result);
+  ZipIterator begin = ::cuda::make_zip_iterator(first, result);
   ZipIterator end   = begin;
 
   // get a zip_iterator pointing to the end
@@ -106,10 +105,9 @@ _CCCL_HOST_DEVICE ForwardIterator uninitialized_copy_n(
   thrust::detail::false_type) // ::cuda::std::is_trivially_copy_constructible
 {
   // zip up the iterators
-  using IteratorTuple = thrust::tuple<InputIterator, ForwardIterator>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<InputIterator, ForwardIterator>;
 
-  ZipIterator zipped_first = thrust::make_zip_iterator(first, result);
+  ZipIterator zipped_first = ::cuda::make_zip_iterator(first, result);
 
   // create a functor
   using InputType  = thrust::detail::it_value_t<InputIterator>;

@@ -30,6 +30,8 @@
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/system/detail/generic/mismatch.h>
 
+#include <cuda/__iterator/zip_iterator.h>
+
 THRUST_NAMESPACE_BEGIN
 namespace system::detail::generic
 {
@@ -52,11 +54,10 @@ _CCCL_HOST_DEVICE thrust::pair<InputIterator1, InputIterator2> mismatch(
   BinaryPredicate pred)
 {
   // Contributed by Erich Elsen
-  using IteratorTuple = thrust::tuple<InputIterator1, InputIterator2>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using ZipIterator = ::cuda::zip_iterator<InputIterator1, InputIterator2>;
 
-  ZipIterator zipped_first = thrust::make_zip_iterator(first1, first2);
-  ZipIterator zipped_last  = thrust::make_zip_iterator(last1, first2);
+  ZipIterator zipped_first = ::cuda::make_zip_iterator(first1, first2);
+  ZipIterator zipped_last  = ::cuda::make_zip_iterator(last1, first2);
 
   ZipIterator result =
     thrust::find_if_not(exec, zipped_first, zipped_last, thrust::detail::tuple_binary_predicate<BinaryPredicate>{pred});

@@ -31,9 +31,9 @@
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/scatter.h>
 
+#include <cuda/iterator>
 #include <cuda/std/cstdint>
 #include <cuda/std/limits>
 #include <cuda/std/utility>
@@ -221,10 +221,10 @@ _CCCL_HOST_DEVICE void radix_shuffle_n(
   // note that we are going to mutate the histogram during this sequential scatter
   thrust::scatter(
     exec,
-    thrust::make_zip_iterator(keys_first, values_first),
-    thrust::make_zip_iterator(keys_first + n, values_first + n),
+    ::cuda::make_zip_iterator(keys_first, values_first),
+    ::cuda::make_zip_iterator(keys_first + n, values_first + n),
     thrust::make_transform_iterator(keys_first, bucket_functor<RadixBits, KeyType>(bit_shift, histogram)),
-    thrust::make_zip_iterator(keys_result, values_result));
+    ::cuda::make_zip_iterator(keys_result, values_result));
 }
 
 template <unsigned int RadixBits,

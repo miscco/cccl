@@ -32,9 +32,10 @@
 #include <thrust/distance.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/system/detail/generic/scalar/binary_search.h>
 #include <thrust/system/detail/generic/select_system.h>
+
+#include <cuda/__iterator/zip_iterator.h>
 
 THRUST_NAMESPACE_BEGIN
 namespace detail
@@ -126,8 +127,8 @@ _CCCL_HOST_DEVICE OutputIterator binary_search(
 {
   thrust::for_each(
     exec,
-    thrust::make_zip_iterator(values_begin, output),
-    thrust::make_zip_iterator(values_end, output + ::cuda::std::distance(values_begin, values_end)),
+    ::cuda::make_zip_iterator(values_begin, output),
+    ::cuda::make_zip_iterator(values_end, output + ::cuda::std::distance(values_begin, values_end)),
     detail::binary_search_functor<ForwardIterator, StrictWeakOrdering, BinarySearchFunction>(begin, end, comp, func));
 
   return output + ::cuda::std::distance(values_begin, values_end);

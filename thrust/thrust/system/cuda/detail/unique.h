@@ -53,6 +53,7 @@
 #  include <thrust/system/cuda/detail/par_to_seq.h>
 #  include <thrust/system/cuda/detail/util.h>
 
+#  include <cuda/__iterator/zip_iterator.h>
 #  include <cuda/std/cstdint>
 
 THRUST_NAMESPACE_BEGIN
@@ -275,7 +276,7 @@ unique_count(execution_policy<Derived>& policy, ForwardIt first, ForwardIt last,
     return 0;
   }
   auto size = ::cuda::std::distance(first, last);
-  auto it   = thrust::make_zip_iterator(first, ::cuda::std::next(first));
+  auto it   = ::cuda::make_zip_iterator(first, ::cuda::std::next(first));
   return 1
        + thrust::count_if(policy, it, ::cuda::std::next(it, size - 1), zip_adj_not_predicate<BinaryPred>{binary_pred});
 }

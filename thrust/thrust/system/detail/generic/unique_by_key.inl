@@ -30,10 +30,11 @@
 #include <thrust/detail/range/head_flags.h>
 #include <thrust/detail/temporary_array.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/system/detail/generic/unique_by_key.h>
 #include <thrust/transform.h>
 #include <thrust/unique.h>
+
+#include <cuda/iterator>
 
 THRUST_NAMESPACE_BEGIN
 namespace system::detail::generic
@@ -109,15 +110,15 @@ _CCCL_HOST_DEVICE thrust::pair<OutputIterator1, OutputIterator2> unique_by_key_c
   thrust::detail::head_flags<InputIterator1, BinaryPredicate> stencil(keys_first, keys_last, binary_pred);
 
   using namespace thrust::placeholders;
-  thrust::zip_iterator<thrust::tuple<OutputIterator1, OutputIterator2>> result = thrust::copy_if(
+  ::cuda::zip_iterator<OutputIterator1, OutputIterator2> result = thrust::copy_if(
     exec,
-    thrust::make_zip_iterator(keys_first, values_first),
-    thrust::make_zip_iterator(keys_first, values_first) + n,
+    ::cuda::make_zip_iterator(keys_first, values_first),
+    ::cuda::make_zip_iterator(keys_first, values_first) + n,
     stencil.begin(),
-    thrust::make_zip_iterator(keys_output, values_output),
+    ::cuda::make_zip_iterator(keys_output, values_output),
     _1);
 
-  difference_type output_size = result - thrust::make_zip_iterator(keys_output, values_output);
+  difference_type output_size = result - ::cuda::make_zip_iterator(keys_output, values_output);
 
   return thrust::make_pair(keys_output + output_size, values_output + output_size);
 } // end unique_by_key_copy()

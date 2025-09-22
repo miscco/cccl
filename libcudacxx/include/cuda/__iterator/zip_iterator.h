@@ -593,6 +593,12 @@ public:
   {
     return __zip_apply(__zip_op_iter_swap{}, __lhs.__current_, __rhs.__current_);
   }
+
+  //! @brief Returns a @c const& to the stored tuple of iterators
+  [[nodiscard]] _CCCL_API constexpr const __tuple_or_pair<_Iterators...>& get_iterator_tuple() const noexcept
+  {
+    return __current_;
+  }
 };
 
 template <class... _Iterators>
@@ -610,6 +616,14 @@ template <typename... Iterators>
 _CCCL_API constexpr zip_iterator<Iterators...> make_zip_iterator(::cuda::std::tuple<Iterators...> __t)
 {
   return zip_iterator<Iterators...>{::cuda::std::move(__t)};
+}
+
+//! @brief Creates a @c zip_iterator from a @c pair of iterators.
+template <class _Iterator1, class _Iterator2>
+[[nodiscard]] _CCCL_API constexpr zip_iterator<_Iterator1, _Iterator2>
+make_zip_iterator(::cuda::std::pair<_Iterator1, _Iterator2>&& __pair)
+{
+  return zip_iterator<_Iterator1, _Iterator2>{::cuda::std::forward<::cuda::std::pair<_Iterator1, _Iterator2>>(__pair)};
 }
 
 //! @brief Creates a @c zip_iterator from a variadic number of iterators.

@@ -38,11 +38,11 @@
 
 #if _CCCL_HAS_CUDA_COMPILER()
 
-#  include <thrust/iterator/zip_iterator.h>
 #  include <thrust/system/cuda/detail/parallel_for.h>
 #  include <thrust/system/cuda/detail/transform.h>
 #  include <thrust/type_traits/is_trivially_relocatable.h>
 
+#  include <cuda/__iterator/zip_iterator.h>
 #  include <cuda/functional>
 #  include <cuda/std/__algorithm_>
 #  include <cuda/std/iterator>
@@ -83,7 +83,12 @@ swap_ranges(execution_policy<Derived>& policy, ItemsIt1 first1, ItemsIt1 last1, 
   {
     return get<1>(
       cuda_cub::transform(
-        policy, first1, last1, first2, zip_iterator{first1, first2}, ::cuda::proclaim_copyable_arguments(__swap_f{}))
+        policy,
+        first1,
+        last1,
+        first2,
+        ::cuda::zip_iterator{first1, first2},
+        ::cuda::proclaim_copyable_arguments(__swap_f{}))
         .get_iterator_tuple());
   }
   else

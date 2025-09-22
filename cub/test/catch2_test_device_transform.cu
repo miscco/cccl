@@ -9,9 +9,7 @@
 
 #include <thrust/iterator/constant_iterator.h>
 #include <thrust/iterator/transform_output_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/sequence.h>
-#include <thrust/zip_function.h>
 
 #include <cuda/iterator>
 #include <cuda/std/__functional/identity.h>
@@ -318,8 +316,8 @@ C2H_TEST("DeviceTransform::Transform BabelStream nstream",
   transform_many(cuda::std::make_tuple(a.begin(), b.begin(), c.begin()), a.begin(), num_items, nstream_kernel<type>{});
 
   // compute reference and verify
-  auto z = thrust::make_zip_iterator(a_h.begin(), b_h.begin(), c_h.begin());
-  std::transform(z, z + num_items, a_h.begin(), thrust::make_zip_function(nstream_kernel<type>{}));
+  auto z = cuda::make_zip_iterator(a_h.begin(), b_h.begin(), c_h.begin());
+  std::transform(z, z + num_items, a_h.begin(), cuda::make_zip_function(nstream_kernel<type>{}));
   REQUIRE(a_h == a);
 }
 
@@ -358,8 +356,8 @@ C2H_TEST("DeviceTransform::Transform add five streams", "[device][transform]")
   c2h::host_vector<std::int64_t> d_h = d;
   c2h::host_vector<float> e_h        = e;
   c2h::host_vector<double> reference_h(num_items, thrust::no_init);
-  auto zip = thrust::zip_iterator{a_h.begin(), b_h.begin(), c_h.begin(), d_h.begin(), e_h.begin()};
-  std::transform(zip, zip + num_items, reference_h.begin(), thrust::zip_function{sum_five{}});
+  auto zip = cuda::zip_iterator{a_h.begin(), b_h.begin(), c_h.begin(), d_h.begin(), e_h.begin()};
+  std::transform(zip, zip + num_items, reference_h.begin(), cuda::zip_function{sum_five{}});
   REQUIRE(reference_h == result);
 }
 

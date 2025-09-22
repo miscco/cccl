@@ -29,11 +29,11 @@
 #include <thrust/detail/internal_functional.h>
 #include <thrust/find.h>
 #include <thrust/iterator/transform_iterator.h>
-#include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/tuple.h>
 
 #include <cuda/__iterator/counting_iterator.h>
+#include <cuda/__iterator/zip_iterator.h>
 #include <cuda/std/__algorithm/min.h>
 
 // Contributed by Erich Elsen
@@ -59,7 +59,7 @@ struct find_if_functor
     // select the smallest index among true results
     if (thrust::get<0>(lhs) && thrust::get<0>(rhs))
     {
-      return TupleType(true, (::cuda::std::min) (thrust::get<1>(lhs), thrust::get<1>(rhs)));
+      return TupleType(true, (::cuda::std::min)(thrust::get<1>(lhs), thrust::get<1>(rhs)));
     }
     else if (thrust::get<0>(lhs))
     {
@@ -92,18 +92,14 @@ find_if(thrust::execution_policy<DerivedPolicy>& exec, InputIterator first, Inpu
 
   // TODO incorporate sizeof(InputType) into interval_threshold and round to multiple of 32
   const difference_type interval_threshold = 1 << 20;
-  const difference_type interval_size      = (::cuda::std::min) (interval_threshold, n);
+  const difference_type interval_size      = (::cuda::std::min)(interval_threshold, n);
 
   // force transform_iterator output to bool
-  using XfrmIterator  = thrust::transform_iterator<Predicate, InputIterator, bool>;
-  using IteratorTuple = thrust::tuple<XfrmIterator, ::cuda::counting_iterator<difference_type>>;
-  using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
+  using XfrmIterator = thrust::transform_iterator<Predicate, InputIterator, bool>;
+  using ZipIterator  = ::cuda::zip_iterator<XfrmIterator, ::cuda::counting_iterator<difference_type>>;
 
-  IteratorTuple iter_tuple =
-    thrust::make_tuple(XfrmIterator(first, pred), ::cuda::counting_iterator<difference_type>(0));
-
-  ZipIterator begin = thrust::make_zip_iterator(iter_tuple);
-  ZipIterator end   = begin + n;
+  ZipIterator begin{XfrmIterator(first, pred), ::cuda::counting_iterator<difference_type>{0}};
+  ZipIterator end = begin + n;
 
   for (ZipIterator interval_begin = begin; interval_begin < end; interval_begin += interval_size)
   {

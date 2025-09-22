@@ -30,7 +30,8 @@
 #include <cub/device/device_merge_sort.cuh>
 
 #include <thrust/detail/raw_pointer_cast.h>
-#include <thrust/iterator/zip_iterator.h>
+
+#include <cuda/iterator>
 
 #include <algorithm>
 
@@ -84,7 +85,7 @@ C2H_TEST("DeviceMergeSort::StableSortPairs works for large types", "[merge][sort
   // Prepare host data for verification
   c2h::host_vector<key_t> keys_expected(keys_in_out);
   c2h::host_vector<data_t> values_expected(values_in_out);
-  auto zipped_expected_it = thrust::make_zip_iterator(keys_expected.begin(), values_expected.begin());
+  auto zipped_expected_it = cuda::make_zip_iterator(keys_expected.begin(), values_expected.begin());
   std::stable_sort(zipped_expected_it, zipped_expected_it + num_items, compare_first_lt_op_t{});
 
   // Perform sort
