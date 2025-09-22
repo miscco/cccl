@@ -373,11 +373,11 @@ element(execution_policy<Derived>& policy, ItemsIt first, ItemsIt last, BinaryPr
 
   IndexType num_items = static_cast<IndexType>(::cuda::std::distance(first, last));
 
-  using zip_iterator = zip_iterator<ItemsIt, ::cuda::counting_iterator<IndexType>>;
+  using zip_iterator = ::cuda::zip_iterator<ItemsIt, ::cuda::counting_iterator<IndexType>>;
   using arg_min_t    = ArgFunctor<InputType, IndexType, BinaryPred>;
   using T            = tuple<InputType, IndexType>;
 
-  zip_iterator begin = ::cuda::make_zip_iterator(first, ::cuda::counting_iterator<IndexType>{0});
+  zip_iterator begin = ::cuda::zip_iterator{first, ::cuda::counting_iterator<IndexType>{0}};
 
   T result = extrema(policy, begin, num_items, arg_min_t(binary_pred), (T*) (nullptr));
   return first + thrust::get<1>(result);
@@ -449,7 +449,7 @@ minmax_element(execution_policy<Derived>& policy, ItemsIt first, ItemsIt last, B
      using duplicate_t    = typename arg_minmax_t::duplicate_tuple;
      using transform_t    = transform_iterator<duplicate_t, zip_iterator, two_pairs_type, two_pairs_type>;
 
-     zip_iterator begin    = ::cuda::_zip_iterator{first, ::cuda::counting_iterator<IndexType>{0}};
+     zip_iterator begin    = ::cuda::zip_iterator{first, ::cuda::counting_iterator<IndexType>{0}};
      two_pairs_type result = __extrema::extrema(
        policy, transform_t(begin, duplicate_t()), num_items, arg_minmax_t(binary_pred), (two_pairs_type*) (nullptr));
      ret = thrust::make_pair(first + get<1>(get<0>(result)), first + get<1>(get<1>(result)));),
