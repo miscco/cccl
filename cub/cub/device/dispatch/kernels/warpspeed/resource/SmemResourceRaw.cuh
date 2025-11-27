@@ -135,17 +135,7 @@ struct SmemResourceRaw
 
   _CCCL_DEVICE_API void fenceLdsToAsyncProxy()
   {
-    // Tricky part: How to release loads from shared memory back to async proxy
-    // for e.g. TMA to write?
-    //
-    // The obvious solution, fence.proxy.async.shared::cta, is very costly.
-    //
-    // The current solution is to depend on
-    // fence.proxy.async::generic.acquire.sync_restrict::shared::cluster.cluster;
-    //
-    // This appears to emit a scoreboard req on all preceding LDS instructions.
-    ::cuda::ptx::fence_proxy_async_generic_sync_restrict(
-      ::cuda::ptx::sem_acquire, ::cuda::ptx::space_cluster, ::cuda::ptx::scope_cluster);
+    ::cuda::ptx::fence_proxy_async(::cuda::ptx::space_shared);
   }
 
   _CCCL_DEVICE_API void releaseLdsToAsyncProxy(int phase)
