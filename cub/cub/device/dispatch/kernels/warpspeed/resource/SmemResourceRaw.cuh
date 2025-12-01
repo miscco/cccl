@@ -60,7 +60,7 @@ struct SmemResourceRaw
   }
 
   template <int numSquads>
-  _CCCL_API void addPhase(SyncHandler& syncHandler, uint64_t* ptrBarrier, const SquadDesc (&squads)[numSquads])
+  _CCCL_API void addPhase(SyncHandler& syncHandler, uint64_t* ptrBarrier, const SquadArray<numSquads>& squads)
   {
     int numOwningThreads = squadCountThreads(squads);
 
@@ -72,7 +72,7 @@ struct SmemResourceRaw
   }
 
   template <int numSquads>
-  _CCCL_API void addPhase(SyncHandler& syncHandler, SmemAllocator& smemAllocator, const SquadDesc (&squads)[numSquads])
+  _CCCL_API void addPhase(SyncHandler& syncHandler, SmemAllocator& smemAllocator, const SquadArray<numSquads>& squads)
   {
     uint64_t* ptrBar =
       reinterpret_cast<uint64_t*>(smemAllocator.alloc(mStageCount * sizeof(uint64_t), alignof(uint64_t)));
@@ -81,13 +81,13 @@ struct SmemResourceRaw
 
   _CCCL_API void addPhase(SyncHandler& syncHandler, uint64_t* ptrBarrier, const SquadDesc& squad)
   {
-    const SquadDesc squads[] = {squad};
+    const SquadArray<1> squads{squad};
     addPhase(syncHandler, ptrBarrier, squads);
   }
 
   _CCCL_API void addPhase(SyncHandler& syncHandler, SmemAllocator& smemAllocator, const SquadDesc& squad)
   {
-    const SquadDesc squads[] = {squad};
+    const SquadArray<1> squads{squad};
     addPhase(syncHandler, smemAllocator, squads);
   }
 
