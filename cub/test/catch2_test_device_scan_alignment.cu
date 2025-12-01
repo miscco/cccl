@@ -126,9 +126,8 @@ bool compareIsEqualAndPrint(const c2h::host_vector<T>& actual, const c2h::host_v
   return false;
 }
 
-// TODO(bgruber): enable uint64, which exceeds the SMEM available on RTX 5090
 // We cover types of various sizes smaller than 16 byte
-using value_types = c2h::type_list<uint8_t, uint16_t, uint32_t /*, uint64_t*/>;
+using value_types = c2h::type_list<uint8_t, uint16_t, uint32_t, uint64_t>;
 
 C2H_TEST("Device scan works with all device interfaces", "[scan][device]", value_types)
 {
@@ -137,14 +136,15 @@ C2H_TEST("Device scan works with all device interfaces", "[scan][device]", value
   using offset_t = int32_t;
   using op_t     = cuda::std::plus<>;
 
-  constexpr int max_offset = 16;
+  constexpr offset_t max_offset    = 16;
+  constexpr offset_t max_num_items = 8192;
 
-  for (offset_t num_items = 2 * 16; num_items < 1000 * 16; num_items += 16)
+  for (offset_t num_items = 1; num_items < max_num_items; num_items++)
   {
     CAPTURE(num_items);
 
     // Generate input data
-    c2h::device_vector<input_t> in_items(num_items + max_offset, thrust::no_init);
+    c2h::device_vector<input_t> in_items(num_items + max_offset + 1, thrust::no_init);
     c2h::gen(C2H_SEED(1), in_items);
     auto d_in_it = thrust::raw_pointer_cast(in_items.data());
 
@@ -158,15 +158,21 @@ C2H_TEST("Device scan works with all device interfaces", "[scan][device]", value
 
       // Compute verification data
       compute_inclusive_scan_reference(
-        host_items.cbegin() + offset, host_items.cend() - max_offset + offset, expected_result.begin(), op_t{}, 0);
+        host_items.cbegin() + offset, host_items.cbegin() + offset + num_items, expected_result.begin(), op_t{}, 0);
 
       // Run test
-      c2h::device_vector<output_t> out_result(num_items, thrust::no_init);
+      constexpr output_t out_sentinel_value = 123;
+      c2h::device_vector<output_t> out_result(num_items + max_offset + 1, out_sentinel_value);
       auto d_out_it = thrust::raw_pointer_cast(out_result.data());
-      device_inclusive_scan(unwrap_it(d_in_it + offset), unwrap_it(d_out_it), op_t{}, num_items);
+      device_inclusive_scan(unwrap_it(d_in_it + offset), unwrap_it(d_out_it + offset), op_t{}, num_items);
 
-      REQUIRE(compareIsEqualAndPrint(expected_result, c2h::host_vector<output_t>(out_result)));
-      REQUIRE(expected_result == out_result);
+      c2h::host_vector<output_t> out_result_vec(num_items);
+      thrust::copy_n(out_result.begin() + offset, num_items, out_result_vec.begin());
+
+      REQUIRE(compareIsEqualAndPrint(expected_result, out_result_vec));
+
+      const int out_sentinel = out_result[offset + num_items];
+      REQUIRE(out_sentinel == out_sentinel_value);
     }
   }
 }
