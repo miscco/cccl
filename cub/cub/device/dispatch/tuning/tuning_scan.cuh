@@ -565,9 +565,24 @@ struct policy_hub
 
     struct WarpspeedPolicy
     {
-      static constexpr int squad_reduce_thread_count = 4 * 32; // TODO(bgruber): keep in sync with squad
-                                                               // definition
-      static constexpr int num_lookback_tiles = 96;
+      // Squad definitions
+      static constexpr int num_squads           = 5;
+      static constexpr int num_threads_per_warp = 32;
+
+      // TODO(bgruber): tune this
+      static constexpr int num_reduce_warps     = 4;
+      static constexpr int num_scan_stor_warps  = 4;
+      static constexpr int num_load_warps       = 1;
+      static constexpr int num_sched_warps      = 1;
+      static constexpr int num_look_ahead_warps = 1;
+
+      // Deduced definitions
+      static constexpr int num_total_warps =
+        num_reduce_warps + num_scan_stor_warps + num_load_warps + num_sched_warps + num_look_ahead_warps;
+      static constexpr int num_total_threads = num_total_warps * num_threads_per_warp;
+
+      static constexpr int squad_reduce_thread_count = num_reduce_warps * num_threads_per_warp;
+      static constexpr int num_lookback_tiles        = 3 * num_look_ahead_warps * num_threads_per_warp;
 
       // 256 / sizeof(InputValueT) - 1 should minimize bank conflicts
       // 2-byte types and double needed special handling
