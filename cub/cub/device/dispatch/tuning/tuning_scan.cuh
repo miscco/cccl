@@ -18,6 +18,7 @@
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_scan.cuh>
 #include <cub/block/block_store.cuh>
+#include <cub/device/dispatch/kernels/warpspeed/squad/SquadDesc.h>
 #include <cub/device/dispatch/tuning/common.cuh>
 #include <cub/thread/thread_load.cuh>
 #include <cub/util_device.cuh>
@@ -589,6 +590,27 @@ struct policy_hub
       static constexpr int tile_size =
         (256 / (sizeof(InputValueT) == 2 ? 2 : (::cuda::std::is_same_v<InputValueT, double> ? 4 : sizeof(AccumT))) - 1)
         * squad_reduce_thread_count;
+
+      [[nodiscard]] _CCCL_API _CCCL_FORCEINLINE static constexpr SquadDesc squadReduce() noexcept
+      {
+        return SquadDesc{0, num_reduce_warps};
+      }
+      [[nodiscard]] _CCCL_API _CCCL_FORCEINLINE static constexpr SquadDesc squadScanStore() noexcept
+      {
+        return SquadDesc{1, num_scan_stor_warps};
+      }
+      [[nodiscard]] _CCCL_API _CCCL_FORCEINLINE static constexpr SquadDesc squadLoad() noexcept
+      {
+        return SquadDesc{2, num_load_warps};
+      }
+      [[nodiscard]] _CCCL_API _CCCL_FORCEINLINE static constexpr SquadDesc squadSched() noexcept
+      {
+        return SquadDesc{3, num_sched_warps};
+      }
+      [[nodiscard]] _CCCL_API _CCCL_FORCEINLINE static constexpr SquadDesc squadLookback() noexcept
+      {
+        return SquadDesc{4, num_look_ahead_warps};
+      }
     };
   };
 
