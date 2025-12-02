@@ -544,7 +544,7 @@ template <typename WarpspeedPolicy, typename InputT, typename OutputT, typename 
     SmemResource<SumThreadAndWarpT>(syncHandler, smemAllocator, Stages{params.numStages}),
   };
   // asdfasdf
-  static constexpr SquadDesc scanSquads[WarpspeedPolicy::num_stages] = {
+  static constexpr SquadDesc scanSquads[WarpspeedPolicy::num_squads] = {
     WarpspeedPolicy::squadReduce(),
     WarpspeedPolicy::squadScanStore(),
     WarpspeedPolicy::squadLoad(),
@@ -884,6 +884,13 @@ _CCCL_DEVICE_API inline void kernelBody(
   }
 }
 
+template <typename ActivePolicy, class = void>
+inline constexpr int get_scan_block_threads = 1;
+
+template <typename ActivePolicy>
+inline constexpr int get_scan_block_threads<ActivePolicy, ::cuda::std::void_t<typename ActivePolicy::WarpspeedPolicy>> =
+  ActivePolicy::WarpspeedPolicy::num_total_threads;
+
 template <typename MaxPolicy,
           typename InputT,
           typename OutputT,
@@ -891,7 +898,7 @@ template <typename MaxPolicy,
           typename ScanOpT,
           typename InitValueT,
           bool ForceInclusive>
-__launch_bounds__(MaxPolicy::WarpspeedPolicy::num_total_threads, 1) __global__ void scan(
+__launch_bounds__(get_scan_block_threads<typename MaxPolicy::ActivePolicy>, 1) __global__ void scan(
   const __grid_constant__ scanKernelParams<InputT, OutputT, AccumT> params, ScanOpT scan_op, InitValueT init_value)
 {
   NV_IF_TARGET(NV_PROVIDES_SM_100, ({
@@ -902,7 +909,7 @@ __launch_bounds__(MaxPolicy::WarpspeedPolicy::num_total_threads, 1) __global__ v
                  SpecialRegisters specialRegisters = getSpecialRegisters();
 
                  // Dispatch for warp-specialization
-                 static constexpr SquadDesc scanSquads[WarpspeedPolicy::num_stages] = {
+                 static constexpr SquadDesc scanSquads[WarpspeedPolicy::num_squads] = {
                    WarpspeedPolicy::squadReduce(),
                    WarpspeedPolicy::squadScanStore(),
                    WarpspeedPolicy::squadLoad(),
