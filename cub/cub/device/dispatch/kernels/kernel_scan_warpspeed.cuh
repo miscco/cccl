@@ -45,7 +45,7 @@ CUB_NAMESPACE_BEGIN
 
 namespace detail::scan
 {
-_CCCL_DEVICE_API inline void squadGetNextBlockIdx(const Squad& squad, SmemRef<uint4>& refDestSmem)
+_CCCL_DEVICE_API inline void squadGetNextBlockIdx(Squad squad, SmemRef<uint4>& refDestSmem)
 {
   if (squad.isLeaderThread())
   {
@@ -117,7 +117,7 @@ _CCCL_DEVICE_API inline CpAsyncOobInfo prepareCpAsyncOob(const Tp* ptrGmem, uint
 }
 
 template <typename Tp>
-_CCCL_DEVICE_API inline void squadLoadBulk(const Squad& squad, SmemRef<Tp>& refDestSmem, CpAsyncOobInfo cpAsyncOobInfo)
+_CCCL_DEVICE_API inline void squadLoadBulk(Squad squad, SmemRef<Tp>& refDestSmem, CpAsyncOobInfo cpAsyncOobInfo)
 {
   void* ptrSmem    = refDestSmem.data();
   uint64_t* ptrBar = refDestSmem.ptrCurBarrierRelease();
@@ -136,7 +136,7 @@ _CCCL_DEVICE_API inline void squadLoadBulk(const Squad& squad, SmemRef<Tp>& refD
 }
 
 template <typename OutputT>
-_CCCL_DEVICE_API inline void squadStoreBulkSync(const Squad& squad, CpAsyncOobInfo cpAsyncOobInfo, OutputT* srcSmem)
+_CCCL_DEVICE_API inline void squadStoreBulkSync(Squad squad, CpAsyncOobInfo cpAsyncOobInfo, OutputT* srcSmem)
 {
   // This function performs either 1 copy, or three copies, depending on the
   // size and alignment of the output tile in global memory.
