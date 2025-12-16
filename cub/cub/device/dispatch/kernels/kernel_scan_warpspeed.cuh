@@ -244,6 +244,16 @@ _CCCL_DEVICE_API inline void squadLoadSmem(Squad squad, AccumT (&outReg)[elemPer
   }
 }
 
+template <typename InputT, typename AccumT, int elemPerThread>
+_CCCL_DEVICE_API inline void squadLoadSmemPartial(
+  Squad squad, AccumT (&outReg)[elemPerThread], const InputT* smemBuf, const int valid_items_this_thread)
+{
+  for (int i = 0; i < elemPerThread; ++i)
+  {
+    outReg[i] = i < valid_items_this_thread ? smemBuf[squad.threadRank() * elemPerThread + i] : AccumT{};
+  }
+}
+
 template <typename OutputT, typename AccumT, int elemPerThread>
 _CCCL_DEVICE_API inline void squadStoreSmem(Squad squad, OutputT* smemBuf, const AccumT (&inReg)[elemPerThread])
 {
@@ -265,12 +275,6 @@ squadStoreSmemPartial(Squad squad, OutputT* smemBuf, const AccumT (&inReg)[elemP
       smemBuf[elem_idx - beginIndex] = static_cast<OutputT>(inReg[i]);
     }
   }
-}
-
-template <typename Tp, int elemPerThread, typename ScanOpT>
-_CCCL_DEVICE_API inline Tp threadReduce(const Tp (&regInput)[elemPerThread], ScanOpT& scan_op)
-{
-  return ThreadReduce(regInput, scan_op);
 }
 
 template <typename Tp, typename ScanOpT>
@@ -312,6 +316,23 @@ _CCCL_DEVICE_API inline Tp warpScanExclusive(const Tp regInput, ScanOpT& scan_op
   typename warp_scan_t::TempStorage temp_storage;
 
   warp_scan_t{temp_storage}.ExclusiveScan(regInput, result, scan_op);
+
+  return result;
+}
+
+template <typename Tp, typename ScanOpT>
+_CCCL_DEVICE_API inline Tp warpScanExclusivePartial(const Tp regInput, ScanOpT& scan_op, const int num_items)
+{
+  using warp_scan_t = WarpScan<Tp>;
+
+  // TODO (elstehle): Do proper temporary storage allocation in case WarpReduce may rely on it
+  static_assert(sizeof(typename warp_scan_t::TempStorage) <= 4,
+                "WarpScan with non-trivial temporary storage is not supported yet in this kernel.");
+
+  Tp result;
+  typename warp_scan_t::TempStorage temp_storage;
+
+  warp_scan_t{temp_storage}.ExclusiveScanPartial(regInput, result, scan_op, num_items);
 
   return result;
 }
@@ -529,9 +550,9 @@ _CCCL_DEVICE_API inline void kernelBody(
     if (squad == squadReduce)
     {
       const int valid_items_this_thread =
-        cuda::std::clamp(valid_items - squad.threadRank() * elemPerThread, 0, elemPerThread);
+        ::cuda::std::clamp(valid_items - squad.threadRank() * elemPerThread, 0, elemPerThread);
       const int valid_threads_this_warp =
-        cuda::std::clamp(::cuda::ceil_div(valid_items, elemPerThread) - squad.warpRank() * 32, 0, 32);
+        ::cuda::std::clamp(::cuda::ceil_div(valid_items, elemPerThread) - squad.warpRank() * 32, 0, 32);
       const int valid_warps = ::cuda::ceil_div(valid_items, elemPerThread * 32);
       _CCCL_ASSERT(0 < valid_warps && valid_warps <= squad.warpCount(), "");
 
@@ -545,21 +566,21 @@ _CCCL_DEVICE_API inline void kernelBody(
         SmemRef refInOutRW = phaseInOutRW.acquireRef();
         // Load data
         AccumT regInput[elemPerThread];
-        // Handle unaligned refInOutRW.data() + loadInfo.smemStartOffsetElem points to the first element of the tile.
-        // in the last tile, we load some invalid elements, but don't process them later
-        squadLoadSmem(squad, regInput, &refInOutRW.data()[0] + loadInfo.smemStartOffsetElem);
 
         ////////////////////////////////////////////////////////////////////////////////
         // Reduce across thread and warp
         ////////////////////////////////////////////////////////////////////////////////
         if (is_last_tile)
         {
+          squadLoadSmemPartial(
+            squad, regInput, &refInOutRW.data()[0] + loadInfo.smemStartOffsetElem, valid_items_this_thread);
           regThreadSum = ThreadReducePartial(regInput, scan_op, valid_items_this_thread);
           regWarpSum   = warpReducePartial(regThreadSum, scan_op, valid_threads_this_warp);
         }
         else
         {
-          regThreadSum = threadReduce(regInput, scan_op);
+          squadLoadSmem(squad, regInput, &refInOutRW.data()[0] + loadInfo.smemStartOffsetElem);
+          regThreadSum = ThreadReduce(regInput, scan_op);
           regWarpSum   = warpReduce(regThreadSum, scan_op);
         }
       }
@@ -655,6 +676,12 @@ _CCCL_DEVICE_API inline void kernelBody(
     if (squad == squadScanStore)
     {
       static_assert(tile_size % squadScanStore.threadCount() == 0);
+      const int valid_items_this_thread =
+        ::cuda::std::clamp(valid_items - squad.threadRank() * elemPerThread, 0, elemPerThread);
+      const int valid_threads_this_warp =
+        ::cuda::std::clamp(::cuda::ceil_div(valid_items, elemPerThread) - squad.warpRank() * 32, 0, 32);
+      const int valid_warps = ::cuda::ceil_div(valid_items, elemPerThread * 32);
+      _CCCL_ASSERT(0 < valid_warps && valid_warps <= squad.warpCount(), "");
 
       // Sum of all threads up to but not including this one
       AccumT sumExclusive;
@@ -694,7 +721,18 @@ _CCCL_DEVICE_API inline void kernelBody(
 
         // Perform scan of thread sums. If the warp contains partial data, we pass invalid elements to scan_op, and
         // sumExclusiveIntraWarp is invalid when the inputs were invalid and for warp_0/thread_0
-        AccumT sumExclusiveIntraWarp = warpScanExclusive(regSumThread, scan_op);
+        AccumT sumExclusiveIntraWarp;
+        // Perform scan of thread sums. If the warp contains partial data, we pass invalid elements to scan_op, and
+        // sumExclusiveIntraWarp is invalid when the inputs were invalid and for warp_0/thread_0
+        if (is_last_tile)
+        {
+          sumExclusiveIntraWarp = warpScanExclusive(regSumThread, scan_op);
+        }
+        else
+        {
+          // We can only store those regThreadSum which had valid items in them
+          sumExclusiveIntraWarp = warpScanExclusivePartial(regSumThread, scan_op, valid_threads_this_warp);
+        }
 
         // warp_0 does not hold a valid value in sumExclusive, so only include it in other warps
         sumExclusive = squad.warpRank() == 0 ? sumExclusiveIntraWarp : scan_op(sumExclusive, sumExclusiveIntraWarp);
