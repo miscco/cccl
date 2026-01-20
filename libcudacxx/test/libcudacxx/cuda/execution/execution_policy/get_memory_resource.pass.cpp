@@ -108,6 +108,9 @@ void test()
 
   // Ensure that all works even if we have a stream attached
   test(cuda::execution::__cub_par_unseq.set_stream(::cuda::stream{cuda::device_ref{0}}));
+
+  // Ensure that all works even if we have set as nosync
+  test(cuda::execution::__cub_par_unseq.set_nosync());
 }
 
 int main(int, char**)

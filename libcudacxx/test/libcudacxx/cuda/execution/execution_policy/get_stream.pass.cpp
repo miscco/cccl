@@ -67,6 +67,9 @@ void test()
 
   // Ensure that all works even if we have a memory resource
   test(cuda::execution::__cub_par_unseq.set_memory_resource(::cuda::device_default_memory_pool(::cuda::device_ref{0})));
+
+  // Ensure that all works even if we have set as nosync
+  test(cuda::execution::__cub_par_unseq.set_nosync());
 }
 
 int main(int, char**)

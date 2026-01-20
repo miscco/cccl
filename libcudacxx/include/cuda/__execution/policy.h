@@ -209,6 +209,70 @@ public:
     return this->__resource_;
   }
 
+  //! @brief Convert to a policy that holds a memory resource
+  _CCCL_TEMPLATE(bool _WithStream   = __cuda_policy_with_stream<_Policy>,
+                 bool _WithResource = __cuda_policy_with_memory_resource<_Policy>)
+  _CCCL_REQUIRES((!_WithStream) _CCCL_AND(!_WithResource))
+  [[nodiscard]] _CCCL_HOST_API auto set_nosync() const noexcept
+  {
+    constexpr uint32_t __new_policy = __set_cuda_backend_option<_Policy, __cuda_backend_options::__is_nosync>;
+    return __execution_policy_base<__new_policy>{};
+  }
+
+  //! @brief Convert to a policy that is marked as nosync, lvalue overload
+  [[nodiscard]] _CCCL_HOST_API auto set_nosync() & noexcept
+  {
+    constexpr uint32_t __new_policy = __set_cuda_backend_option<_Policy, __cuda_backend_options::__is_nosync>;
+    constexpr bool _WithStream      = __cuda_policy_with_stream<_Policy>;
+    constexpr bool _WithResource    = __cuda_policy_with_memory_resource<_Policy>;
+    if constexpr (_WithStream && _WithResource)
+    {
+      return __execution_policy_base<__new_policy>{*this, this->__stream_, this->__resource_};
+    }
+    else if (_WithStream)
+    {
+      return __execution_policy_base<__new_policy>{*this, this->__stream_};
+    }
+    else if (_WithResource)
+    {
+      return __execution_policy_base<__new_policy>{*this, this->__resource_};
+    }
+    else
+    {
+      return __execution_policy_base<__new_policy>{};
+    }
+  }
+
+  //! @brief Convert to a policy that is marked as nosync, rvalue overload
+  [[nodiscard]] _CCCL_HOST_API auto set_nosync() && noexcept
+  {
+    constexpr uint32_t __new_policy = __set_cuda_backend_option<_Policy, __cuda_backend_options::__is_nosync>;
+    constexpr bool _WithStream      = __cuda_policy_with_stream<_Policy>;
+    constexpr bool _WithResource    = __cuda_policy_with_memory_resource<_Policy>;
+    if constexpr (_WithStream && _WithResource)
+    {
+      return __execution_policy_base<__new_policy>{*this, this->__stream_, ::cuda::std::move(this->__resource_)};
+    }
+    else if (_WithStream)
+    {
+      return __execution_policy_base<__new_policy>{*this, this->__stream_};
+    }
+    else if (_WithResource)
+    {
+      return __execution_policy_base<__new_policy>{*this, ::cuda::std::move(this->__resource_)};
+    }
+    else
+    {
+      return __execution_policy_base<__new_policy>{};
+    }
+  }
+
+  //! @brief Returns whether we allow the algorithm to not synchronize at the end
+  [[nodiscard]] _CCCL_HOST_API static constexpr bool is_nosync() noexcept
+  {
+    return __cuda_policy_nosync<_Policy>;
+  }
+
   template <uint32_t _OtherPolicy, __execution_backend _OtherBackend>
   [[nodiscard]] _CCCL_API friend constexpr bool operator==(
     const __execution_policy_base& __lhs, const __execution_policy_base<_OtherPolicy, _OtherBackend>& __rhs) noexcept

@@ -61,4 +61,18 @@ C2H_TEST("cuda::std::for_each_n", "[parallel algorithm]")
     cuda::std::for_each_n(policy, cuda::counting_iterator{0}, size, fn);
     CHECK(thrust::all_of(res.begin(), res.end(), cuda::std::identity{}));
   }
+
+  SECTION("with nosync")
+  {
+    ::cuda::stream stream{::cuda::device_ref{0}};
+    thrust::device_vector<bool> res(size, false);
+    mark_present_for_each fn{thrust::raw_pointer_cast(res.data())};
+
+    const auto policy = cuda::execution::__cub_par_unseq.set_stream(stream).set_nosync();
+    cuda::std::for_each_n(policy, cuda::counting_iterator{0}, size, fn);
+    CHECK(policy.is_nosync());
+    CHECK(!stream.is_done());
+    stream.sync();
+    CHECK(thrust::all_of(res.begin(), res.end(), cuda::std::identity{}));
+  }
 }

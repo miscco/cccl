@@ -28,10 +28,13 @@
 
 _CCCL_BEGIN_NAMESPACE_CUDA_STD_EXECUTION
 
+//! @brief Enumerates options we might want to pass to a backend. E.g whether we need to sync
+//! @note Not an enum class because a user might specify multiple options
 enum __cuda_backend_options : uint16_t
 {
   __with_stream          = 1 << 0, ///> Determines whether the policy holds a stream
   __with_memory_resource = 1 << 1, ///> Determines whether the policy holds a memory resource
+  __is_nosync            = 1 << 2, //!> Determines whether the algorithms should synchronize at the end of execution
 };
 
 //! @brief Sets the execution backend to cuda
@@ -63,6 +66,11 @@ inline constexpr bool __cuda_policy_with_stream =
 template <uint32_t _Policy>
 inline constexpr bool __cuda_policy_with_memory_resource =
   static_cast<bool>(__policy_to_cuda_backend_options<_Policy> & __cuda_backend_options::__with_memory_resource);
+
+//! @brief Detects whether a given policy indicates an algorithm should not synchronize at the end
+template <uint32_t _Policy>
+inline constexpr bool __cuda_policy_nosync =
+  __policy_to_cuda_backend_options<_Policy> & __cuda_backend_options::__is_nosync;
 
 _CCCL_END_NAMESPACE_CUDA_STD_EXECUTION
 
