@@ -54,7 +54,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI bool isgreater(_A1 __x, _A2 __y) noexc
 {
   using type = __promote_t<_A1, _A2>;
   NV_IF_ELSE_TARGET(NV_IS_HOST,
-                    (return ::isgreater((type) __x, (type) __y);),
+                    (return isgreater((type) __x, (type) __y);),
                     (return _CUDA_VSTD::__device_isgreater((type) __x, (type) __y);))
 }
 
@@ -77,7 +77,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI bool isgreaterequal(_A1 __x, _A2 __y) 
 {
   using type = __promote_t<_A1, _A2>;
   NV_IF_ELSE_TARGET(NV_IS_HOST,
-                    (return ::isgreaterequal((type) __x, (type) __y);),
+                    (return isgreaterequal((type) __x, (type) __y);),
                     (return _CUDA_VSTD::__device_isgreaterequal((type) __x, (type) __y);))
 }
 
@@ -99,9 +99,8 @@ template <class _A1,
 _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI bool isless(_A1 __x, _A2 __y) noexcept
 {
   using type = __promote_t<_A1, _A2>;
-  NV_IF_ELSE_TARGET(NV_IS_HOST,
-                    (return ::isless((type) __x, (type) __y);),
-                    (return _CUDA_VSTD::__device_isless((type) __x, (type) __y);))
+  NV_IF_ELSE_TARGET(
+    NV_IS_HOST, (return isless((type) __x, (type) __y);), (return _CUDA_VSTD::__device_isless((type) __x, (type) __y);))
 }
 
 // islessequal
@@ -123,7 +122,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI bool islessequal(_A1 __x, _A2 __y) noe
 {
   using type = __promote_t<_A1, _A2>;
   NV_IF_ELSE_TARGET(NV_IS_HOST,
-                    (return ::islessequal((type) __x, (type) __y);),
+                    (return islessequal((type) __x, (type) __y);),
                     (return _CUDA_VSTD::__device_islessequal((type) __x, (type) __y);))
 }
 
@@ -146,7 +145,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI bool islessgreater(_A1 __x, _A2 __y) n
 {
   using type = __promote_t<_A1, _A2>;
   NV_IF_ELSE_TARGET(NV_IS_HOST,
-                    (return ::islessgreater((type) __x, (type) __y);),
+                    (return islessgreater((type) __x, (type) __y);),
                     (return _CUDA_VSTD::__device_islessgreater((type) __x, (type) __y);))
 }
 

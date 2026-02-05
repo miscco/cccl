@@ -40,7 +40,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI constexpr bool __isnan_impl(_Tp __x) n
   static_assert(_CCCL_TRAIT(is_floating_point, _Tp), "Only standard floating-point types are supported");
   if (!_CUDA_VSTD::__cccl_default_is_constant_evaluated())
   {
-    return ::isnan(__x);
+    return isnan(__x);
   }
   return __x != __x;
 }

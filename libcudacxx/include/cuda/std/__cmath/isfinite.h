@@ -41,7 +41,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI constexpr bool __isfinite_impl(_Tp __x
   static_assert(_CCCL_TRAIT(is_floating_point, _Tp), "Only standard floating-point types are supported");
   if (!_CUDA_VSTD::__cccl_default_is_constant_evaluated())
   {
-    return ::isfinite(__x);
+    return isfinite(__x);
   }
   return !_CUDA_VSTD::isnan(__x) && !_CUDA_VSTD::isinf(__x);
 }
@@ -53,7 +53,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI constexpr bool isfinite(float __x) noe
 #else // ^^^ _CCCL_BUILTIN_ISFINITE ^^^ / vvv !_CCCL_BUILTIN_ISFINITE vvv
   if (!_CUDA_VSTD::__cccl_default_is_constant_evaluated())
   {
-    return ::isfinite(__x);
+    return isfinite(__x);
   }
 #  if _LIBCUDACXX_HAS_CONSTEXPR_BIT_CAST()
   return (_CUDA_VSTD::__fp_get_storage(__x) & __fp_exp_mask_v<float>) != __fp_exp_mask_v<float>;
@@ -70,7 +70,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI constexpr bool isfinite(double __x) no
 #else // ^^^ _CCCL_BUILTIN_ISFINITE ^^^ / vvv !_CCCL_BUILTIN_ISFINITE vvv
   if (!_CUDA_VSTD::__cccl_default_is_constant_evaluated())
   {
-    return ::isfinite(__x);
+    return isfinite(__x);
   }
 #  if _LIBCUDACXX_HAS_CONSTEXPR_BIT_CAST()
   return (_CUDA_VSTD::__fp_get_storage(__x) & __fp_exp_mask_v<double>) != __fp_exp_mask_v<double>;

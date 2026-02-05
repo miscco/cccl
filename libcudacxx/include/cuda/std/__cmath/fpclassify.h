@@ -101,7 +101,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI constexpr int fpclassify(float __x) no
 #else // ^^^ _CCCL_BUILTIN_FPCLASSIFY ^^^ / vvv !_CCCL_BUILTIN_FPCLASSIFY vvv
   if (!_CUDA_VSTD::__cccl_default_is_constant_evaluated())
   {
-    NV_IF_TARGET(NV_IS_HOST, (return ::fpclassify(__x);))
+    NV_IF_TARGET(NV_IS_HOST, (return fpclassify(__x);))
   }
   return _CUDA_VSTD::__fpclassify_impl(__x);
 #endif // !_CCCL_BUILTIN_FPCLASSIFY
@@ -114,7 +114,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI constexpr int fpclassify(double __x) n
 #else // ^^^ _CCCL_BUILTIN_FPCLASSIFY ^^^ / vvv !_CCCL_BUILTIN_FPCLASSIFY vvv
   if (!_CUDA_VSTD::__cccl_default_is_constant_evaluated())
   {
-    NV_IF_TARGET(NV_IS_HOST, (return ::fpclassify(__x);))
+    NV_IF_TARGET(NV_IS_HOST, (return fpclassify(__x);))
   }
   return _CUDA_VSTD::__fpclassify_impl(__x);
 #endif // !_CCCL_BUILTIN_FPCLASSIFY
@@ -128,7 +128,7 @@ _CCCL_NODISCARD _LIBCUDACXX_HIDE_FROM_ABI constexpr int fpclassify(long double _
 #  else // ^^^ _CCCL_BUILTIN_SIGNBIT ^^^ / vvv !_CCCL_BUILTIN_SIGNBIT vvv
   if (!_CUDA_VSTD::__cccl_default_is_constant_evaluated())
   {
-    NV_IF_TARGET(NV_IS_HOST, (return ::fpclassify(__x);))
+    NV_IF_TARGET(NV_IS_HOST, (return fpclassify(__x);))
   }
   return _CUDA_VSTD::__fpclassify_impl(__x);
 #  endif // !_CCCL_BUILTIN_SIGNBIT
