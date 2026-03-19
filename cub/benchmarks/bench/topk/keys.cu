@@ -60,8 +60,8 @@ void topk_keys(nvbench::state& state, nvbench::type_list<KeyT, OffsetT, OutOffse
 
   thrust::device_vector<KeyT> in_keys = generate(elements, entropy);
   thrust::device_vector<KeyT> out_keys(selected_elements, thrust::no_init);
-  const KeyT* d_keys_in = thrust::raw_pointer_cast(in_keys.data());
-  KeyT* d_keys_out      = thrust::raw_pointer_cast(out_keys.data());
+  const KeyT* d_keys_in = cuda::std::to_address(in_keys.data());
+  KeyT* d_keys_out      = cuda::std::to_address(out_keys.data());
 
   state.add_element_count(elements, "NumElements");
   state.add_element_count(selected_elements, "NumSelectedElements");
@@ -87,7 +87,7 @@ void topk_keys(nvbench::state& state, nvbench::type_list<KeyT, OffsetT, OutOffse
 #endif // !TUNE_BASE
   );
   thrust::device_vector<nvbench::uint8_t> temp(temp_size, thrust::no_init);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   // run the algorithm
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {

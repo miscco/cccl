@@ -52,16 +52,16 @@ double compute_actual_entropy(thrust::device_vector<T> in)
   void* d_temp_storage           = nullptr;
   std::size_t temp_storage_bytes = 0;
 
-  T* d_in             = thrust::raw_pointer_cast(in.data());
-  T* d_unique_out     = thrust::raw_pointer_cast(unique.data());
-  int* d_counts_out   = thrust::raw_pointer_cast(counts.data());
-  int* d_num_runs_out = thrust::raw_pointer_cast(num_runs.data());
+  T* d_in             = cuda::std::to_address(in.data());
+  T* d_unique_out     = cuda::std::to_address(unique.data());
+  int* d_counts_out   = cuda::std::to_address(counts.data());
+  int* d_num_runs_out = cuda::std::to_address(num_runs.data());
 
   cub::DeviceRunLengthEncode::Encode(
     d_temp_storage, temp_storage_bytes, d_in, d_unique_out, d_counts_out, d_num_runs_out, n);
 
   thrust::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   cub::DeviceRunLengthEncode::Encode(
     d_temp_storage, temp_storage_bytes, d_in, d_unique_out, d_counts_out, d_num_runs_out, n);

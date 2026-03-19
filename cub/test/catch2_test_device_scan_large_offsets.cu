@@ -95,11 +95,11 @@ try
 
   // Output memory allocation
   c2h::device_vector<item_t> d_items_out(num_items);
-  auto d_items_out_it = thrust::raw_pointer_cast(d_items_out.data());
+  auto d_items_out_it = cuda::std::to_address(d_items_out.data());
 
   c2h::device_vector<item_t> d_initial_value(1);
   d_initial_value[0]     = item_t{};
-  auto future_init_value = cub::FutureValue<item_t>(thrust::raw_pointer_cast(d_initial_value.data()));
+  auto future_init_value = cub::FutureValue<item_t>(cuda::std::to_address(d_initial_value.data()));
 
   // Run test
   device_exclusive_scan(items_it, d_items_out_it, op_t{}, future_init_value, num_items);
@@ -138,11 +138,11 @@ try
   auto index_it                  = cuda::counting_iterator(index_t{});
   auto items_it                  = cuda::transform_iterator(index_it, mod_op<item_t>{segment_size});
   c2h::device_vector<item_t> d_items_in(items_it, items_it + num_items);
-  auto d_items_ptr = thrust::raw_pointer_cast(d_items_in.data());
+  auto d_items_ptr = cuda::std::to_address(d_items_in.data());
 
   // Output memory allocation
   c2h::device_vector<item_t> d_items_out(num_items);
-  auto d_items_out_it = thrust::raw_pointer_cast(d_items_out.data());
+  auto d_items_out_it = cuda::std::to_address(d_items_out.data());
 
   // Run test
   device_inclusive_scan(d_items_ptr, d_items_out_it, op_t{}, num_items);

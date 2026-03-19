@@ -27,7 +27,7 @@ int main()
   d_ptr[2] = d_ptr[0] + d_ptr[1];
 
   // device_ptr can be converted to a "raw" pointer for use in other APIs and kernels, etc.
-  int* raw_ptr = thrust::raw_pointer_cast(d_ptr);
+  int* raw_ptr = cuda::std::to_address(d_ptr);
 
   // note: raw_ptr cannot necessarily be accessed by the host!
 

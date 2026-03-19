@@ -69,8 +69,8 @@ Say there's no need to cover many types with your test.
 
       // 5) Compute reference output
       std::ALGORITHM(
-          thrust::raw_pointer_cast(h_reference.data()),
-          thrust::raw_pointer_cast(h_reference.data()) + h_reference.size());
+          cuda::std::to_address(h_reference.data()),
+          cuda::std::to_address(h_reference.data()) + h_reference.size());
 
       // 6) Compute CUB output
       SCOPE_ALGORITHM<threads_per_block>(d_input.data(),

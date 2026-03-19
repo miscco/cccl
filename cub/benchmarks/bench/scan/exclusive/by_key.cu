@@ -84,9 +84,9 @@ static void scan(nvbench::state& state, nvbench::type_list<KeyT, ValueT, OffsetT
   thrust::device_vector<ValueT> out_vals(elements);
   thrust::device_vector<KeyT> keys = generate.uniform.key_segments(elements, 0, 5200);
 
-  KeyT* d_keys       = thrust::raw_pointer_cast(keys.data());
-  ValueT* d_in_vals  = thrust::raw_pointer_cast(in_vals.data());
-  ValueT* d_out_vals = thrust::raw_pointer_cast(out_vals.data());
+  KeyT* d_keys       = cuda::std::to_address(keys.data());
+  ValueT* d_in_vals  = cuda::std::to_address(in_vals.data());
+  ValueT* d_out_vals = cuda::std::to_address(out_vals.data());
 
   state.add_element_count(elements);
   state.add_global_memory_reads<KeyT>(elements);
@@ -107,7 +107,7 @@ static void scan(nvbench::state& state, nvbench::type_list<KeyT, ValueT, OffsetT
     0 /* stream */);
 
   thrust::device_vector<nvbench::uint8_t> tmp(tmp_size);
-  nvbench::uint8_t* d_tmp = thrust::raw_pointer_cast(tmp.data());
+  nvbench::uint8_t* d_tmp = cuda::std::to_address(tmp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch_t::Dispatch(

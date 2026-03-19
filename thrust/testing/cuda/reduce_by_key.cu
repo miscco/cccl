@@ -497,7 +497,7 @@ void TestReduceByKeyWithCustomEqualityOp()
   auto values              = cuda::make_counting_iterator(val_t{42});
 
   thrust::device_vector<cuda::std::uint32_t> error_counter(1, 0);
-  auto const error_counter_ptr = thrust::raw_pointer_cast(error_counter.data());
+  auto const error_counter_ptr = cuda::std::to_address(error_counter.data());
 
   key_vector_t unique_out(num_items);
   val_vector_t aggregates_out(num_items);
@@ -542,7 +542,7 @@ void TestReduceByKeyWithDifferentAccumulatorT()
   auto values                         = cuda::make_counting_iterator(val_t{0});
 
   thrust::device_vector<cuda::std::uint32_t> error_counter(1, 0);
-  auto const error_counter_ptr = thrust::raw_pointer_cast(error_counter.data());
+  auto const error_counter_ptr = cuda::std::to_address(error_counter.data());
 
   thrust::device_vector<key_t> unique_out(expected_num_uniques);
   thrust::device_vector<val_t> aggregates_out(expected_num_uniques);

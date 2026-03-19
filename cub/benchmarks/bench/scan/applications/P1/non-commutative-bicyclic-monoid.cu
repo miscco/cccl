@@ -138,8 +138,8 @@ static void inclusive_scan(nvbench::state& state, nvbench::type_list<T, OffsetT>
     // deallocate temporary arrays at the scope boundary
   }
 
-  pair_t* d_input  = thrust::raw_pointer_cast(input.data());
-  pair_t* d_output = thrust::raw_pointer_cast(output.data());
+  pair_t* d_input  = cuda::std::to_address(input.data());
+  pair_t* d_output = cuda::std::to_address(output.data());
 
   state.add_element_count(elements);
   state.add_global_memory_reads<pair_t>(elements, "Size");
@@ -151,7 +151,7 @@ static void inclusive_scan(nvbench::state& state, nvbench::type_list<T, OffsetT>
   dispatch_t::Dispatch(nullptr, tmp_size, d_input, d_output, op_t{}, wrapped_init_t{}, input.size(), bench_stream);
 
   thrust::device_vector<nvbench::uint8_t> tmp(tmp_size, thrust::no_init);
-  nvbench::uint8_t* d_tmp = thrust::raw_pointer_cast(tmp.data());
+  nvbench::uint8_t* d_tmp = cuda::std::to_address(tmp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch_t::Dispatch(

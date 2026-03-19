@@ -47,7 +47,7 @@ C2H_TEST("Device bulk works", "[bulk][device]", offset_type)
     })));
 
   c2h::device_vector<int> counts(num_items);
-  int* d_counts = thrust::raw_pointer_cast(counts.data());
+  int* d_counts = cuda::std::to_address(counts.data());
 
   device_bulk(num_items, incrementer_t<offset_t>{d_counts});
 

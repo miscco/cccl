@@ -152,9 +152,7 @@ C2H_TEST("Block store works with even block sizes",
   c2h::device_vector<type> d_output(d_input.size());
 
   block_store<params::items_per_thread, params::threads_in_block, params::store_algorithm>(
-    thrust::raw_pointer_cast(d_input.data()),
-    thrust::raw_pointer_cast(d_output.data()),
-    static_cast<int>(d_input.size()));
+    cuda::std::to_address(d_input.data()), cuda::std::to_address(d_output.data()), static_cast<int>(d_input.size()));
 
   REQUIRE(d_input == d_output);
 }
@@ -175,9 +173,7 @@ C2H_TEST("Block store works with even odd sizes",
   c2h::device_vector<type> d_output(d_input.size());
 
   block_store<params::items_per_thread, params::threads_in_block, params::store_algorithm>(
-    thrust::raw_pointer_cast(d_input.data()),
-    thrust::raw_pointer_cast(d_output.data()),
-    static_cast<int>(d_input.size()));
+    cuda::std::to_address(d_input.data()), cuda::std::to_address(d_output.data()), static_cast<int>(d_input.size()));
 
   REQUIRE(d_input == d_output);
 }
@@ -200,9 +196,7 @@ C2H_TEST("Block store works with even vector types",
   c2h::device_vector<type> d_output(d_input.size());
 
   block_store<params::items_per_thread, params::threads_in_block, params::store_algorithm>(
-    thrust::raw_pointer_cast(d_input.data()),
-    thrust::raw_pointer_cast(d_output.data()),
-    static_cast<int>(d_input.size()));
+    cuda::std::to_address(d_input.data()), cuda::std::to_address(d_output.data()), static_cast<int>(d_input.size()));
 
   REQUIRE(d_input == d_output);
 }
@@ -222,9 +216,7 @@ C2H_TEST("Block store works with custom types", "[store][block]", items_per_thre
   c2h::device_vector<type> d_output(d_input.size());
 
   block_store<items_per_thread, threads_in_block, store_algorithm>(
-    thrust::raw_pointer_cast(d_input.data()),
-    thrust::raw_pointer_cast(d_output.data()),
-    static_cast<int>(d_input.size()));
+    cuda::std::to_address(d_input.data()), cuda::std::to_address(d_output.data()), static_cast<int>(d_input.size()));
 
   REQUIRE(d_input == d_output);
 }
@@ -242,10 +234,10 @@ C2H_TEST("Block store works with caching iterators", "[store][block]", items_per
 
   c2h::device_vector<type> d_output(d_input.size());
   cub::CacheModifiedOutputIterator<cub::CacheStoreModifier::STORE_DEFAULT, type> out(
-    thrust::raw_pointer_cast(d_output.data()));
+    cuda::std::to_address(d_output.data()));
 
   block_store<items_per_thread, threads_in_block, store_algorithm>(
-    thrust::raw_pointer_cast(d_input.data()), out, static_cast<int>(d_input.size()));
+    cuda::std::to_address(d_input.data()), out, static_cast<int>(d_input.size()));
 
   REQUIRE(d_input == d_output);
 }
@@ -273,8 +265,8 @@ C2H_TEST("Vectorized block store with different alignment cases", "[store][block
   thrust::fill_n(d_output.begin(), offset_for_elements, 0);
 
   block_store<items_per_thread, threads_in_block, store_algorithm>(
-    thrust::raw_pointer_cast(d_input.data()),
-    thrust::raw_pointer_cast(d_output.data()) + offset_for_elements,
+    cuda::std::to_address(d_input.data()),
+    cuda::std::to_address(d_output.data()) + offset_for_elements,
     static_cast<int>(d_input.size()));
 
   REQUIRE(d_input_ref == d_output);

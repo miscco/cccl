@@ -84,7 +84,7 @@ c2h::host_vector<MessageT> compute_reference(const c2h::device_vector<MessageT>&
   }
 
   c2h::host_vector<MessageT> reference = tile_aggregates;
-  MessageT* h_reference                = thrust::raw_pointer_cast(reference.data());
+  MessageT* h_reference                = cuda::std::to_address(reference.data());
 
   MessageT aggregate = h_reference[0];
   for (std::size_t i = 1; i < reference.size(); i++)
@@ -106,7 +106,7 @@ C2H_TEST("Decoupled look-back works with various message types", "[decoupled loo
   const int num_tiles = GENERATE_COPY(take(c2h::adjust_seed_count(10), random(1, max_tiles)));
 
   c2h::device_vector<message_t> tile_data(num_tiles);
-  message_t* d_tile_data = thrust::raw_pointer_cast(tile_data.data());
+  message_t* d_tile_data = cuda::std::to_address(tile_data.data());
 
   c2h::gen(C2H_SEED(2), tile_data);
   c2h::host_vector<message_t> reference = compute_reference(tile_data);
@@ -117,7 +117,7 @@ C2H_TEST("Decoupled look-back works with various message types", "[decoupled loo
 
   // Allocate temporary storage
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  std::uint8_t* d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  std::uint8_t* d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Initialize temporary storage
   scan_tile_state_t tile_status;

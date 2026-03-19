@@ -38,8 +38,8 @@ C2H_TEST("The vectorized copy used by DeviceMemcpy works", "[memcpy]", vector_ty
   thrust::sequence(c2h::device_policy, data_input_buffer.begin(), data_input_buffer.end(), static_cast<uint8_t>(0));
   thrust::fill_n(c2h::device_policy, data_output_buffer.begin(), alloc_size_out, static_cast<uint8_t>(0x42));
 
-  auto d_in  = thrust::raw_pointer_cast(data_input_buffer.data());
-  auto d_out = thrust::raw_pointer_cast(data_output_buffer.data());
+  auto d_in  = cuda::std::to_address(data_input_buffer.data());
+  auto d_out = cuda::std::to_address(data_output_buffer.data());
 
   test_vectorized_copy_kernel<threads_per_block, vector_t>
     <<<1, threads_per_block>>>(d_in + in_offset, d_out + out_offset, static_cast<int>(copy_size));

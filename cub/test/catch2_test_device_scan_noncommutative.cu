@@ -57,8 +57,8 @@ C2H_TEST("Device inclusive scan works with non-commutative operator", "[scan][de
     {1, 9}, {0, 1}, {0, 1}, {0, 1}, {1, 0}, {1, 0}, {1, 0}, {2, 2}, {2, 2}, {0, 0}, {1, 1}, {2, 3}};
   c2h::device_vector<pair_t> output(input.size());
 
-  pair_t* d_input  = thrust::raw_pointer_cast(input.data());
-  pair_t* d_output = thrust::raw_pointer_cast(output.data());
+  pair_t* d_input  = cuda::std::to_address(input.data());
+  pair_t* d_output = cuda::std::to_address(output.data());
 
   size_t tmp_size{};
   cudaError_t status1 = cub::DeviceScan::InclusiveScan(nullptr, tmp_size, d_input, d_output, op_t{}, input.size());
@@ -68,7 +68,7 @@ C2H_TEST("Device inclusive scan works with non-commutative operator", "[scan][de
   using cuda::std::byte;
 
   c2h::device_vector<byte> tmp(tmp_size);
-  byte* d_tmp = thrust::raw_pointer_cast(tmp.data());
+  byte* d_tmp = cuda::std::to_address(tmp.data());
 
   REQUIRE(d_tmp != nullptr);
 

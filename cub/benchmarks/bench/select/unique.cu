@@ -95,10 +95,10 @@ static void unique(nvbench::state& state, nvbench::type_list<T, OffsetT, InPlace
   thrust::device_vector<T> out(elements);
   thrust::device_vector<offset_t> num_unique_out(1);
 
-  input_it_t d_in                = thrust::raw_pointer_cast(in.data());
-  output_it_t d_out              = thrust::raw_pointer_cast(out.data());
+  input_it_t d_in                = cuda::std::to_address(in.data());
+  output_it_t d_out              = cuda::std::to_address(out.data());
   flag_it_t d_flags              = nullptr;
-  num_selected_it_t d_num_unique = thrust::raw_pointer_cast(num_unique_out.data());
+  num_selected_it_t d_num_unique = cuda::std::to_address(num_unique_out.data());
 
   // Get temporary storage requirements
   std::size_t temp_size{};
@@ -106,7 +106,7 @@ static void unique(nvbench::state& state, nvbench::type_list<T, OffsetT, InPlace
     nullptr, temp_size, d_in, d_flags, d_out, d_num_unique, select_op_t{}, equality_op_t{}, elements, 0);
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   // Get number of unique elements
   dispatch_t::Dispatch(

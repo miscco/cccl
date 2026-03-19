@@ -431,7 +431,7 @@ C2H_TEST("DeviceTransform::Transform fancy output iterator type with void value 
 
   using it_t = cub::CacheModifiedOutputIterator<cub::CacheStoreModifier::STORE_DEFAULT, int>;
   static_assert(cuda::std::is_void_v<it_t::value_type>);
-  auto out = it_t{thrust::raw_pointer_cast(result.data())};
+  auto out = it_t{cuda::std::to_address(result.data())};
   transform_many(cuda::std::make_tuple(a.begin(), b.begin()), out, num_items, cuda::std::plus<type>{});
   REQUIRE(result == c2h::device_vector<type>(num_items, 3));
 }
@@ -497,10 +497,10 @@ C2H_TEST("DeviceTransform::Transform address stability", "[device][transform]")
 
   c2h::device_vector<type> result(num_items, thrust::no_init);
   transform_many_stable(
-    cuda::std::make_tuple(thrust::raw_pointer_cast(a.data())),
+    cuda::std::make_tuple(cuda::std::to_address(a.data())),
     result.begin(),
     num_items,
-    plus_needs_stable_address{thrust::raw_pointer_cast(a.data()), thrust::raw_pointer_cast(b.data())});
+    plus_needs_stable_address{cuda::std::to_address(a.data()), cuda::std::to_address(b.data())});
 
   // compute reference and verify
   c2h::device_vector<type> a_h = a;
@@ -554,7 +554,7 @@ C2H_TEST("DeviceTransform::Transform not trivially relocatable", "[device][trans
   c2h::device_vector<non_trivial> input(num_items, non_trivial{42});
   c2h::device_vector<non_trivial> result(num_items, thrust::no_init);
   transform_many(
-    cuda::std::make_tuple(thrust::raw_pointer_cast(input.data())), result.begin(), num_items, cuda::std::negate<>{});
+    cuda::std::make_tuple(cuda::std::to_address(input.data())), result.begin(), num_items, cuda::std::negate<>{});
 
   const auto reference = c2h::device_vector<non_trivial>(num_items, non_trivial{-42});
   REQUIRE((reference == result));
@@ -784,7 +784,7 @@ C2H_TEST("DeviceTransform::Transform PDL overlap check", "[device][transform]")
 
   // completely async work of filling, 2x transforming and 1x reduction. we also avoid using the launch wrapper, since
   // it would synchronize
-  fill_pdl(thrust::raw_pointer_cast(data.data()), num_items, 42);
+  fill_pdl(cuda::std::to_address(data.data()), num_items, 42);
   cub::DeviceTransform::Transform(::cuda::std::make_tuple(data.begin()), data.begin(), num_items, cuda::std::negate{});
   cub::DeviceTransform::Transform(::cuda::std::make_tuple(data.begin()), flags.begin(), num_items, _1 == -42);
   thrust::reduce_into(

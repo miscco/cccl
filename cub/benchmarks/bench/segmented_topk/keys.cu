@@ -105,8 +105,8 @@ void fixed_seg_size_topk_keys(
 
   thrust::device_vector<KeyT> in_keys_buffer = generate(elements, entropy);
   thrust::device_vector<KeyT> out_keys_buffer(selected_elements * num_segments, thrust::no_init);
-  auto d_keys_in_ptr  = thrust::raw_pointer_cast(in_keys_buffer.data());
-  auto d_keys_out_ptr = thrust::raw_pointer_cast(out_keys_buffer.data());
+  auto d_keys_in_ptr  = cuda::std::to_address(in_keys_buffer.data());
+  auto d_keys_out_ptr = cuda::std::to_address(out_keys_buffer.data());
   auto d_keys_in      = cuda::make_strided_iterator(cuda::make_counting_iterator(d_keys_in_ptr), segment_size);
   auto d_keys_out     = cuda::make_strided_iterator(cuda::make_counting_iterator(d_keys_out_ptr), selected_elements);
 
@@ -137,7 +137,7 @@ void fixed_seg_size_topk_keys(
     0);
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size, thrust::no_init);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   // run the algorithm
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {

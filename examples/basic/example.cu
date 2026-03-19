@@ -65,8 +65,7 @@ int main()
 
   int num_blocks = (N + block_size - 1) / block_size;
 
-  sumKernel<<<num_blocks, block_size>>>(
-    thrust::raw_pointer_cast(data.data()), thrust::raw_pointer_cast(result.data()), N);
+  sumKernel<<<num_blocks, block_size>>>(cuda::std::to_address(data.data()), cuda::std::to_address(result.data()), N);
 
   auto err = cudaDeviceSynchronize();
   if (err != cudaSuccess)

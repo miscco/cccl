@@ -151,7 +151,7 @@ void TestReduceWithIndirection()
 
   Vector table{0, 1, 2, 0, 1, 2};
 
-  T result = thrust::reduce(data.begin(), data.end(), T(0), plus_mod3<T>(thrust::raw_pointer_cast(&table[0])));
+  T result = thrust::reduce(data.begin(), data.end(), T(0), plus_mod3<T>(cuda::std::to_address(&table[0])));
 
   ASSERT_EQUAL(result, T(1));
 }

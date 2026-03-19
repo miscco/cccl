@@ -57,9 +57,9 @@ C2H_TEST("DispatchScanByKey::Dispatch: custom policy hub", "[scan_by_key][device
   dispatch_t::Dispatch(
     nullptr,
     temp_size,
-    thrust::raw_pointer_cast(d_keys.data()),
-    thrust::raw_pointer_cast(d_values.data()),
-    thrust::raw_pointer_cast(d_out.data()),
+    cuda::std::to_address(d_keys.data()),
+    cuda::std::to_address(d_values.data()),
+    cuda::std::to_address(d_out.data()),
     eq_op_t{},
     scan_op_t{},
     NullType{},
@@ -67,11 +67,11 @@ C2H_TEST("DispatchScanByKey::Dispatch: custom policy hub", "[scan_by_key][device
     /* stream */ nullptr);
   c2h::device_vector<unsigned char> temp_storage(temp_size, thrust::no_init);
   dispatch_t::Dispatch(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_size,
-    thrust::raw_pointer_cast(d_keys.data()),
-    thrust::raw_pointer_cast(d_values.data()),
-    thrust::raw_pointer_cast(d_out.data()),
+    cuda::std::to_address(d_keys.data()),
+    cuda::std::to_address(d_values.data()),
+    cuda::std::to_address(d_out.data()),
     eq_op_t{},
     scan_op_t{},
     NullType{},

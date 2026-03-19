@@ -242,8 +242,8 @@ public:
   // index
   cuda::tabulate_output_iterator<set_bit_flag_for_write_op> get_flagging_output_iterator()
   {
-    auto check_op = set_bit_flag_for_write_op{
-      thrust::raw_pointer_cast(element_flags.data()), thrust::raw_pointer_cast(index_flags.data())};
+    auto check_op =
+      set_bit_flag_for_write_op{cuda::std::to_address(element_flags.data()), cuda::std::to_address(index_flags.data())};
     return cuda::make_tabulate_output_iterator(check_op);
   }
 
@@ -315,7 +315,7 @@ c2h::device_vector<KeyT> compact_to_topk_batched(
   size_t temp_storage_bytes = 0;
   cub::DeviceCopy::Batched(d_temp_storage, temp_storage_bytes, src_ptrs_it, dst_ptrs_it, copy_sizes_it, num_segments);
   c2h::device_vector<cuda::std::uint8_t> d_temp(temp_storage_bytes, thrust::no_init);
-  d_temp_storage = thrust::raw_pointer_cast(d_temp.data());
+  d_temp_storage = cuda::std::to_address(d_temp.data());
 
   // Run batched copy to compact top-k elements of each segment to the front of the input buffer
   cub::DeviceCopy::Batched(d_temp_storage, temp_storage_bytes, src_ptrs_it, dst_ptrs_it, copy_sizes_it, num_segments);
@@ -335,8 +335,7 @@ void segmented_sort_keys(
 
   // Prepare alternate buffer for double buffering
   c2h::device_vector<KeyT> d_keys_alt(num_items, thrust::no_init);
-  cub::DoubleBuffer<KeyT> d_keys(
-    thrust::raw_pointer_cast(d_keys_in.data()), thrust::raw_pointer_cast(d_keys_alt.data()));
+  cub::DoubleBuffer<KeyT> d_keys(cuda::std::to_address(d_keys_in.data()), cuda::std::to_address(d_keys_alt.data()));
 
   // Query temporary storage size
   size_t temp_storage_bytes = 0;
@@ -356,7 +355,7 @@ void segmented_sort_keys(
 
     // Run segmented sort
     cub::DeviceSegmentedSort::SortKeys(
-      thrust::raw_pointer_cast(d_temp_storage.data()),
+      cuda::std::to_address(d_temp_storage.data()),
       temp_storage_bytes,
       d_keys,
       num_items,
@@ -380,7 +379,7 @@ void segmented_sort_keys(
 
     // Run segmented sort
     cub::DeviceSegmentedSort::SortKeysDescending(
-      thrust::raw_pointer_cast(d_temp_storage.data()),
+      cuda::std::to_address(d_temp_storage.data()),
       temp_storage_bytes,
       d_keys,
       num_items,
@@ -390,7 +389,7 @@ void segmented_sort_keys(
   }
 
   // Make sure the result is returned in the original buffer
-  if (d_keys.Current() != thrust::raw_pointer_cast(d_keys_in.data()))
+  if (d_keys.Current() != cuda::std::to_address(d_keys_in.data()))
   {
     thrust::copy(d_keys.Current(), d_keys.Current() + num_items, d_keys_in.begin());
   }

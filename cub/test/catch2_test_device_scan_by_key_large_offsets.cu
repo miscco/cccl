@@ -96,7 +96,7 @@ try
 
   // Output memory allocation
   c2h::device_vector<item_t> d_items_out(num_items);
-  auto d_items_out_it = thrust::raw_pointer_cast(d_items_out.data());
+  auto d_items_out_it = cuda::std::to_address(d_items_out.data());
 
   // Run test
   SECTION("ExclusiveScanByKey")

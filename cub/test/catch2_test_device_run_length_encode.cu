@@ -45,7 +45,7 @@ C2H_TEST("DeviceRunLengthEncode::Encode can handle empty input", "[device][run_l
     in.begin(),
     static_cast<int*>(nullptr),
     static_cast<int*>(nullptr),
-    thrust::raw_pointer_cast(out_num_runs.data()),
+    cuda::std::to_address(out_num_runs.data()),
     num_items);
 
   REQUIRE(out_num_runs.front() == num_items);
@@ -198,10 +198,10 @@ C2H_TEST("DeviceRunLengthEncode::Encode can handle pointers", "[device][run_leng
   c2h::gen(C2H_SEED(2), in);
 
   run_length_encode(
-    thrust::raw_pointer_cast(in.data()),
-    thrust::raw_pointer_cast(out_unique.data()),
-    thrust::raw_pointer_cast(out_counts.data()),
-    thrust::raw_pointer_cast(out_num_runs.data()),
+    cuda::std::to_address(in.data()),
+    cuda::std::to_address(out_unique.data()),
+    cuda::std::to_address(out_counts.data()),
+    cuda::std::to_address(out_num_runs.data()),
     num_items);
 
   // trim output

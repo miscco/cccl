@@ -74,8 +74,8 @@ C2H_TEST("DispatchBatchMemcpy::Dispatch: custom policy hub", "[device][memcpy]")
     out_buffers[i].resize(bytes);
     c2h::gen(C2H_SEED(1), in_buffers[i]);
 
-    h_in_ptrs[i]  = thrust::raw_pointer_cast(in_buffers[i].data());
-    h_out_ptrs[i] = thrust::raw_pointer_cast(out_buffers[i].data());
+    h_in_ptrs[i]  = cuda::std::to_address(in_buffers[i].data());
+    h_out_ptrs[i] = cuda::std::to_address(out_buffers[i].data());
     h_sizes[i]    = bytes;
   }
 
@@ -91,18 +91,18 @@ C2H_TEST("DispatchBatchMemcpy::Dispatch: custom policy hub", "[device][memcpy]")
   dispatch_t::Dispatch(
     nullptr,
     temp_size,
-    thrust::raw_pointer_cast(d_in_ptrs.data()),
-    thrust::raw_pointer_cast(d_out_ptrs.data()),
-    thrust::raw_pointer_cast(d_sizes.data()),
+    cuda::std::to_address(d_in_ptrs.data()),
+    cuda::std::to_address(d_out_ptrs.data()),
+    cuda::std::to_address(d_sizes.data()),
     static_cast<cuda::std::int64_t>(buffer_sizes.size()),
     /* stream */ nullptr);
   c2h::device_vector<::cuda::std::uint8_t> temp_storage(temp_size, thrust::no_init);
   dispatch_t::Dispatch(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_size,
-    thrust::raw_pointer_cast(d_in_ptrs.data()),
-    thrust::raw_pointer_cast(d_out_ptrs.data()),
-    thrust::raw_pointer_cast(d_sizes.data()),
+    cuda::std::to_address(d_in_ptrs.data()),
+    cuda::std::to_address(d_out_ptrs.data()),
+    cuda::std::to_address(d_sizes.data()),
     static_cast<cuda::std::int64_t>(buffer_sizes.size()),
     /* stream */ nullptr);
 

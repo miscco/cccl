@@ -38,7 +38,7 @@ C2H_TEST("DeviceMergeSort::StableSortKeys works for large types", "[merge][sort]
   std::stable_sort(keys_expected.begin(), keys_expected.end(), custom_less_op_t{});
 
   // Perform sort
-  stable_sort_keys(thrust::raw_pointer_cast(keys_in_out.data()), num_items, custom_less_op_t{});
+  stable_sort_keys(cuda::std::to_address(keys_in_out.data()), num_items, custom_less_op_t{});
 
   // Verify results
   REQUIRE(keys_expected == keys_in_out);
@@ -64,8 +64,8 @@ C2H_TEST("DeviceMergeSort::StableSortPairs works for large types", "[merge][sort
   std::stable_sort(zipped_expected_it, zipped_expected_it + num_items, compare_first_lt_op_t{});
 
   // Perform sort
-  stable_sort_pairs(thrust::raw_pointer_cast(keys_in_out.data()),
-                    thrust::raw_pointer_cast(values_in_out.data()),
+  stable_sort_pairs(cuda::std::to_address(keys_in_out.data()),
+                    cuda::std::to_address(values_in_out.data()),
                     num_items,
                     custom_less_op_t{});
 

@@ -30,7 +30,7 @@ C2H_TEST("Device reduce arg{min,max} works with inf items", "[reduce][device]")
   constexpr float inf = cuda::std::numeric_limits<float>::infinity();
 
   c2h::device_vector<out_t> out(1);
-  out_t* d_out          = thrust::raw_pointer_cast(out.data());
+  out_t* d_out          = cuda::std::to_address(out.data());
   offset_t* d_out_index = &d_out->key;
   in_t* d_out_extremum  = &d_out->value;
 
@@ -42,7 +42,7 @@ C2H_TEST("Device reduce arg{min,max} works with inf items", "[reduce][device]")
   SECTION("InfInArgMin")
   {
     c2h::device_vector<in_t> in(n, inf);
-    const in_t* d_in = thrust::raw_pointer_cast(in.data());
+    const in_t* d_in = cuda::std::to_address(in.data());
 
     device_arg_min(d_in, d_out_extremum, d_out_index, n);
 
@@ -59,7 +59,7 @@ C2H_TEST("Device reduce arg{min,max} works with inf items", "[reduce][device]")
   SECTION("InfInArgMax")
   {
     c2h::device_vector<in_t> in(n, -inf);
-    const in_t* d_in = thrust::raw_pointer_cast(in.data());
+    const in_t* d_in = cuda::std::to_address(in.data());
 
     device_arg_max(d_in, d_out_extremum, d_out_index, n);
 
@@ -76,7 +76,7 @@ C2H_TEST("Device reduce arg{min,max} works with inf items", "[reduce][device]")
   SECTION("InfInArgMin deprecated interface")
   {
     c2h::device_vector<in_t> in(n, inf);
-    const in_t* d_in = thrust::raw_pointer_cast(in.data());
+    const in_t* d_in = cuda::std::to_address(in.data());
 
     device_arg_min_old(d_in, d_out, n);
 
@@ -93,7 +93,7 @@ C2H_TEST("Device reduce arg{min,max} works with inf items", "[reduce][device]")
   SECTION("InfInArgMax deprecated interface")
   {
     c2h::device_vector<in_t> in(n, -inf);
-    const in_t* d_in = thrust::raw_pointer_cast(in.data());
+    const in_t* d_in = cuda::std::to_address(in.data());
 
     device_arg_max_old(d_in, d_out, n);
 

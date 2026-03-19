@@ -69,14 +69,14 @@ C2H_TEST("DeviceSegmentedRadixSort::SortPairs: Basic testing",
   if (is_descending)
   {
     sort_pairs_descending(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
-      thrust::raw_pointer_cast(in_values.data()),
-      thrust::raw_pointer_cast(out_values.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
+      cuda::std::to_address(in_values.data()),
+      cuda::std::to_address(out_values.data()),
       static_cast<int>(num_items),
       static_cast<int>(num_segments),
       // Mix pointers/iterators for segment info to test using different iterable types:
-      thrust::raw_pointer_cast(offsets.data()),
+      cuda::std::to_address(offsets.data()),
       offsets.cbegin() + 1,
       begin_bit<key_t>(),
       end_bit<key_t>());
@@ -84,14 +84,14 @@ C2H_TEST("DeviceSegmentedRadixSort::SortPairs: Basic testing",
   else
   {
     sort_pairs(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
-      thrust::raw_pointer_cast(in_values.data()),
-      thrust::raw_pointer_cast(out_values.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
+      cuda::std::to_address(in_values.data()),
+      cuda::std::to_address(out_values.data()),
       static_cast<int>(num_items),
       static_cast<int>(num_segments),
       // Mix pointers/iterators for segment info to test using different iterable types:
-      thrust::raw_pointer_cast(offsets.data()),
+      cuda::std::to_address(offsets.data()),
       offsets.cbegin() + 1,
       begin_bit<key_t>(),
       end_bit<key_t>());
@@ -136,10 +136,9 @@ C2H_TEST("DeviceSegmentedRadixSort::SortPairs: DoubleBuffer API", "[pairs][segme
 
   CAPTURE(num_items, num_segments, is_descending);
 
-  cub::DoubleBuffer<key_t> key_buffer(
-    thrust::raw_pointer_cast(in_keys.data()), thrust::raw_pointer_cast(out_keys.data()));
+  cub::DoubleBuffer<key_t> key_buffer(cuda::std::to_address(in_keys.data()), cuda::std::to_address(out_keys.data()));
   cub::DoubleBuffer<value_t> value_buffer(
-    thrust::raw_pointer_cast(in_values.data()), thrust::raw_pointer_cast(out_values.data()));
+    cuda::std::to_address(in_values.data()), cuda::std::to_address(out_values.data()));
 
   double_buffer_segmented_sort_t action(is_descending);
   action.initialize();
@@ -149,7 +148,7 @@ C2H_TEST("DeviceSegmentedRadixSort::SortPairs: DoubleBuffer API", "[pairs][segme
          static_cast<int>(num_items),
          static_cast<int>(num_segments),
          // Mix pointers/iterators for segment info to test using different iterable types:
-         thrust::raw_pointer_cast(offsets.data()),
+         cuda::std::to_address(offsets.data()),
          offsets.cbegin() + 1,
          begin_bit<key_t>(),
          end_bit<key_t>());
@@ -220,14 +219,14 @@ C2H_TEST("DeviceSegmentedRadixSort::SortPairs: unspecified ranges",
   if (is_descending)
   {
     sort_pairs_descending(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
-      thrust::raw_pointer_cast(in_values.data()),
-      thrust::raw_pointer_cast(out_values.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
+      cuda::std::to_address(in_values.data()),
+      cuda::std::to_address(out_values.data()),
       static_cast<int>(num_items),
       static_cast<int>(num_segments),
       // Mix pointers/iterators for segment info to test using different iterable types:
-      thrust::raw_pointer_cast(begin_offsets.data()),
+      cuda::std::to_address(begin_offsets.data()),
       end_offsets.cbegin(),
       begin_bit<key_t>(),
       end_bit<key_t>());
@@ -235,14 +234,14 @@ C2H_TEST("DeviceSegmentedRadixSort::SortPairs: unspecified ranges",
   else
   {
     sort_pairs(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
-      thrust::raw_pointer_cast(in_values.data()),
-      thrust::raw_pointer_cast(out_values.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
+      cuda::std::to_address(in_values.data()),
+      cuda::std::to_address(out_values.data()),
       static_cast<int>(num_items),
       static_cast<int>(num_segments),
       // Mix pointers/iterators for segment info to test using different iterable types:
-      thrust::raw_pointer_cast(begin_offsets.data()),
+      cuda::std::to_address(begin_offsets.data()),
       end_offsets.cbegin(),
       begin_bit<key_t>(),
       end_bit<key_t>());
@@ -292,10 +291,10 @@ try
   auto offsets_plus_1 = offsets + 1;
 
   sort_pairs(
-    thrust::raw_pointer_cast(in_keys.data()),
-    thrust::raw_pointer_cast(out_keys.data()),
-    thrust::raw_pointer_cast(in_values.data()),
-    thrust::raw_pointer_cast(out_values.data()),
+    cuda::std::to_address(in_keys.data()),
+    cuda::std::to_address(out_keys.data()),
+    cuda::std::to_address(in_values.data()),
+    cuda::std::to_address(out_values.data()),
     static_cast<offset_t>(num_items),
     static_cast<segment_offset_t>(num_segments),
     offsets,
@@ -348,13 +347,13 @@ try
   verification_helper.prepare_verification_data(in_keys);
 
   sort_pairs(
-    thrust::raw_pointer_cast(in_keys.data()),
-    thrust::raw_pointer_cast(out_keys.data()),
-    thrust::raw_pointer_cast(in_values.data()),
-    thrust::raw_pointer_cast(out_values.data()),
+    cuda::std::to_address(in_keys.data()),
+    cuda::std::to_address(out_keys.data()),
+    cuda::std::to_address(in_values.data()),
+    cuda::std::to_address(out_values.data()),
     static_cast<offset_t>(num_items),
     static_cast<segment_offset_t>(num_segments),
-    thrust::raw_pointer_cast(offsets.data()),
+    cuda::std::to_address(offsets.data()),
     offsets.cbegin() + 1,
     begin_bit<key_t>(),
     end_bit<key_t>());

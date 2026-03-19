@@ -152,9 +152,9 @@ static void nstream_stable(nvbench::state& state, nvbench::type_list<T>)
   thrust::device_vector<T> b(n, startB);
   thrust::device_vector<T> c(n, startC);
 
-  const T* a_start = thrust::raw_pointer_cast(a.data());
-  const T* b_start = thrust::raw_pointer_cast(b.data());
-  const T* c_start = thrust::raw_pointer_cast(c.data());
+  const T* a_start = cuda::std::to_address(a.data());
+  const T* b_start = cuda::std::to_address(b.data());
+  const T* c_start = cuda::std::to_address(c.data());
 
   state.add_element_count(n);
   state.add_global_memory_reads<T>(3 * n);

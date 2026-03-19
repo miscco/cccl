@@ -155,14 +155,14 @@ void benchmark_impl(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   state.add_global_memory_reads<tuple_t>(elements, "Size");
   state.add_global_memory_writes<tuple_t>(elements);
 
-  auto d_input  = thrust::raw_pointer_cast(input.data());
-  auto d_output = thrust::raw_pointer_cast(output.data());
+  auto d_input  = cuda::std::to_address(input.data());
+  auto d_output = cuda::std::to_address(output.data());
 
   size_t tmp_size;
   dispatch_t::Dispatch(nullptr, tmp_size, d_input, d_output, op_t{}, wrapped_init_t{}, input.size(), bench_stream);
 
   thrust::device_vector<nvbench::uint8_t> tmp(tmp_size, thrust::no_init);
-  nvbench::uint8_t* d_tmp = thrust::raw_pointer_cast(tmp.data());
+  nvbench::uint8_t* d_tmp = cuda::std::to_address(tmp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch_t::Dispatch(

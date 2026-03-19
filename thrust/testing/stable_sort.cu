@@ -129,7 +129,7 @@ void TestStableSortWithIndirection()
   Vector data{1, 3, 5, 3, 0, 2, 1};
   Vector table{0, 1, 2, 0, 1, 2};
 
-  thrust::stable_sort(data.begin(), data.end(), comp_mod3<T>(thrust::raw_pointer_cast(&table[0])));
+  thrust::stable_sort(data.begin(), data.end(), comp_mod3<T>(cuda::std::to_address(&table[0])));
 
   Vector ref{3, 3, 0, 1, 1, 5, 2};
   ASSERT_EQUAL(data, ref);

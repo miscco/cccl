@@ -123,7 +123,7 @@ void TestMaxElementDevicePointer()
   data[4] = 5;
   data[5] = 1;
 
-  T* raw_ptr = thrust::raw_pointer_cast(data.data());
+  T* raw_ptr = cuda::std::to_address(data.data());
   size_t n   = data.size();
   ASSERT_EQUAL(thrust::max_element(thrust::device, raw_ptr, raw_ptr + n) - raw_ptr, 1);
   ASSERT_EQUAL(thrust::max_element(thrust::device, raw_ptr, raw_ptr + n, ::cuda::std::greater<T>()) - raw_ptr, 2);

@@ -99,7 +99,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", o
 
     // Run test
     c2h::device_vector<index_t> out_result(1);
-    const auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    const auto d_out_it = cuda::std::to_address(out_result.data());
     const auto d_in_it  = cuda::transform_iterator(index_it, mod_op<index_t>{segment_size});
 
     device_reduce(d_in_it, d_out_it, num_items, reduction_op, init_val);
@@ -118,7 +118,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", o
 
     // Run test
     c2h::device_vector<index_t> out_result(1);
-    const auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    const auto d_out_it = cuda::std::to_address(out_result.data());
     const auto d_in_it  = cuda::transform_iterator(index_it, mod_op<index_t>{segment_size});
 
     device_sum(d_in_it, d_out_it, num_items);
@@ -132,7 +132,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", o
     // Run test
     const index_t iterator_offset = 1000;
     c2h::device_vector<index_t> out_result(1);
-    const auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    const auto d_out_it = cuda::std::to_address(out_result.data());
     const auto d_in_it  = cuda::std::make_reverse_iterator(index_it + num_items + iterator_offset);
 
     device_min(d_in_it, d_out_it, num_items);
@@ -147,7 +147,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", o
     // Run test
     const index_t iterator_offset = 1000;
     c2h::device_vector<index_t> out_result(1);
-    const auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    const auto d_out_it = cuda::std::to_address(out_result.data());
     const auto d_in_it  = index_it + iterator_offset;
 
     device_max(d_in_it, d_out_it, num_items);
@@ -164,7 +164,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", o
     // Run test
     const index_t iterator_offset = 1000;
     c2h::device_vector<result_t> out_result(1);
-    auto d_result_ptr   = thrust::raw_pointer_cast(out_result.data());
+    auto d_result_ptr   = cuda::std::to_address(out_result.data());
     auto d_index_out    = &d_result_ptr->first;
     auto d_extremum_out = &d_result_ptr->second;
 
@@ -189,7 +189,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", o
     // Run test
     const index_t iterator_offset = 1000;
     c2h::device_vector<result_t> out_result(1);
-    auto d_result_ptr   = thrust::raw_pointer_cast(out_result.data());
+    auto d_result_ptr   = cuda::std::to_address(out_result.data());
     auto d_index_out    = &d_result_ptr->first;
     auto d_extremum_out = &d_result_ptr->second;
 

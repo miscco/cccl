@@ -61,7 +61,7 @@ C2H_TEST("Device segmented sum can be tuned", "[reduce][device]", block_sizes)
 
   int num_segments                     = 3;
   thrust::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                    = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                    = cuda::std::to_address(d_offsets.data());
   thrust::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   thrust::device_vector<int> d_out(3);
 

@@ -63,9 +63,9 @@ void variable_segmented_reduce(nvbench::state& state, nvbench::type_list<T, Offs
 
   thrust::device_vector<output_t> out(num_segments, thrust::default_init);
 
-  raw_input_it_t d_raw_in           = thrust::raw_pointer_cast(in.data());
-  output_it_t d_out                 = thrust::raw_pointer_cast(out.data());
-  begin_offset_it_t d_begin_offsets = thrust::raw_pointer_cast(segment_offsets.data());
+  raw_input_it_t d_raw_in           = cuda::std::to_address(in.data());
+  output_it_t d_out                 = cuda::std::to_address(out.data());
+  begin_offset_it_t d_begin_offsets = cuda::std::to_address(segment_offsets.data());
   end_offset_it_t d_end_offsets     = d_begin_offsets + 1;
 
   // Create wrapped iterator for argmin/argmax operations
@@ -109,7 +109,7 @@ void variable_segmented_reduce(nvbench::state& state, nvbench::type_list<T, Offs
     0 /* stream */);
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size, thrust::no_init);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     cub::detail::segmented_reduce::dispatch<accum_t, override_offset_t>(

@@ -153,10 +153,10 @@ C2H_TEST("DeviceTopK::MaxPairs: Basic testing", "[pairs][topk][device]", key_typ
   c2h::gen(C2H_SEED(num_value_seeds), values_in);
 
   topk_pairs<direction>(
-    thrust::raw_pointer_cast(keys_in.data()),
-    thrust::raw_pointer_cast(keys_out.data()),
-    thrust::raw_pointer_cast(values_in.data()),
-    thrust::raw_pointer_cast(values_out.data()),
+    cuda::std::to_address(keys_in.data()),
+    cuda::std::to_address(keys_out.data()),
+    cuda::std::to_address(values_in.data()),
+    cuda::std::to_address(values_out.data()),
     num_items,
     k);
 
@@ -166,8 +166,8 @@ C2H_TEST("DeviceTopK::MaxPairs: Basic testing", "[pairs][topk][device]", key_typ
   c2h::host_vector<value_t> h_values(values_in);
 
   const bool res = check_results(
-    thrust::raw_pointer_cast(h_keys.data()),
-    thrust::raw_pointer_cast(h_values.data()),
+    cuda::std::to_address(h_keys.data()),
+    cuda::std::to_address(h_values.data()),
     keys_out,
     values_out,
     num_items,
@@ -203,12 +203,7 @@ C2H_TEST("DeviceTopK::MaxPairs: Works with iterators", "[pairs][topk][device]", 
 
   // Run the top-k algorithm
   topk_pairs<direction>(
-    keys_in,
-    thrust::raw_pointer_cast(keys_out.data()),
-    values_in,
-    thrust::raw_pointer_cast(values_out.data()),
-    num_items,
-    k);
+    keys_in, cuda::std::to_address(keys_out.data()), values_in, cuda::std::to_address(values_out.data()), num_items, k);
 
   // Verify results
   const auto keys_expected_it   = cuda::std::make_reverse_iterator(keys_in + num_items);
@@ -247,12 +242,7 @@ C2H_TEST("DeviceTopK::MaxPairs: Test for large num_items", "[pairs][topk][device
 
   // Run the top-k algorithm
   topk_pairs<direction>(
-    keys_in,
-    thrust::raw_pointer_cast(keys_out.data()),
-    values_in,
-    thrust::raw_pointer_cast(values_out.data()),
-    num_items,
-    k);
+    keys_in, cuda::std::to_address(keys_out.data()), values_in, cuda::std::to_address(values_out.data()), num_items, k);
 
   // Verify results
   auto keys_expected_it   = cuda::std::make_reverse_iterator(keys_in + num_items);
@@ -323,7 +313,7 @@ C2H_TEST("DeviceTopK::{Min,Max}Pairs works with custom keys and decomposers", "[
   if constexpr (direction == cub::detail::topk::select::max)
   {
     cub::DeviceTopK::MaxPairs(
-      thrust::raw_pointer_cast(temp_storage.data()),
+      cuda::std::to_address(temp_storage.data()),
       temp_storage_bytes,
       keys_in.begin(),
       keys_out.begin(),
@@ -337,7 +327,7 @@ C2H_TEST("DeviceTopK::{Min,Max}Pairs works with custom keys and decomposers", "[
   else
   {
     cub::DeviceTopK::MinPairs(
-      thrust::raw_pointer_cast(temp_storage.data()),
+      cuda::std::to_address(temp_storage.data()),
       temp_storage_bytes,
       keys_in.begin(),
       keys_out.begin(),
@@ -353,8 +343,8 @@ C2H_TEST("DeviceTopK::{Min,Max}Pairs works with custom keys and decomposers", "[
   c2h::host_vector<key_t> h_keys(keys_in);
   c2h::host_vector<value_t> h_values(values_in);
   const bool res = check_results(
-    thrust::raw_pointer_cast(h_keys.data()),
-    thrust::raw_pointer_cast(h_values.data()),
+    cuda::std::to_address(h_keys.data()),
+    cuda::std::to_address(h_values.data()),
     keys_out,
     values_out,
     num_items,

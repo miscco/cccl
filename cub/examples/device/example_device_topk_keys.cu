@@ -96,10 +96,8 @@ int main(int argc, char** argv)
   thrust::host_vector<float> h_reference_keys_vector(k);
 
   // Initialize problem and solution on host
-  initialize(thrust::raw_pointer_cast(h_keys_vector.data()),
-             thrust::raw_pointer_cast(h_reference_keys_vector.data()),
-             num_items,
-             k);
+  initialize(
+    cuda::std::to_address(h_keys_vector.data()), cuda::std::to_address(h_reference_keys_vector.data()), num_items, k);
 
   // Allocate device arrays
   thrust::device_vector<float> d_keys_in{h_keys_vector};
@@ -124,7 +122,7 @@ int main(int argc, char** argv)
 
   // Allocate temporary storage
   thrust::device_vector<std::uint8_t> temp_storage(temp_storage_bytes, thrust::no_init);
-  void* d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  void* d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run the top-k algorithm
   CubDebugExit(
@@ -135,7 +133,7 @@ int main(int argc, char** argv)
   if (g_verbose)
   {
     std::cout << "Output keys:\n";
-    DisplayResults(thrust::raw_pointer_cast(h_res_keys_vector.data()), k);
+    DisplayResults(cuda::std::to_address(h_res_keys_vector.data()), k);
     std::cout << "\n\n";
   }
   const int compare = CompareResults(h_reference_keys_vector.data(), h_res_keys_vector.data(), k, g_verbose);

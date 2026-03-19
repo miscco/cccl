@@ -181,7 +181,7 @@ C2H_TEST("Warp store guarded range works with pointer",
 
   c2h::device_vector<type> d_out(params::total_item_count, type{});
   const int valid_items = GENERATE_COPY(take(guarded_store_tests_count, random(0, params::tile_size - 1)));
-  auto out              = thrust::raw_pointer_cast(d_out.data());
+  auto out              = cuda::std::to_address(d_out.data());
   warp_store<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>(
     out, guarded_store_t{valid_items});
   auto d_expected_output =
@@ -204,7 +204,7 @@ C2H_TEST("Warp store guarded range works with cache modified iterator",
 
   c2h::device_vector<type> d_out(params::total_item_count, type{});
   const int valid_items = GENERATE_COPY(take(guarded_store_tests_count, random(0, params::tile_size - 1)));
-  auto out = cub::CacheModifiedOutputIterator<store_modifier, type>(thrust::raw_pointer_cast(d_out.data()));
+  auto out              = cub::CacheModifiedOutputIterator<store_modifier, type>(cuda::std::to_address(d_out.data()));
   warp_store<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>(
     out, guarded_store_t{valid_items});
   auto d_expected_output =
@@ -225,7 +225,7 @@ C2H_TEST("Warp store unguarded range works with pointer",
 
   c2h::device_vector<type> d_out(params::total_item_count, type{});
   constexpr int valid_items = params::tile_size;
-  auto out                  = thrust::raw_pointer_cast(d_out.data());
+  auto out                  = cuda::std::to_address(d_out.data());
   warp_store<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>(
     out, unguarded_store_t{});
   auto d_expected_output =
@@ -248,7 +248,7 @@ C2H_TEST("Warp store unguarded range works with cache modified iterator",
 
   c2h::device_vector<type> d_out(params::total_item_count, type{});
   constexpr int valid_items = params::tile_size;
-  auto out = cub::CacheModifiedOutputIterator<store_modifier, type>(thrust::raw_pointer_cast(d_out.data()));
+  auto out = cub::CacheModifiedOutputIterator<store_modifier, type>(cuda::std::to_address(d_out.data()));
   warp_store<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>(
     out, unguarded_store_t{});
   auto d_expected_output =
@@ -273,7 +273,7 @@ C2H_TEST("Vectorized warp store with different alignment cases",
 
   const int offset_for_elements = GENERATE_COPY(0, 1, 2, 3, 4);
   c2h::device_vector<type> d_out(params::total_item_count + offset_for_elements, type{});
-  auto out = thrust::raw_pointer_cast(d_out.data());
+  auto out = cuda::std::to_address(d_out.data());
 
   warp_store<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>(
     out + offset_for_elements, unguarded_store_t{});

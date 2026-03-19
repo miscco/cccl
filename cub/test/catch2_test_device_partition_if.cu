@@ -86,7 +86,7 @@ C2H_TEST("DevicePartition::If can run with empty input", "[device][partition_if]
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 42);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_if(in.begin(), out.begin(), d_num_selected_out, num_items, always_true_t{});
 
@@ -104,7 +104,7 @@ C2H_TEST("DevicePartition::If handles all matched", "[device][partition_if]", ty
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_if(in.begin(), out.begin(), d_first_num_selected_out, num_items, always_true_t{});
 
@@ -123,7 +123,7 @@ C2H_TEST("DevicePartition::If handles no matched", "[device][partition_if]", typ
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_if(in.begin(), out.begin(), d_first_num_selected_out, num_items, always_false_t{});
 
@@ -148,7 +148,7 @@ C2H_TEST("DevicePartition::If does not change input", "[device][partition_if]", 
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // copy input first
   c2h::device_vector<type> reference = in;
@@ -172,7 +172,7 @@ C2H_TEST("DevicePartition::If is stable", "[device][partition_if]")
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Ensure that we create the same output as std
   c2h::host_vector<type> reference = in;
@@ -201,7 +201,7 @@ C2H_TEST("DevicePartition::If works with iterators", "[device][partition_if]", a
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Ensure that we create the same output as std
   c2h::host_vector<type> reference = in;
@@ -230,7 +230,7 @@ C2H_TEST("DevicePartition::If works with pointers", "[device][partition_if]", ty
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Ensure that we create the same output as std
   c2h::host_vector<type> reference = in;
@@ -240,7 +240,7 @@ C2H_TEST("DevicePartition::If works with pointers", "[device][partition_if]", ty
   std::reverse(boundary, reference.end());
 
   partition_if(
-    thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), d_first_num_selected_out, num_items, le);
+    cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), d_first_num_selected_out, num_items, le);
 
   REQUIRE(num_selected_out[0] == cuda::std::distance(reference.begin(), boundary));
   REQUIRE(reference == out);
@@ -280,7 +280,7 @@ C2H_TEST("DevicePartition::If works with a different output type", "[device][par
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Ensure that we create the same output as std
   c2h::host_vector<type> reference = in;
@@ -328,7 +328,7 @@ try
 
   // Needs to be device accessible
   c2h::device_vector<offset_t> num_selected_out(1, 0);
-  offset_t* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  offset_t* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Run test
   partition_if(

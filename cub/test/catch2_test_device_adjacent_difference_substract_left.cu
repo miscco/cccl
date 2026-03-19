@@ -111,7 +111,7 @@ C2H_TEST("DeviceAdjacentDifference::SubtractLeft works with pointers", "[device]
   c2h::host_vector<type> reference(num_items);
   std::adjacent_difference(h_in.begin(), h_in.end(), reference.begin(), std::minus<type>{});
 
-  adjacent_difference_subtract_left(thrust::raw_pointer_cast(in.data()), num_items, cuda::std::minus<>{});
+  adjacent_difference_subtract_left(cuda::std::to_address(in.data()), num_items, cuda::std::minus<>{});
 
   REQUIRE(reference == in);
 }
@@ -130,7 +130,7 @@ C2H_TEST("DeviceAdjacentDifference::SubtractLeftCopy works with pointers", "[dev
   std::adjacent_difference(h_in.begin(), h_in.end(), reference.begin(), std::minus<type>{});
 
   adjacent_difference_subtract_left_copy(
-    thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), num_items, cuda::std::minus<>{});
+    cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), num_items, cuda::std::minus<>{});
 
   REQUIRE(reference == out);
 }
@@ -250,7 +250,7 @@ C2H_TEST("DeviceAdjacentDifference::SubtractLeftCopy works with large indexes",
 {
   constexpr cuda::std::size_t num_items = 1ll << 33;
   c2h::device_vector<int> error(1);
-  int* d_error = thrust::raw_pointer_cast(error.data());
+  int* d_error = cuda::std::to_address(error.data());
   adjacent_difference_subtract_left_copy(
     cuda::counting_iterator<cuda::std::size_t>{0}, cuda::discard_iterator{}, num_items, check_difference{d_error});
   const int h_error = error[0];
@@ -283,7 +283,7 @@ C2H_TEST("DeviceAdjacentDifference::SubtractLeftCopy uses right number of invoca
     cuda::counting_iterator<cuda::std::size_t>{0},
     cuda::discard_iterator(),
     num_items,
-    invocation_counter{thrust::raw_pointer_cast(counts.data())});
+    invocation_counter{cuda::std::to_address(counts.data())});
 
   REQUIRE(counts.front() == static_cast<unsigned long long>(num_items - 1));
 }

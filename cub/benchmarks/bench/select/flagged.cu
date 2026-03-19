@@ -100,10 +100,10 @@ void select(nvbench::state& state, nvbench::type_list<T, OffsetT, InPlace>)
   const auto selected_elements = thrust::count(flags.cbegin(), flags.cend(), true);
   thrust::device_vector<T> out(selected_elements);
 
-  input_it_t d_in                  = thrust::raw_pointer_cast(in.data());
-  output_it_t d_out                = thrust::raw_pointer_cast(out.data());
-  flag_it_t d_flags                = thrust::raw_pointer_cast(flags.data());
-  num_selected_it_t d_num_selected = thrust::raw_pointer_cast(num_selected.data());
+  input_it_t d_in                  = cuda::std::to_address(in.data());
+  output_it_t d_out                = cuda::std::to_address(out.data());
+  flag_it_t d_flags                = cuda::std::to_address(flags.data());
+  num_selected_it_t d_num_selected = cuda::std::to_address(num_selected.data());
 
   state.add_element_count(elements);
   state.add_global_memory_reads<T>(elements);
@@ -116,7 +116,7 @@ void select(nvbench::state& state, nvbench::type_list<T, OffsetT, InPlace>)
     nullptr, temp_size, d_in, d_flags, d_out, d_num_selected, select_op_t{}, equality_op_t{}, elements, 0);
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch_t::Dispatch(

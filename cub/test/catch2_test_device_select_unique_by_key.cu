@@ -120,7 +120,7 @@ C2H_TEST("DeviceSelect::UniqueByKey can run with empty input", "[device][select_
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_unique_by_key(empty.begin(), empty.begin(), empty.begin(), empty.begin(), d_num_selected_out, num_items);
 
@@ -140,7 +140,7 @@ C2H_TEST("DeviceSelect::UniqueByKey handles none equal", "[device][select_unique
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_unique_by_key(
     cuda::counting_iterator<type>(0),
@@ -170,7 +170,7 @@ C2H_TEST("DeviceSelect::UniqueByKey handles all equal", "[device][select_unique_
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_unique_by_key(
     keys_in.begin(), vals_in.begin(), keys_out.begin(), vals_out.begin(), d_first_num_selected_out, num_items);
@@ -194,7 +194,7 @@ C2H_TEST("DeviceSelect::UniqueByKey does not change input", "[device][select_uni
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   c2h::device_vector<type> reference_keys     = keys_in;
   c2h::device_vector<val_type> reference_vals = vals_in;
@@ -248,7 +248,7 @@ C2H_TEST("DeviceSelect::UniqueByKey works with iterators", "[device][select_uniq
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_unique_by_key(
     keys_in.begin(), vals_in.begin(), keys_out.begin(), vals_out.begin(), d_first_num_selected_out, num_items);
@@ -284,13 +284,13 @@ C2H_TEST("DeviceSelect::UniqueByKey works with pointers", "[device][select_uniqu
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_unique_by_key(
-    thrust::raw_pointer_cast(keys_in.data()),
-    thrust::raw_pointer_cast(vals_in.data()),
-    thrust::raw_pointer_cast(keys_out.data()),
-    thrust::raw_pointer_cast(vals_out.data()),
+    cuda::std::to_address(keys_in.data()),
+    cuda::std::to_address(vals_in.data()),
+    cuda::std::to_address(keys_out.data()),
+    cuda::std::to_address(vals_out.data()),
     d_first_num_selected_out,
     num_items);
 
@@ -345,7 +345,7 @@ C2H_TEST("DeviceSelect::UniqueByKey works with a different output type", "[devic
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_unique_by_key(
     keys_in.begin(), vals_in.begin(), keys_out.begin(), vals_out.begin(), d_first_num_selected_out, num_items);
@@ -383,13 +383,13 @@ C2H_TEST("DeviceSelect::UniqueByKey works and uses vsmem for large types",
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_unique_by_key(
-    thrust::raw_pointer_cast(keys_in.data()),
+    cuda::std::to_address(keys_in.data()),
     vals_it,
-    thrust::raw_pointer_cast(keys_out.data()),
-    thrust::raw_pointer_cast(vals_out.data()),
+    cuda::std::to_address(keys_out.data()),
+    cuda::std::to_address(vals_out.data()),
     d_first_num_selected_out,
     num_items);
 
@@ -428,7 +428,7 @@ C2H_TEST("DeviceSelect::UniqueByKey works for very large input that need 64-bit 
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Run test
   select_unique_by_key(keys_in, values_in, keys_out.begin(), values_out.begin(), d_first_num_selected_out, num_items);
@@ -452,7 +452,7 @@ C2H_TEST("DeviceSelect::UniqueByKey works for very large outputs that needs 64-b
 
   // Needs to be device accessible
   c2h::device_vector<index_type> num_selected_out(1, 0);
-  index_type* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  index_type* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Run test
   select_unique_by_key(
@@ -477,7 +477,7 @@ C2H_TEST("DeviceSelect::UniqueByKey works with a custom equality operator", "[de
 
   // Needs to be device accessible
   c2h::device_vector<index_type> num_selected_out(1, 0);
-  index_type* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  index_type* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Run test
   select_unique_by_key(

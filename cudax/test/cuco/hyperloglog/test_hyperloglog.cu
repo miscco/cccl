@@ -129,7 +129,7 @@ C2H_TEST("HyperLogLog unique sequence", "[hyperloglog]", test_types)
   REQUIRE(estimator.estimate() == estimate);
 
   // Adding the same items again (might use shared memory code path) should not affect the result
-  auto* ptr = thrust::raw_pointer_cast(items.data());
+  auto* ptr = cuda::std::to_address(items.data());
   estimator.add(ptr, ptr + num_items / 2);
   REQUIRE(estimator.estimate() == estimate);
 

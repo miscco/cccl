@@ -67,7 +67,7 @@ C2H_TEST("Device scan works with iterators", "[scan][device]", iterator_type_lis
 
     // Run test
     c2h::device_vector<output_t> out_result(num_items);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     device_inclusive_sum(in_it, d_out_it, num_items);
 
     // Verify result
@@ -85,7 +85,7 @@ C2H_TEST("Device scan works with iterators", "[scan][device]", iterator_type_lis
 
     // Run test
     c2h::device_vector<output_t> out_result(num_items);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     device_exclusive_sum(in_it, d_out_it, num_items);
 
     // Verify result
@@ -104,7 +104,7 @@ C2H_TEST("Device scan works with iterators", "[scan][device]", iterator_type_lis
 
     // Run test
     c2h::device_vector<output_t> out_result(num_items);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     device_inclusive_scan(in_it, d_out_it, op_t{}, num_items);
 
     // Verify result
@@ -122,7 +122,7 @@ C2H_TEST("Device scan works with iterators", "[scan][device]", iterator_type_lis
 
     // Run test
     c2h::device_vector<output_t> out_result(num_items);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     device_exclusive_scan(in_it, d_out_it, op_t{}, input_t{}, num_items);
 
     // Verify result
@@ -142,11 +142,11 @@ C2H_TEST("Device scan works with iterators", "[scan][device]", iterator_type_lis
 
     // Run test
     c2h::device_vector<output_t> out_result(num_items);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     using init_t  = cub::detail::it_value_t<decltype(unwrap_it(d_out_it))>;
     c2h::device_vector<init_t> d_initial_value(1);
     d_initial_value[0]     = static_cast<init_t>(init_value);
-    auto future_init_value = cub::FutureValue<init_t>(thrust::raw_pointer_cast(d_initial_value.data()));
+    auto future_init_value = cub::FutureValue<init_t>(cuda::std::to_address(d_initial_value.data()));
     device_exclusive_scan(in_it, d_out_it, op_t{}, future_init_value, num_items);
 
     // Verify result
@@ -274,10 +274,10 @@ C2H_TEST("Device scan works complex accumulator types", "[scan][device]")
     index_it,
     index_it + num_items,
     d_output.begin(),
-    index_to_custom_output_op{thrust::raw_pointer_cast(d_ok_count.data())});
+    index_to_custom_output_op{cuda::std::to_address(d_ok_count.data())});
 
-  auto d_in_it  = thrust::raw_pointer_cast(d_input.data());
-  auto d_out_it = thrust::raw_pointer_cast(d_output.data());
+  auto d_in_it  = cuda::std::to_address(d_input.data());
+  auto d_out_it = cuda::std::to_address(d_output.data());
   device_exclusive_scan(d_in_it, d_out_it, cuda::std::plus<>{}, init, num_items);
 
   REQUIRE(d_ok_count[0] == num_items);

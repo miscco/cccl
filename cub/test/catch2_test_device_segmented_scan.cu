@@ -146,7 +146,7 @@ C2H_TEST("Device segmented_scan works with all device interfaces", "[segmented][
   c2h::device_vector<offset_t> d_segment_offsets = c2h::gen_uniform_offsets<offset_t>(
     C2H_SEED(1), num_items, std::get<0>(seg_size_range), std::get<1>(seg_size_range));
   const offset_t num_segments = static_cast<offset_t>(d_segment_offsets.size() - 1);
-  auto d_offsets_it           = thrust::raw_pointer_cast(d_segment_offsets.data());
+  auto d_offsets_it           = cuda::std::to_address(d_segment_offsets.data());
 
   INFO("Num segments: " << num_segments);
   INFO("Types: " << typeid(input_t).name() << " " << typeid(output_t).name() << " " << typeid(offset_t).name());
@@ -154,10 +154,10 @@ C2H_TEST("Device segmented_scan works with all device interfaces", "[segmented][
   // Generate input data
   c2h::device_vector<input_t> in_items(num_items);
   c2h::gen(C2H_SEED(2), in_items);
-  auto d_in_it = thrust::raw_pointer_cast(in_items.data());
+  auto d_in_it = cuda::std::to_address(in_items.data());
 
   c2h::device_vector<output_t> output_vec(num_items);
-  auto d_out_it = thrust::raw_pointer_cast(output_vec.data());
+  auto d_out_it = cuda::std::to_address(output_vec.data());
 
   c2h::host_vector<offset_t> h_segment_offsets = d_segment_offsets;
   c2h::host_vector<input_t> h_input            = in_items;

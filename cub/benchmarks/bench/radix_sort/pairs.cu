@@ -40,10 +40,10 @@ void radix_sort_values(nvbench::state& state, nvbench::type_list<KeyT, ValueT, O
   thrust::device_vector<key_t> keys_buffer_2(elements);
   thrust::device_vector<value_t> values_buffer_2(elements);
 
-  key_t* d_keys_buffer_1     = thrust::raw_pointer_cast(keys_buffer_1.data());
-  key_t* d_keys_buffer_2     = thrust::raw_pointer_cast(keys_buffer_2.data());
-  value_t* d_values_buffer_1 = thrust::raw_pointer_cast(values_buffer_1.data());
-  value_t* d_values_buffer_2 = thrust::raw_pointer_cast(values_buffer_2.data());
+  key_t* d_keys_buffer_1     = cuda::std::to_address(keys_buffer_1.data());
+  key_t* d_keys_buffer_2     = cuda::std::to_address(keys_buffer_2.data());
+  value_t* d_values_buffer_1 = cuda::std::to_address(values_buffer_1.data());
+  value_t* d_values_buffer_2 = cuda::std::to_address(values_buffer_2.data());
 
   cub::DoubleBuffer<key_t> d_keys(d_keys_buffer_1, d_keys_buffer_2);
   cub::DoubleBuffer<value_t> d_values(d_values_buffer_1, d_values_buffer_2);
@@ -75,7 +75,7 @@ void radix_sort_values(nvbench::state& state, nvbench::type_list<KeyT, ValueT, O
   );
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size, thrust::no_init);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     cub::DoubleBuffer<key_t> keys     = d_keys;

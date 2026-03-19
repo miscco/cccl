@@ -46,7 +46,7 @@ C2H_TEST("Device scan works with all device interfaces", "[scan][device]", value
   // Generate input data
   c2h::device_vector<input_t> in_items(num_items + offset + 1, thrust::no_init);
   c2h::gen(C2H_SEED(1), in_items);
-  auto d_in_it = thrust::raw_pointer_cast(in_items.data());
+  auto d_in_it = cuda::std::to_address(in_items.data());
 
   // Prepare verification data
   c2h::host_vector<input_t> host_items(in_items);
@@ -59,7 +59,7 @@ C2H_TEST("Device scan works with all device interfaces", "[scan][device]", value
   // Run test
   constexpr output_t out_sentinel_value = 123;
   c2h::device_vector<output_t> out_result(num_items + offset + 1, out_sentinel_value);
-  auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+  auto d_out_it = cuda::std::to_address(out_result.data());
   device_inclusive_scan(unwrap_it(d_in_it + offset), unwrap_it(d_out_it + offset), op_t{}, num_items);
 
   c2h::host_vector<output_t> out_result_vec(num_items);

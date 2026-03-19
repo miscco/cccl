@@ -115,7 +115,7 @@ void test_block_load(const c2h::device_vector<T>& d_input, InputPointerT input)
 
     c2h::device_vector<T> d_output(d_input.size());
     kernel<ItemsPerThread, ThreadsInBlock, Mode>
-      <<<1, ThreadsInBlock>>>(input, thrust::raw_pointer_cast(d_output.data()), static_cast<int>(d_input.size()));
+      <<<1, ThreadsInBlock>>>(input, cuda::std::to_address(d_output.data()), static_cast<int>(d_input.size()));
     REQUIRE(cudaSuccess == cudaPeekAtLastError());
     REQUIRE(cudaSuccess == cudaDeviceSynchronize());
     REQUIRE(d_input == d_output);
@@ -168,7 +168,7 @@ void test_block_load_dyn_smem_dst(const c2h::device_vector<T>& d_input, InputPoi
   c2h::device_vector<T> d_output(d_input.size());
   kernel_dyn_smem_dst<block_dim_x, block_dim_y, block_dim_z>
     <<<1, dim3{block_dim_x, block_dim_y, block_dim_z}, buffer_size>>>(
-      input, thrust::raw_pointer_cast(d_output.data()), static_cast<int>(d_input.size()));
+      input, cuda::std::to_address(d_output.data()), static_cast<int>(d_input.size()));
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(d_input == d_output);
@@ -211,7 +211,7 @@ C2H_TEST("Block load to shared works", "[load][block]", types, items_per_thread,
   c2h::gen(C2H_SEED(10), d_input);
 
   test_block_load<params::items_per_thread, params::threads_in_block, mode>(
-    d_input, thrust::raw_pointer_cast(d_input.data()));
+    d_input, cuda::std::to_address(d_input.data()));
 }
 
 C2H_TEST("Block load to shared works with even vector types", "[load][block]", vec_types, items_per_thread, a_block_size)
@@ -221,7 +221,7 @@ C2H_TEST("Block load to shared works with even vector types", "[load][block]", v
 
   c2h::device_vector<type> d_input(GENERATE_COPY(take(10, random(0, params::tile_size))));
   c2h::gen(C2H_SEED(10), d_input);
-  test_block_load<params::items_per_thread, params::threads_in_block>(d_input, thrust::raw_pointer_cast(d_input.data()));
+  test_block_load<params::items_per_thread, params::threads_in_block>(d_input, cuda::std::to_address(d_input.data()));
 }
 
 C2H_TEST("Block load to shared works with custom types", "[load][block]", items_per_thread)
@@ -233,7 +233,7 @@ C2H_TEST("Block load to shared works with custom types", "[load][block]", items_
 
   c2h::device_vector<type> d_input(GENERATE_COPY(take(10, random(0, tile_size))));
   c2h::gen(C2H_SEED(10), d_input);
-  test_block_load<items_per_thread, threads_in_block>(d_input, thrust::raw_pointer_cast(d_input.data()));
+  test_block_load<items_per_thread, threads_in_block>(d_input, cuda::std::to_address(d_input.data()));
 }
 
 C2H_TEST("Block load to shared works with dyn smem and internal TempStorage", "[load][block]", items_per_thread)
@@ -245,7 +245,7 @@ C2H_TEST("Block load to shared works with dyn smem and internal TempStorage", "[
 
   c2h::device_vector<type> d_input(GENERATE_COPY(take(10, random(0, tile_size))));
   c2h::gen(C2H_SEED(10), d_input);
-  test_block_load_dyn_smem_dst<items_per_thread, threads_in_block>(d_input, thrust::raw_pointer_cast(d_input.data()));
+  test_block_load_dyn_smem_dst<items_per_thread, threads_in_block>(d_input, cuda::std::to_address(d_input.data()));
 }
 
 #if IPT == 1
@@ -268,6 +268,6 @@ C2H_TEST("Block load to shared works with const and non-const datatype and diffe
   thrust::copy_n(d_input_ref.begin(), tile_size, d_input.begin() + offset_for_elements);
 
   test_block_load<items_per_thread, threads_in_block, test_mode::single_copy, type, input_ptr_type>(
-    d_input_ref, thrust::raw_pointer_cast(d_input.data()) + offset_for_elements);
+    d_input_ref, cuda::std::to_address(d_input.data()) + offset_for_elements);
 }
 #endif

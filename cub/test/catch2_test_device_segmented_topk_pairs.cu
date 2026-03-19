@@ -133,8 +133,8 @@ bool verify_pairs_consistency(const c2h::device_vector<KeyT>& keys_in,
                               const c2h::device_vector<KeyT>& keys_out,
                               const c2h::device_vector<ValueT>& values_out)
 {
-  auto d_keys_in    = thrust::raw_pointer_cast(keys_in.data());
-  auto d_values_out = thrust::raw_pointer_cast(values_out.data());
+  auto d_keys_in    = cuda::std::to_address(keys_in.data());
+  auto d_values_out = cuda::std::to_address(values_out.data());
 
   // permutation_it[i] -> d_keys_in[d_values_out[i]] to verify that keys and values remained associated
   auto permutation_it = cuda::make_permutation_iterator(d_keys_in, d_values_out);
@@ -247,15 +247,15 @@ C2H_TEST("DeviceBatchedTopK::{Min,Max}Pairs work with small fixed-size segments"
   c2h::device_vector<key_t> keys_out_buffer(num_segments * k, thrust::no_init);
   const int num_key_seeds = 1;
   c2h::gen(C2H_SEED(num_key_seeds), keys_in_buffer);
-  auto d_keys_in_ptr  = thrust::raw_pointer_cast(keys_in_buffer.data());
-  auto d_keys_out_ptr = thrust::raw_pointer_cast(keys_out_buffer.data());
+  auto d_keys_in_ptr  = cuda::std::to_address(keys_in_buffer.data());
+  auto d_keys_out_ptr = cuda::std::to_address(keys_out_buffer.data());
   auto d_keys_in      = cuda::make_strided_iterator(cuda::make_counting_iterator(d_keys_in_ptr), segment_size);
   auto d_keys_out     = cuda::make_strided_iterator(cuda::make_counting_iterator(d_keys_out_ptr), k);
 
   // Prepare values input & output
   auto values_in_it = cuda::make_counting_iterator(val_t{0});
   c2h::device_vector<val_t> values_out_buffer(num_segments * k, thrust::no_init);
-  auto d_values_out_ptr = thrust::raw_pointer_cast(values_out_buffer.data());
+  auto d_values_out_ptr = cuda::std::to_address(values_out_buffer.data());
   auto d_values_in      = cuda::make_strided_iterator(cuda::make_counting_iterator(values_in_it), segment_size);
   auto d_values_out     = cuda::make_strided_iterator(cuda::make_counting_iterator(d_values_out_ptr), k);
 
@@ -330,7 +330,7 @@ C2H_TEST("DeviceBatchedTopK::{Min,Max}Pairs work with small variable-size segmen
   c2h::device_vector<segment_size_t> segment_offsets =
     c2h::gen_uniform_offsets<segment_size_t>(C2H_SEED(3), num_items, min_segment_size, max_segment_size);
   const segment_index_t num_segments = static_cast<segment_index_t>(segment_offsets.size() - 1);
-  auto segment_offsets_it            = thrust::raw_pointer_cast(segment_offsets.data());
+  auto segment_offsets_it            = cuda::std::to_address(segment_offsets.data());
   auto segment_size_it               = cuda::make_transform_iterator(
     cuda::make_counting_iterator(segment_index_t{0}), segment_size_op<segment_size_t*>{segment_offsets_it});
 
@@ -363,8 +363,8 @@ C2H_TEST("DeviceBatchedTopK::{Min,Max}Pairs work with small variable-size segmen
   c2h::device_vector<key_t> keys_out_buffer(total_output_size, thrust::no_init);
   const int num_key_seeds = 1;
   c2h::gen(C2H_SEED(num_key_seeds), keys_in_buffer);
-  auto d_keys_in_ptr  = thrust::raw_pointer_cast(keys_in_buffer.data());
-  auto d_keys_out_ptr = thrust::raw_pointer_cast(keys_out_buffer.data());
+  auto d_keys_in_ptr  = cuda::std::to_address(keys_in_buffer.data());
+  auto d_keys_out_ptr = cuda::std::to_address(keys_out_buffer.data());
   auto d_keys_in =
     cuda::make_permutation_iterator(cuda::make_counting_iterator(d_keys_in_ptr), segment_offsets.cbegin());
   auto d_keys_out =
@@ -373,7 +373,7 @@ C2H_TEST("DeviceBatchedTopK::{Min,Max}Pairs work with small variable-size segmen
   // Prepare values input & output
   auto values_in_it = cuda::make_counting_iterator(val_t{0});
   c2h::device_vector<val_t> values_out_buffer(total_output_size, thrust::no_init);
-  auto d_values_out_ptr = thrust::raw_pointer_cast(values_out_buffer.data());
+  auto d_values_out_ptr = cuda::std::to_address(values_out_buffer.data());
   auto d_values_in =
     cuda::make_permutation_iterator(cuda::make_counting_iterator(values_in_it), segment_offsets.cbegin());
   auto d_values_out =

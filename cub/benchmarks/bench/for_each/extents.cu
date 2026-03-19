@@ -39,8 +39,8 @@ void for_each_in_extents(nvbench::state& state, nvbench::type_list<T, OffsetT>)
 
   thrust::device_vector<T> in(elements, T{42});
   thrust::device_vector<T> out(elements);
-  it_t d_in  = thrust::raw_pointer_cast(in.data());
-  it_t d_out = thrust::raw_pointer_cast(out.data());
+  it_t d_in  = cuda::std::to_address(in.data());
+  it_t d_out = cuda::std::to_address(out.data());
   state.add_element_count(elements);
   state.add_global_memory_reads<T>(elements);
   state.add_global_memory_writes<T>(elements);

@@ -43,11 +43,11 @@ void test_keys(Offset size1 = 3623, Offset size2 = 6346, CompareOp compare_op = 
   // CAPTURE(keys1_d, keys2_d);
 
   c2h::device_vector<Key> result_d(size1 + size2);
-  merge_keys(thrust::raw_pointer_cast(keys1_d.data()),
+  merge_keys(cuda::std::to_address(keys1_d.data()),
              static_cast<Offset>(keys1_d.size()),
-             thrust::raw_pointer_cast(keys2_d.data()),
+             cuda::std::to_address(keys2_d.data()),
              static_cast<Offset>(keys2_d.size()),
-             thrust::raw_pointer_cast(result_d.data()),
+             cuda::std::to_address(result_d.data()),
              compare_op);
 
   c2h::host_vector<Key> keys1_h = keys1_d;
@@ -107,7 +107,7 @@ C2H_TEST("DeviceMerge::MergeKeys large key types", "[merge][device]", c2h::type_
 
       c2h::device_vector<char> temp_storage(temp_storage_bytes);
       cub::detail::merge::dispatch(
-        thrust::raw_pointer_cast(temp_storage.data()),
+        cuda::std::to_address(temp_storage.data()),
         temp_storage_bytes,
         k1,
         value_nullptr,

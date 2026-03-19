@@ -108,7 +108,7 @@ C2H_TEST("DispatchSegmentedRadixSort::Dispatch: custom policy hub", "[keys][segm
   c2h::device_vector<key_t> out_keys(in_keys);
   c2h::device_vector<offset_t> offsets{0, 40, 777, 1002};
 
-  DoubleBuffer<key_t> d_keys(thrust::raw_pointer_cast(in_keys.data()), thrust::raw_pointer_cast(out_keys.data()));
+  DoubleBuffer<key_t> d_keys(cuda::std::to_address(in_keys.data()), cuda::std::to_address(out_keys.data()));
   DoubleBuffer<value_t> d_values;
 
   const auto num_items    = static_cast<::cuda::std::int64_t>(in_keys.size());
@@ -132,22 +132,22 @@ C2H_TEST("DispatchSegmentedRadixSort::Dispatch: custom policy hub", "[keys][segm
     d_values,
     num_items,
     num_segments,
-    thrust::raw_pointer_cast(offsets.data()),
-    thrust::raw_pointer_cast(offsets.data()) + 1,
+    cuda::std::to_address(offsets.data()),
+    cuda::std::to_address(offsets.data()) + 1,
     begin_bit<key_t>(),
     end_bit<key_t>(),
     /* is_overwrite_okay */ false,
     /* stream */ nullptr);
   c2h::device_vector<unsigned char> temp_storage(temp_size, thrust::no_init);
   dispatch_t::Dispatch(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_size,
     d_keys,
     d_values,
     num_items,
     num_segments,
-    thrust::raw_pointer_cast(offsets.data()),
-    thrust::raw_pointer_cast(offsets.data()) + 1,
+    cuda::std::to_address(offsets.data()),
+    cuda::std::to_address(offsets.data()) + 1,
     begin_bit<key_t>(),
     end_bit<key_t>(),
     /* is_overwrite_okay */ false,

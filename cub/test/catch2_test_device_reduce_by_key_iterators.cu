@@ -74,14 +74,14 @@ C2H_TEST("Device reduce-by-key works with iterators", "[by_key][reduce][device]"
   c2h::device_vector<offset_t> num_unique_keys(1);
   c2h::device_vector<key_t> out_unique_keys(num_segments);
   c2h::device_vector<output_t> out_result(num_segments);
-  auto d_result_out_it = thrust::raw_pointer_cast(out_result.data());
+  auto d_result_out_it = cuda::std::to_address(out_result.data());
   auto d_keys_out_it   = out_unique_keys.begin();
   device_reduce_by_key(
     d_keys_it,
     d_keys_out_it,
     value_it,
     d_result_out_it,
-    thrust::raw_pointer_cast(num_unique_keys.data()),
+    cuda::std::to_address(num_unique_keys.data()),
     op_t{},
     num_items);
 

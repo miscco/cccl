@@ -31,8 +31,8 @@ C2H_TEST("DeviceCopy::Copy Mdspan API example", "[copy][mdspan]")
   using mdspan_in_t  = cuda::std::mdspan<float, extents_t, cuda::std::layout_right>; // row-major
   using mdspan_out_t = cuda::std::mdspan<float, extents_t, cuda::std::layout_left>; // column-major
   // Create mdspans with different layouts
-  mdspan_in_t mdspan_in(thrust::raw_pointer_cast(d_input.data()), extents_t{});
-  mdspan_out_t mdspan_out(thrust::raw_pointer_cast(d_output.data()), extents_t{});
+  mdspan_in_t mdspan_in(cuda::std::to_address(d_input.data()), extents_t{});
+  mdspan_out_t mdspan_out(cuda::std::to_address(d_output.data()), extents_t{});
 
   // Determine temporary device storage requirements
   void*  d_temp_storage     = nullptr;
@@ -42,7 +42,7 @@ C2H_TEST("DeviceCopy::Copy Mdspan API example", "[copy][mdspan]")
 
   // Allocate temporary storage using thrust::device_vector
   thrust::device_vector<char> temp_storage(temp_storage_bytes, thrust::no_init);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run copy algorithm
   status = cub::DeviceCopy::Copy(d_temp_storage, temp_storage_bytes, mdspan_in, mdspan_out);

@@ -41,7 +41,7 @@ void test_impl(const thrust::host_vector<T>& input,
     using host_mdspan_t   = cuda::host_mdspan<const T, src_extents_t, SrcLayout>;
     using device_mdspan_t = cuda::device_mdspan<T, dst_extents_t, DstLayout>;
     host_mdspan_t host_md(input.data(), src_mapping_t(src_extents));
-    device_mdspan_t device_md(thrust::raw_pointer_cast(device_data.data()), dst_mapping_t(dst_extents));
+    device_mdspan_t device_md(cuda::std::to_address(device_data.data()), dst_mapping_t(dst_extents));
     cuda::experimental::copy_bytes(host_md, device_md, stream);
     stream.sync();
     CUDAX_REQUIRE(thrust::host_vector<T>(device_data) == expected_data);
@@ -52,7 +52,7 @@ void test_impl(const thrust::host_vector<T>& input,
     using host_mdspan_t   = cuda::host_mdspan<T, dst_extents_t, DstLayout>;
     thrust::host_vector<T> host_data(input.size(), 0);
     device_data = input;
-    device_mdspan_t device_md(thrust::raw_pointer_cast(device_data.data()), src_mapping_t(src_extents));
+    device_mdspan_t device_md(cuda::std::to_address(device_data.data()), src_mapping_t(src_extents));
     host_mdspan_t host_md(host_data.data(), dst_mapping_t(dst_extents));
     cuda::experimental::copy_bytes(device_md, host_md, stream);
     stream.sync();
@@ -79,7 +79,7 @@ void test_impl_stride(
     using host_mdspan_t   = cuda::host_mdspan<const T, src_extents_t, cuda::std::layout_stride>;
     using device_mdspan_t = cuda::device_mdspan<T, dst_extents_t, cuda::std::layout_stride>;
     host_mdspan_t host_md(input.data(), src_mapping_t(src_extents, src_strides));
-    device_mdspan_t device_md(thrust::raw_pointer_cast(device_data.data()), dst_mapping_t(dst_extents, dst_strides));
+    device_mdspan_t device_md(cuda::std::to_address(device_data.data()), dst_mapping_t(dst_extents, dst_strides));
     cuda::experimental::copy_bytes(host_md, device_md, stream);
     stream.sync();
     CUDAX_REQUIRE(thrust::host_vector<T>(device_data) == expected_data);
@@ -90,7 +90,7 @@ void test_impl_stride(
     using host_mdspan_t   = cuda::host_mdspan<T, dst_extents_t, cuda::std::layout_stride>;
     thrust::host_vector<T> host_data(input.size(), 0);
     device_data = input;
-    device_mdspan_t device_md(thrust::raw_pointer_cast(device_data.data()), src_mapping_t(src_extents, src_strides));
+    device_mdspan_t device_md(cuda::std::to_address(device_data.data()), src_mapping_t(src_extents, src_strides));
     host_mdspan_t host_md(host_data.data(), dst_mapping_t(dst_extents, dst_strides));
     cuda::experimental::copy_bytes(device_md, host_md, stream);
     stream.sync();
@@ -120,7 +120,7 @@ void test_impl_stride_offset(
     using host_mdspan_t   = cuda::host_mdspan<const T, src_extents_t, cuda::std::layout_stride>;
     using device_mdspan_t = cuda::device_mdspan<T, dst_extents_t, cuda::std::layout_stride>;
     host_mdspan_t host_md(input.data() + src_offset, src_mapping_t(src_extents, src_strides));
-    device_mdspan_t device_md(thrust::raw_pointer_cast(device_data.data()) + dst_offset,
+    device_mdspan_t device_md(cuda::std::to_address(device_data.data()) + dst_offset,
                               dst_mapping_t(dst_extents, dst_strides));
     cuda::experimental::copy_bytes(host_md, device_md, stream);
     stream.sync();
@@ -132,7 +132,7 @@ void test_impl_stride_offset(
     using host_mdspan_t              = cuda::host_mdspan<T, dst_extents_t, cuda::std::layout_stride>;
     thrust::host_vector<T> host_data = initial_output;
     device_data                      = input;
-    device_mdspan_t device_md(thrust::raw_pointer_cast(device_data.data()) + src_offset,
+    device_mdspan_t device_md(cuda::std::to_address(device_data.data()) + src_offset,
                               src_mapping_t(src_extents, src_strides));
     host_mdspan_t host_md(host_data.data() + dst_offset, dst_mapping_t(dst_extents, dst_strides));
     cuda::experimental::copy_bytes(device_md, host_md, stream);
@@ -318,7 +318,7 @@ TEST_CASE("copy_bytes size 0", "[copy_bytes][zero_size]")
   int value = 42;
   thrust::device_vector<int> device_data(1, 0);
   cuda::host_mdspan<int, cuda::std::dims<2>> src(&value, 0, 0);
-  cuda::device_mdspan<int, cuda::std::dims<2>> device_md(thrust::raw_pointer_cast(device_data.data()), 0, 0);
+  cuda::device_mdspan<int, cuda::std::dims<2>> device_md(cuda::std::to_address(device_data.data()), 0, 0);
   cuda::experimental::copy_bytes(src, device_md, stream);
   stream.sync();
 }
@@ -330,7 +330,7 @@ TEST_CASE("copy_bytes size mismatch throws", "[copy_bytes][throw]")
   thrust::device_vector<int> device_data(N / 2, 0);
   using extents = cuda::std::dims<1>;
   cuda::host_mdspan<int, extents> src(host_data.data(), extents(N));
-  cuda::device_mdspan<int, extents> dst(thrust::raw_pointer_cast(device_data.data()), extents(N / 2));
+  cuda::device_mdspan<int, extents> dst(cuda::std::to_address(device_data.data()), extents(N / 2));
   REQUIRE_THROWS_AS(cuda::experimental::copy_bytes(src, dst, stream), std::invalid_argument);
 }
 
@@ -343,7 +343,7 @@ TEST_CASE("copy_bytes extent mismatch throws", "[copy_bytes][throw]")
   using src_extents = cuda::std::extents<int, M, N>;
   using dst_extents = cuda::std::extents<int, N, M>;
   cuda::host_mdspan<int, src_extents> src(host_data.data());
-  cuda::device_mdspan<int, dst_extents> dst(thrust::raw_pointer_cast(device_data.data()));
+  cuda::device_mdspan<int, dst_extents> dst(cuda::std::to_address(device_data.data()));
   REQUIRE_THROWS_AS(cuda::experimental::copy_bytes(src, dst, stream), std::invalid_argument);
 }
 
@@ -554,7 +554,7 @@ TEST_CASE("copy_bytes sliding window view", "[copy_bytes][window]")
 
     host_mdspan_t host_md(vec.data(), src_mapping_t(src_extents, src_strides));
 
-    device_mdspan_t device_md(thrust::raw_pointer_cast(device_data.data()), dst_mapping_t(dst_extents));
+    device_mdspan_t device_md(cuda::std::to_address(device_data.data()), dst_mapping_t(dst_extents));
 
     cuda::experimental::copy_bytes(host_md, device_md, stream);
     stream.sync();

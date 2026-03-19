@@ -158,7 +158,7 @@ try
 
   // Prepare d_range_dsts
   offset_to_transform_it<std::uint8_t*> dst_transform_op{
-    static_cast<std::uint8_t*>(thrust::raw_pointer_cast(d_out.data()))};
+    static_cast<std::uint8_t*>(cuda::std::to_address(d_out.data()))};
   auto d_range_dsts = cuda::transform_iterator(d_range_dst_offsets.begin(), dst_transform_op);
 
   // Invoke device-side algorithm
@@ -264,7 +264,7 @@ try
 
   // Use the offsets to generate an iterator over the ranges, where each range is an iterator into in_it
   offset_to_ptr_op<range_it_t> src_transform_op{in_it};
-  auto d_ranges_src_it = cuda::transform_iterator(thrust::raw_pointer_cast(d_range_offsets.data()), src_transform_op);
+  auto d_ranges_src_it = cuda::transform_iterator(cuda::std::to_address(d_range_offsets.data()), src_transform_op);
 
   // Wrap the iterator into an iterator that returns empty ranges for the first num_empty_ranges
   prepend_n_constants_op<decltype(d_ranges_src_it), range_it_t> src_skip_first_n_op{

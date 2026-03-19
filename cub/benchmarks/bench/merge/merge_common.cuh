@@ -113,8 +113,8 @@ generate_lhs_rhs(std::size_t num_items_lhs, std::size_t num_items_rhs, bit_entro
     counting_it,
     counting_it + elements,
     rnd_selector_val.begin(),
-    cuda::make_tabulate_output_iterator(write_pivot_point_t<offset_t>{
-      static_cast<offset_t>(num_items_lhs), thrust::raw_pointer_cast(pivot_point.data())}),
+    cuda::make_tabulate_output_iterator(
+      write_pivot_point_t<offset_t>{static_cast<offset_t>(num_items_lhs), cuda::std::to_address(pivot_point.data())}),
     select_lhs_op);
 
   thrust::device_vector<KeyT> keys_lhs(num_items_lhs);

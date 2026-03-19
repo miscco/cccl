@@ -51,7 +51,7 @@ struct odd_count_op
 C2H_TEST("DeviceFor::Bulk env uses custom stream", "[for][env]")
 {
   auto vec = c2h::device_vector<int>{1, 2, 3, 4};
-  square_idx_op op{thrust::raw_pointer_cast(vec.data())};
+  square_idx_op op{cuda::std::to_address(vec.data())};
 
   cuda::stream stream{cuda::devices[0]};
   auto env = cuda::std::execution::env{cuda::stream_ref{stream}};
@@ -112,7 +112,7 @@ C2H_TEST("DeviceFor::ForEachCopyN env uses custom stream", "[for][env]")
 {
   auto vec   = c2h::device_vector<int>{1, 2, 3, 4};
   auto count = c2h::device_vector<int>(1);
-  odd_count_op op{thrust::raw_pointer_cast(count.data())};
+  odd_count_op op{cuda::std::to_address(count.data())};
 
   cuda::stream stream{cuda::devices[0]};
   auto env = cuda::std::execution::env{cuda::stream_ref{stream}};
@@ -133,7 +133,7 @@ C2H_TEST("DeviceFor::ForEachCopy env uses custom stream", "[for][env]")
 {
   auto vec   = c2h::device_vector<int>{1, 2, 3, 4};
   auto count = c2h::device_vector<int>(1);
-  odd_count_op op{thrust::raw_pointer_cast(count.data())};
+  odd_count_op op{cuda::std::to_address(count.data())};
 
   cuda::stream stream{cuda::devices[0]};
   auto env = cuda::std::execution::env{cuda::stream_ref{stream}};

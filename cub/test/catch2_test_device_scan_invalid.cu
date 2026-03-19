@@ -165,7 +165,7 @@ C2H_TEST("Device scan avoids invalid data with all device interfaces", "[scan][d
   {
     c2h::device_vector<counts> error_counts(1);
     // Scan operator
-    auto scan_op = op_t{thrust::raw_pointer_cast(error_counts.data())};
+    auto scan_op = op_t{cuda::std::to_address(error_counts.data())};
 
     // Prepare verification data
     // Need neutral init in this case
@@ -175,7 +175,7 @@ C2H_TEST("Device scan avoids invalid data with all device interfaces", "[scan][d
 
     // Run test
     c2h::device_vector<output_t> out_result(num_items);
-    const auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    const auto d_out_it = cuda::std::to_address(out_result.data());
     device_inclusive_scan(d_in_it, d_out_it, scan_op, num_items);
 
     const counts h_counts = error_counts.front();
@@ -193,7 +193,7 @@ C2H_TEST("Device scan avoids invalid data with all device interfaces", "[scan][d
   {
     c2h::device_vector<counts> error_counts(1);
     // Scan operator
-    auto scan_op = op_t{thrust::raw_pointer_cast(error_counts.data())};
+    auto scan_op = op_t{cuda::std::to_address(error_counts.data())};
 
     const auto init_value = dangerous_bit_cast<output_t>(segment{0, 1});
 
@@ -203,7 +203,7 @@ C2H_TEST("Device scan avoids invalid data with all device interfaces", "[scan][d
 
     // Run test
     c2h::device_vector<output_t> out_result(num_items);
-    const auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    const auto d_out_it = cuda::std::to_address(out_result.data());
     device_inclusive_scan_with_init(d_in_it, d_out_it, scan_op, init_value, num_items);
 
     const counts h_counts = error_counts.front();
@@ -221,7 +221,7 @@ C2H_TEST("Device scan avoids invalid data with all device interfaces", "[scan][d
   {
     c2h::device_vector<counts> error_counts(1);
     // Scan operator
-    auto scan_op = op_t{thrust::raw_pointer_cast(error_counts.data())};
+    auto scan_op = op_t{cuda::std::to_address(error_counts.data())};
 
     const auto init_value = dangerous_bit_cast<output_t>(segment{0, 1});
 
@@ -231,7 +231,7 @@ C2H_TEST("Device scan avoids invalid data with all device interfaces", "[scan][d
 
     // Run test
     c2h::device_vector<output_t> out_result(num_items);
-    const auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    const auto d_out_it = cuda::std::to_address(out_result.data());
     device_exclusive_scan(d_in_it, d_out_it, scan_op, init_value, num_items);
 
     const counts h_counts = error_counts.front();
@@ -249,7 +249,7 @@ C2H_TEST("Device scan avoids invalid data with all device interfaces", "[scan][d
   {
     c2h::device_vector<counts> error_counts(1);
     // Scan operator
-    auto scan_op = op_t{thrust::raw_pointer_cast(error_counts.data())};
+    auto scan_op = op_t{cuda::std::to_address(error_counts.data())};
 
     const auto init_value = dangerous_bit_cast<output_t>(segment{0, 1});
 
@@ -259,10 +259,10 @@ C2H_TEST("Device scan avoids invalid data with all device interfaces", "[scan][d
 
     // Run test
     c2h::device_vector<output_t> out_result(num_items);
-    const auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    const auto d_out_it = cuda::std::to_address(out_result.data());
     using init_t        = output_t;
     c2h::device_vector<init_t> d_initial_value{init_value};
-    const auto future_init_value = cub::FutureValue<init_t>(thrust::raw_pointer_cast(d_initial_value.data()));
+    const auto future_init_value = cub::FutureValue<init_t>(cuda::std::to_address(d_initial_value.data()));
     device_exclusive_scan(d_in_it, d_out_it, scan_op, future_init_value, num_items);
 
     const counts h_counts = error_counts.front();

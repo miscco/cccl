@@ -257,7 +257,7 @@ static void TestInclusiveScanWithConstAccumulator()
   thrust::device_vector<int> table{0, 1, 2, 0, 1, 2};
 
   thrust::inclusive_scan(
-    data.begin(), data.end(), data.begin(), const_ref_plus_mod3<int>(thrust::raw_pointer_cast(&table[0])));
+    data.begin(), data.end(), data.begin(), const_ref_plus_mod3<int>(cuda::std::to_address(&table[0])));
 
   thrust::device_vector<int> ref{0, 1, 0, 1, 0, 0, 1};
   ASSERT_EQUAL(data, ref);

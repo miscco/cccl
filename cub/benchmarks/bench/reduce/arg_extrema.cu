@@ -57,8 +57,8 @@ void arg_reduce(nvbench::state& state, nvbench::type_list<T, OpT>)
   thrust::device_vector<T> in = generate(elements);
   thrust::device_vector<output_tuple_t> out(1);
 
-  values_it_t d_in      = thrust::raw_pointer_cast(in.data());
-  output_tuple_t* d_out = thrust::raw_pointer_cast(out.data());
+  values_it_t d_in      = cuda::std::to_address(in.data());
+  output_tuple_t* d_out = cuda::std::to_address(out.data());
   auto const num_items  = static_cast<global_offset_t>(elements);
 
   // Enable throughput calculations and add "Size" column to results.
@@ -84,7 +84,7 @@ void arg_reduce(nvbench::state& state, nvbench::type_list<T, OpT>)
   );
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     cub::detail::reduce::dispatch_streaming_arg_reduce<per_partition_offset_t>(

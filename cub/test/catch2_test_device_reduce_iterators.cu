@@ -32,7 +32,7 @@ void test_big_indices_helper(offset_t num_items)
 {
   cuda::constant_iterator<T> const_iter(T{1});
   c2h::device_vector<std::size_t> out(1);
-  std::size_t* d_out = thrust::raw_pointer_cast(out.data());
+  std::size_t* d_out = cuda::std::to_address(out.data());
   device_sum(const_iter, d_out, num_items);
   std::size_t result = out[0];
 
@@ -83,7 +83,7 @@ C2H_TEST("Device reduce works with fancy input iterators", "[reduce][device]", i
 
   // Run test
   c2h::device_vector<output_t> out_result(num_segments);
-  auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+  auto d_out_it = cuda::std::to_address(out_result.data());
   device_reduce(in_it, d_out_it, num_items, reduction_op, init_t{});
 
   // Verify result

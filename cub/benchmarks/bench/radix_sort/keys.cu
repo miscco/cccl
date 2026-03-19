@@ -36,8 +36,8 @@ void radix_sort_keys(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   thrust::device_vector<T> buffer_1 = generate(elements, entropy);
   thrust::device_vector<T> buffer_2(elements);
 
-  key_t* d_buffer_1 = thrust::raw_pointer_cast(buffer_1.data());
-  key_t* d_buffer_2 = thrust::raw_pointer_cast(buffer_2.data());
+  key_t* d_buffer_1 = cuda::std::to_address(buffer_1.data());
+  key_t* d_buffer_2 = cuda::std::to_address(buffer_2.data());
 
   cub::DoubleBuffer<key_t> d_keys(d_buffer_1, d_buffer_2);
   cub::DoubleBuffer<value_t> d_values;
@@ -68,7 +68,7 @@ void radix_sort_keys(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   );
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size, thrust::no_init);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     cub::DoubleBuffer<key_t> keys     = d_keys;

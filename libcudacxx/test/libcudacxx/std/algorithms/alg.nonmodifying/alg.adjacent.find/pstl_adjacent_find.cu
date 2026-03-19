@@ -45,7 +45,7 @@ void test_adjacent_find(const Policy& policy, const thrust::device_vector<int>& 
   }
 
   { // non contiguous input
-    auto* inptr = thrust::raw_pointer_cast(input.data());
+    auto* inptr = cuda::std::to_address(input.data());
     auto res    = cuda::std::adjacent_find(policy, random_access_iterator{inptr}, random_access_iterator{inptr + size});
     CHECK(res == random_access_iterator{inptr + 41});
   }

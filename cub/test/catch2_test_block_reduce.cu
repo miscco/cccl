@@ -15,7 +15,7 @@ template <cub::BlockReduceAlgorithm Algorithm,
           int BlockDimZ,
           class T,
           class ActionT>
-__launch_bounds__(BlockDimX* BlockDimY* BlockDimZ) __global__
+__launch_bounds__(BlockDimX * BlockDimY * BlockDimZ) __global__
   void block_reduce_kernel(T* in, T* out, int valid_items, ActionT action)
 {
   using block_reduce_t = cub::BlockReduce<T, BlockDimX, Algorithm, BlockDimY, BlockDimZ>;
@@ -57,7 +57,7 @@ void block_reduce(c2h::device_vector<T>& in, c2h::device_vector<T>& out, ActionT
   dim3 block_dims(BlockDimX, BlockDimY, BlockDimZ);
 
   block_reduce_kernel<Algorithm, ItemsPerThread, BlockDimX, BlockDimY, BlockDimZ, T, ActionT><<<1, block_dims>>>(
-    thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), static_cast<int>(in.size()), action);
+    cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), static_cast<int>(in.size()), action);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());

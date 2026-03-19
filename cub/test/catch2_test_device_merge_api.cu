@@ -33,7 +33,7 @@ C2H_TEST("DeviceMerge::MergeKeys API example", "[merge][device]")
 
   // 3) Perform merge operation
   cub::DeviceMerge::MergeKeys(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_storage_bytes,
     keys1.begin(),
     static_cast<int>(keys1.size()),
@@ -75,7 +75,7 @@ C2H_TEST("DeviceMerge::MergePairs API example", "[merge][device]")
 
   // 3) Perform merge operation
   cub::DeviceMerge::MergePairs(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_storage_bytes,
     keys1.begin(),
     values1.begin(),

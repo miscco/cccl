@@ -34,12 +34,7 @@ C2H_TEST("cub::DeviceFind::FindIf works with int data elements", "[find][device]
   thrust::device_vector<char> temp_storage(temp_storage_bytes, thrust::no_init);
 
   cub::DeviceFind::FindIf(
-    thrust::raw_pointer_cast(temp_storage.data()),
-    temp_storage_bytes,
-    d_in.begin(),
-    d_out.begin(),
-    predicate,
-    num_items);
+    cuda::std::to_address(temp_storage.data()), temp_storage_bytes, d_in.begin(), d_out.begin(), predicate, num_items);
 
   int expected = 5;
   // example-end device-find-if

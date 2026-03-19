@@ -45,7 +45,7 @@ C2H_TEST("Block array-based inclusive scan works with initial value", "[scan][bl
 {
   c2h::device_vector<int> d_out(block_num_threads * num_items_per_thread);
 
-  InclusiveBlockScanKernel<<<1, block_num_threads>>>(thrust::raw_pointer_cast(d_out.data()));
+  InclusiveBlockScanKernel<<<1, block_num_threads>>>(cuda::std::to_address(d_out.data()));
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
 
@@ -101,7 +101,7 @@ C2H_TEST("Block array-based inclusive scan with block aggregate works with initi
 
   c2h::device_vector<int> d_block_aggregate(1);
   InclusiveBlockScanKernelAggregate<<<1, block_num_threads>>>(
-    thrust::raw_pointer_cast(d_out.data()), thrust::raw_pointer_cast(d_block_aggregate.data()));
+    cuda::std::to_address(d_out.data()), cuda::std::to_address(d_block_aggregate.data()));
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
 

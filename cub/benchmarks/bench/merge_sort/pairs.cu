@@ -79,10 +79,10 @@ void pairs(nvbench::state& state, nvbench::type_list<KeyT, ValueT, OffsetT>)
   thrust::device_vector<value_t> values_buffer_1(elements);
   thrust::device_vector<value_t> values_buffer_2(elements);
 
-  key_t* d_keys_buffer_1     = thrust::raw_pointer_cast(keys_buffer_1.data());
-  key_t* d_keys_buffer_2     = thrust::raw_pointer_cast(keys_buffer_2.data());
-  value_t* d_values_buffer_1 = thrust::raw_pointer_cast(values_buffer_1.data());
-  value_t* d_values_buffer_2 = thrust::raw_pointer_cast(values_buffer_2.data());
+  key_t* d_keys_buffer_1     = cuda::std::to_address(keys_buffer_1.data());
+  key_t* d_keys_buffer_2     = cuda::std::to_address(keys_buffer_2.data());
+  value_t* d_values_buffer_1 = cuda::std::to_address(values_buffer_1.data());
+  value_t* d_values_buffer_2 = cuda::std::to_address(values_buffer_2.data());
 
   // Enable throughput calculations and add "Size" column to results.
   state.add_element_count(elements);
@@ -105,7 +105,7 @@ void pairs(nvbench::state& state, nvbench::type_list<KeyT, ValueT, OffsetT>)
     0 /* stream */);
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch_t::Dispatch(

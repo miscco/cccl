@@ -23,7 +23,7 @@ int main()
 
   // Create a 2D multidimensional array of ints.
   thrust::universal_vector<int> data(rows * cols, 42);
-  cuda::std::mdspan M(thrust::raw_pointer_cast(data.data()), rows, cols);
+  cuda::std::mdspan M(cuda::std::to_address(data.data()), rows, cols);
 
   // Create an iterator to the flat linear index space for the multidimensional array.
   auto flat_idx = cuda::counting_iterator(0);

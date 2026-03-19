@@ -26,8 +26,7 @@ struct custom_t
 struct decomposer_t
 {
   __host__ __device__ //
-    ::cuda::std::tuple<std::uint16_t&, float&>
-    operator()(custom_t& key) const
+    ::cuda::std::tuple<std::uint16_t&, float&> operator()(custom_t& key) const
   {
     return {key.i, key.f};
   }
@@ -192,8 +191,8 @@ int main()
 
   thrust::device_vector<custom_t> out(num_items);
 
-  const custom_t* d_in = thrust::raw_pointer_cast(in.data());
-  custom_t* d_out      = thrust::raw_pointer_cast(out.data());
+  const custom_t* d_in = cuda::std::to_address(in.data());
+  custom_t* d_out      = cuda::std::to_address(out.data());
 
   // 1) Get temp storage size
   std::uint8_t* d_temp_storage{};
@@ -203,7 +202,7 @@ int main()
 
   // 2) Allocate temp storage
   thrust::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // 3) Sort keys
   cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes, d_in, d_out, num_items, decomposer_t{});

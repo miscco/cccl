@@ -41,12 +41,12 @@ C2H_TEST("Device reduce-by-key works with huge keys", "[by_key][reduce][device]"
   const offset_t num_segments = static_cast<offset_t>(segment_offsets.size() - 1);
   c2h::device_vector<key_t> segment_keys(num_items);
   c2h::init_key_segments(segment_offsets, segment_keys);
-  auto d_keys_it = thrust::raw_pointer_cast(segment_keys.data());
+  auto d_keys_it = cuda::std::to_address(segment_keys.data());
 
   // Generate input data
   c2h::device_vector<value_t> in_values(num_items);
   c2h::gen(C2H_SEED(2), in_values);
-  auto d_values_it = thrust::raw_pointer_cast(in_values.data());
+  auto d_values_it = cuda::std::to_address(in_values.data());
 
   // Binary reduction operator
   auto reduction_op = op_t{};
@@ -61,14 +61,14 @@ C2H_TEST("Device reduce-by-key works with huge keys", "[by_key][reduce][device]"
   c2h::device_vector<offset_t> num_unique_keys(1);
   c2h::device_vector<key_t> out_unique_keys(num_segments);
   c2h::device_vector<output_t> out_result(num_segments);
-  auto d_out_it      = thrust::raw_pointer_cast(out_result.data());
-  auto d_keys_out_it = thrust::raw_pointer_cast(out_unique_keys.data());
+  auto d_out_it      = cuda::std::to_address(out_result.data());
+  auto d_keys_out_it = cuda::std::to_address(out_unique_keys.data());
   device_reduce_by_key(
     d_keys_it,
     d_keys_out_it,
     unwrap_it(d_values_it),
     unwrap_it(d_out_it),
-    thrust::raw_pointer_cast(num_unique_keys.data()),
+    cuda::std::to_address(num_unique_keys.data()),
     reduction_op,
     num_items);
 

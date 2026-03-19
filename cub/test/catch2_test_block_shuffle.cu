@@ -145,7 +145,7 @@ void block_shuffle(c2h::device_vector<T>& data, ActionT action)
 {
   dim3 block(BlockDimX, BlockDimY, BlockDimZ);
   block_shuffle_kernel<BlockDimX, BlockDimY, BlockDimZ, ItemsPerThread>
-    <<<1, block>>>(thrust::raw_pointer_cast(data.data()), action);
+    <<<1, block>>>(cuda::std::to_address(data.data()), action);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
@@ -269,7 +269,7 @@ C2H_TEST("Block shuffle up works when suffix is required",
   thrust::copy(d_data.end() - 1, d_data.end(), d_suffix_ref.begin());
 
   block_shuffle<params::items_per_thread, params::block_dim_x, params::block_dim_y, params::block_dim_z>(
-    d_data, up_with_suffix_op_t<type>{target_thread_id, thrust::raw_pointer_cast(d_suffix.data())});
+    d_data, up_with_suffix_op_t<type>{target_thread_id, cuda::std::to_address(d_suffix.data())});
 
   REQUIRE(d_ref == d_data);
   REQUIRE(d_suffix_ref == d_suffix);
@@ -317,7 +317,7 @@ C2H_TEST("Block shuffle down works when prefix is required",
   thrust::copy(d_data.begin(), d_data.begin() + 1, d_prefix_ref.begin());
 
   block_shuffle<params::items_per_thread, params::block_dim_x, params::block_dim_y, params::block_dim_z>(
-    d_data, down_with_prefix_op_t<type>{target_thread_id, thrust::raw_pointer_cast(d_prefix.data())});
+    d_data, down_with_prefix_op_t<type>{target_thread_id, cuda::std::to_address(d_prefix.data())});
 
   REQUIRE(d_ref == d_data);
   REQUIRE(d_prefix_ref == d_prefix);

@@ -35,8 +35,8 @@ void reduce(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   thrust::device_vector<T> in = generate(elements);
   thrust::device_vector<T> out(1);
 
-  auto d_in  = thrust::raw_pointer_cast(in.data());
-  auto d_out = thrust::raw_pointer_cast(out.data());
+  auto d_in  = cuda::std::to_address(in.data());
+  auto d_out = cuda::std::to_address(out.data());
 
   // Enable throughput calculations and add "Size" column to results.
   state.add_element_count(elements);
@@ -89,7 +89,7 @@ void reduce(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   );
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size, thrust::no_init);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     cub::detail::reduce::dispatch</* OverrideAccumT = */ T>(

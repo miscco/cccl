@@ -25,7 +25,7 @@ C2H_TEST("Device inclusive scan works", "[scan][device]")
 
   // Run inclusive prefix sum
   cub::DeviceScan::InclusiveScanInit(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_storage_bytes,
     input.begin(),
     out.begin(),

@@ -80,7 +80,7 @@ TEST_CASE("Device scan exclusive scan works with default environment", "[scan][d
 
   num_items_t num_items = 1;
   c2h::device_vector<int> d_block_size(1);
-  block_size_check_t block_size_check{thrust::raw_pointer_cast(d_block_size.data())};
+  block_size_check_t block_size_check{cuda::std::to_address(d_block_size.data())};
   auto d_in  = cuda::constant_iterator(value_t{1});
   auto d_out = thrust::device_vector<value_t>(1);
 
@@ -169,7 +169,7 @@ C2H_TEST("Device scan exclusive-scan can be tuned", "[scan][device]", block_size
 {
   constexpr int target_block_size = c2h::get<0, TestType>::value;
   c2h::device_vector<int> d_block_size(1);
-  block_size_check_t block_size_check{thrust::raw_pointer_cast(d_block_size.data())};
+  block_size_check_t block_size_check{cuda::std::to_address(d_block_size.data())};
 
   auto num_items = 3;
   auto d_in      = cuda::constant_iterator(1);
@@ -227,7 +227,7 @@ TEST_CASE("Device scan inclusive-scan works with default environment", "[scan][d
 
   num_items_t num_items = 1;
   c2h::device_vector<int> d_block_size(1);
-  block_size_check_t block_size_check{thrust::raw_pointer_cast(d_block_size.data())};
+  block_size_check_t block_size_check{cuda::std::to_address(d_block_size.data())};
   auto d_in  = cuda::constant_iterator(value_t{1});
   auto d_out = thrust::device_vector<value_t>(1);
 
@@ -242,7 +242,7 @@ C2H_TEST("Device scan inclusive-scan can be tuned", "[scan][device]", block_size
 {
   constexpr int target_block_size = c2h::get<0, TestType>::value;
   c2h::device_vector<int> d_block_size(1);
-  block_size_check_t block_size_check{thrust::raw_pointer_cast(d_block_size.data())};
+  block_size_check_t block_size_check{cuda::std::to_address(d_block_size.data())};
 
   auto num_items = 3;
   auto d_in      = cuda::constant_iterator(1);
@@ -283,7 +283,7 @@ C2H_TEST("Device scan inclusive-scan-init can be tuned", "[scan][device]", block
 {
   constexpr int target_block_size = c2h::get<0, TestType>::value;
   c2h::device_vector<int> d_block_size(1);
-  block_size_check_t block_size_check{thrust::raw_pointer_cast(d_block_size.data())};
+  block_size_check_t block_size_check{cuda::std::to_address(d_block_size.data())};
 
   auto num_items = 3;
   auto d_in      = cuda::constant_iterator(1);

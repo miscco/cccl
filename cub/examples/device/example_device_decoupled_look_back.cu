@@ -81,7 +81,7 @@ void decoupled_look_back_example(int blocks_in_grid)
 
   // Allocate temporary storage
   thrust::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  std::uint8_t* d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  std::uint8_t* d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Initialize temporary storage
   scan_tile_state_t tile_status;

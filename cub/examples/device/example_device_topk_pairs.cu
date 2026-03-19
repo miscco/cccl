@@ -153,7 +153,7 @@ int main(int argc, char** argv)
 
   // Allocate temporary storage
   thrust::device_vector<std::uint8_t> temp_storage(temp_storage_bytes, thrust::no_init);
-  void* d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  void* d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run the top-k algorithm
   CubDebugExit(DeviceTopK::MinPairs(

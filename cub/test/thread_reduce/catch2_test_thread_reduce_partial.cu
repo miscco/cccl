@@ -146,7 +146,7 @@ C2H_TEST("ThreadReduce Integral Type Tests",
   auto reference_result =
     compute_single_problem_reference(h_in.cbegin(), h_in.cbegin() + bounded_valid_items, reduce_op, operator_identity);
   thread_reduce_partial_kernel<num_items>
-    <<<1, 1>>>(thrust::raw_pointer_cast(d_in.data()), thrust::raw_pointer_cast(d_out.data()), reduce_op, valid_items);
+    <<<1, 1>>>(cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), reduce_op, valid_items);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(reference_result == c2h::host_vector<accum_t>(d_out)[0]);
@@ -178,7 +178,7 @@ C2H_TEST("ThreadReduce Floating-Point Type Tests",
   auto reference_result =
     compute_single_problem_reference(h_in.cbegin(), h_in.cbegin() + bounded_valid_items, reduce_op, operator_identity);
   thread_reduce_partial_kernel<num_items>
-    <<<1, 1>>>(thrust::raw_pointer_cast(d_in.data()), thrust::raw_pointer_cast(d_out.data()), reduce_op, valid_items);
+    <<<1, 1>>>(cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), reduce_op, valid_items);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(reference_result == c2h::host_vector<accum_t>(d_out)[0]);
@@ -214,8 +214,8 @@ C2H_TEST("ThreadReduce Narrow PrecisionType Tests",
     compute_single_problem_reference(h_in.cbegin(), h_in.cbegin() + bounded_valid_items, reduce_op, operator_identity);
 
   thread_reduce_partial_kernel<num_items><<<1, 1>>>(
-    unwrap_it(thrust::raw_pointer_cast(d_in.data())),
-    unwrap_it(thrust::raw_pointer_cast(d_out.data())),
+    unwrap_it(cuda::std::to_address(d_in.data())),
+    unwrap_it(cuda::std::to_address(d_out.data())),
     reduce_op,
     valid_items);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
@@ -242,20 +242,20 @@ C2H_TEST("ThreadReduce Container Tests", "[reduce][thread]")
     compute_single_problem_reference(h_in.cbegin(), h_in.cbegin() + bounded_valid_items, op_t{}, 0);
 
   thread_reduce_partial_kernel_array<max_size>
-    <<<1, 1>>>(thrust::raw_pointer_cast(d_in.data()), thrust::raw_pointer_cast(d_out.data()), op_t{}, valid_items);
+    <<<1, 1>>>(cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), op_t{}, valid_items);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(reference_result == c2h::host_vector<int>(d_out)[0]);
 
   thread_reduce_partial_kernel_span<max_size>
-    <<<1, 1>>>(thrust::raw_pointer_cast(d_in.data()), thrust::raw_pointer_cast(d_out.data()), op_t{}, valid_items);
+    <<<1, 1>>>(cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), op_t{}, valid_items);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(reference_result == c2h::host_vector<int>(d_out)[0]);
 
 #if _CCCL_STD_VER >= 2023
   thread_reduce_partial_kernel_mdspan<max_size>
-    <<<1, 1>>>(thrust::raw_pointer_cast(d_in.data()), thrust::raw_pointer_cast(d_out.data()), op_t{}, valid_items);
+    <<<1, 1>>>(cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), op_t{}, valid_items);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(reference_result == c2h::host_vector<int>(d_out)[0]);
@@ -284,9 +284,9 @@ C2H_TEST("ThreadReducePartial does not invoke the reduction operator on invalid 
   c2h::device_vector<segment> d_out(max_size);
   c2h::device_vector<bool> error_flag(1, false);
   thread_reduce_partial_kernel<max_size><<<1, 1>>>(
-    thrust::raw_pointer_cast(d_in.data()),
-    thrust::raw_pointer_cast(d_out.data()),
-    merge_segments_op{thrust::raw_pointer_cast(error_flag.data())},
+    cuda::std::to_address(d_in.data()),
+    cuda::std::to_address(d_out.data()),
+    merge_segments_op{cuda::std::to_address(error_flag.data())},
     valid_items);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());

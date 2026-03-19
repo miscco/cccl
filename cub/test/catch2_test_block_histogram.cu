@@ -41,7 +41,7 @@ template <int ItemsPerThread, int ThreadsInBlock, int Bins, cub::BlockHistogramA
 void block_histogram(c2h::device_vector<SampleT>& d_samples, c2h::device_vector<int>& d_histogram)
 {
   block_histogram_kernel<Bins, ThreadsInBlock, ItemsPerThread, Algorithm>
-    <<<1, ThreadsInBlock>>>(thrust::raw_pointer_cast(d_samples.data()), thrust::raw_pointer_cast(d_histogram.data()));
+    <<<1, ThreadsInBlock>>>(cuda::std::to_address(d_samples.data()), cuda::std::to_address(d_histogram.data()));
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());

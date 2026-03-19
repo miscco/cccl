@@ -173,7 +173,7 @@ C2H_TEST(
 
   c2h::device_vector<bool> error_flag(1);
   warp_scan<params::logical_warp_threads, params::total_warps>(
-    d_in, d_out, merge_op_t<params::mode>{thrust::raw_pointer_cast(error_flag.data())}, valid_items);
+    d_in, d_out, merge_op_t<params::mode>{cuda::std::to_address(error_flag.data())}, valid_items);
   REQUIRE(false == error_flag.front());
   c2h::host_vector<type> h_out = d_in;
 
@@ -231,7 +231,7 @@ C2H_TEST("Partial warp scan does not apply op to invalid elements and returns va
     d_in,
     d_out,
     merge_aggregate_op_t<params::mode>{
-      target_thread_id, thrust::raw_pointer_cast(d_warp_aggregates.data()), thrust::raw_pointer_cast(error_flag.data())},
+      target_thread_id, cuda::std::to_address(d_warp_aggregates.data()), cuda::std::to_address(error_flag.data())},
     valid_items);
   REQUIRE(false == error_flag.front());
 
@@ -293,7 +293,7 @@ C2H_TEST("Partial warp scan does not apply op to invalid elements and works with
   warp_scan<params::logical_warp_threads, params::total_warps>(
     d_in,
     d_out,
-    merge_init_value_op_t<params::mode>{initial_value, thrust::raw_pointer_cast(error_flag.data())},
+    merge_init_value_op_t<params::mode>{initial_value, cuda::std::to_address(error_flag.data())},
     valid_items);
   REQUIRE(false == error_flag.front());
 
@@ -343,8 +343,8 @@ C2H_TEST("Partial warp scan with initial value does not apply op to invalid elem
     merge_init_value_aggregate_op_t<params::mode>{
       target_thread_id,
       initial_value,
-      thrust::raw_pointer_cast(d_warp_aggregates.data()),
-      thrust::raw_pointer_cast(error_flag.data())},
+      cuda::std::to_address(d_warp_aggregates.data()),
+      cuda::std::to_address(error_flag.data())},
     valid_items);
   REQUIRE(false == error_flag.front());
 
@@ -391,7 +391,7 @@ C2H_TEST("Partial warp combination scan does not apply op to invalid elements", 
     d_in,
     d_inclusive_out,
     d_exclusive_out,
-    merge_scan_op_t{thrust::raw_pointer_cast(error_flag.data())},
+    merge_scan_op_t{cuda::std::to_address(error_flag.data())},
     valid_items,
     segment{});
   REQUIRE(false == error_flag.front());
@@ -454,7 +454,7 @@ C2H_TEST("Partial warp combination custom scan does not apply op to invalid elem
     d_in,
     d_inclusive_out,
     d_exclusive_out,
-    merge_init_value_scan_op_t{initial_value, thrust::raw_pointer_cast(error_flag.data())},
+    merge_init_value_scan_op_t{initial_value, cuda::std::to_address(error_flag.data())},
     valid_items,
     segment{});
   REQUIRE(false == error_flag.front());

@@ -39,21 +39,21 @@ C2H_TEST("DeviceCopy::Copy: 1D, 2D, 4D mdspan with matching layouts", "[copy][md
   thrust::sequence(d_input.begin(), d_input.end(), 0);
   thrust::fill(d_output.begin(), d_output.end(), 42);
 
-  auto mdspan_in1  = cuda::std::mdspan{thrust::raw_pointer_cast(d_input.data()), dims_1d_t{num_items}};
-  auto mdspan_out1 = cuda::std::mdspan{thrust::raw_pointer_cast(d_output.data()), dims_1d_t{num_items}};
+  auto mdspan_in1  = cuda::std::mdspan{cuda::std::to_address(d_input.data()), dims_1d_t{num_items}};
+  auto mdspan_out1 = cuda::std::mdspan{cuda::std::to_address(d_output.data()), dims_1d_t{num_items}};
   device_copy_mdspan(mdspan_in1, mdspan_out1);
   REQUIRE(d_input == d_output);
   thrust::fill(d_output.begin(), d_output.end(), 42);
 
   using mdspan_2d_left_t = cuda::std::mdspan<int, dims_2d_t, cuda::std::layout_left>;
-  auto d_mdspan_in2      = mdspan_2d_left_t(thrust::raw_pointer_cast(d_input.data()), dims_2d_t{100, 100});
-  auto d_mdspan_out2     = mdspan_2d_left_t(thrust::raw_pointer_cast(d_output.data()), dims_2d_t{100, 100});
+  auto d_mdspan_in2      = mdspan_2d_left_t(cuda::std::to_address(d_input.data()), dims_2d_t{100, 100});
+  auto d_mdspan_out2     = mdspan_2d_left_t(cuda::std::to_address(d_output.data()), dims_2d_t{100, 100});
   device_copy_mdspan(d_mdspan_in2, d_mdspan_out2);
   REQUIRE(d_input == d_output);
   thrust::fill(d_output.begin(), d_output.end(), 42);
 
-  auto mdspan_in3  = cuda::std::mdspan(thrust::raw_pointer_cast(d_input.data()), dims_4d_t{10, 10, 10, 10});
-  auto mdspan_out3 = cuda::std::mdspan(thrust::raw_pointer_cast(d_output.data()), dims_4d_t{10, 10, 10, 10});
+  auto mdspan_in3  = cuda::std::mdspan(cuda::std::to_address(d_input.data()), dims_4d_t{10, 10, 10, 10});
+  auto mdspan_out3 = cuda::std::mdspan(cuda::std::to_address(d_output.data()), dims_4d_t{10, 10, 10, 10});
   device_copy_mdspan(mdspan_in3, mdspan_out3);
   REQUIRE(d_input == d_output);
 }
@@ -72,8 +72,8 @@ C2H_TEST("DeviceCopy::Copy: 2D, 4D mdspan with compatible layouts", "[copy][mdsp
   using mdspan_strided_2d = cuda::std::mdspan<int, dims_2d_t, layout_stride>;
   layout_stride::mapping<dims_2d_t> map_out{dims_2d_t{100, 100}, cuda::std::array{1, 100}};
 
-  auto d_mdspan_in2  = mdspan_2d_left_t(thrust::raw_pointer_cast(d_input.data()), dims_2d_t{100, 100});
-  auto d_mdspan_out2 = mdspan_strided_2d(thrust::raw_pointer_cast(d_output.data()), map_out);
+  auto d_mdspan_in2  = mdspan_2d_left_t(cuda::std::to_address(d_input.data()), dims_2d_t{100, 100});
+  auto d_mdspan_out2 = mdspan_strided_2d(cuda::std::to_address(d_output.data()), map_out);
   device_copy_mdspan(d_mdspan_in2, d_mdspan_out2);
   REQUIRE(d_input == d_output);
 }
@@ -98,14 +98,14 @@ C2H_TEST("DeviceCopy::Copy: 2D strided mdspan", "[copy][mdspan]")
 
   layout_stride::mapping<dims_2d_t> map_in{dims_2d_t{100, 100}, cuda::std::array{2, 220}};
   layout_stride::mapping<dims_2d_t> map_out{dims_2d_t{100, 100}, cuda::std::array{220, 2}};
-  auto d_mdspan_in  = mdspan_strided_2d(thrust::raw_pointer_cast(d_input.data()), map_in);
-  auto d_mdspan_out = mdspan_strided_2d(thrust::raw_pointer_cast(d_output.data()), map_out);
+  auto d_mdspan_in  = mdspan_strided_2d(cuda::std::to_address(d_input.data()), map_in);
+  auto d_mdspan_out = mdspan_strided_2d(cuda::std::to_address(d_output.data()), map_out);
   device_copy_mdspan(d_mdspan_in, d_mdspan_out);
 
   c2h::host_vector<int> h_input  = d_input;
   c2h::host_vector<int> h_output = d_output;
-  auto h_mdspan_in               = mdspan_strided_2d(thrust::raw_pointer_cast(h_input.data()), map_in);
-  auto h_mdspan_out              = mdspan_strided_2d(thrust::raw_pointer_cast(h_output.data()), map_out);
+  auto h_mdspan_in               = mdspan_strided_2d(cuda::std::to_address(h_input.data()), map_in);
+  auto h_mdspan_out              = mdspan_strided_2d(cuda::std::to_address(h_output.data()), map_out);
   for (size_t i = 0; i < 100; i++)
   {
     for (size_t j = 0; j < 100; j++)
@@ -131,14 +131,14 @@ C2H_TEST("DeviceCopy::Copy: 2D strided mdspan + contiguous mdspan", "[copy][mdsp
   using mdspan_strided_2d    = cuda::std::mdspan<int, dims_2d_t, layout_stride>;
   using mdspan_contiguous_2d = cuda::std::mdspan<int, dims_2d_t>;
   layout_stride::mapping<dims_2d_t> map_in{dims_2d_t{100, 100}, cuda::std::array{2, 220}};
-  auto d_mdspan_in  = mdspan_strided_2d(thrust::raw_pointer_cast(d_input.data()), map_in);
-  auto d_mdspan_out = mdspan_contiguous_2d(thrust::raw_pointer_cast(d_output.data()), dims_2d_t{100, 100});
+  auto d_mdspan_in  = mdspan_strided_2d(cuda::std::to_address(d_input.data()), map_in);
+  auto d_mdspan_out = mdspan_contiguous_2d(cuda::std::to_address(d_output.data()), dims_2d_t{100, 100});
   device_copy_mdspan(d_mdspan_in, d_mdspan_out);
 
   c2h::host_vector<int> h_input  = d_input;
   c2h::host_vector<int> h_output = d_output;
-  auto h_mdspan_in               = mdspan_strided_2d(thrust::raw_pointer_cast(h_input.data()), map_in);
-  auto h_mdspan_out              = mdspan_contiguous_2d(thrust::raw_pointer_cast(h_output.data()), dims_2d_t{100, 100});
+  auto h_mdspan_in               = mdspan_strided_2d(cuda::std::to_address(h_input.data()), map_in);
+  auto h_mdspan_out              = mdspan_contiguous_2d(cuda::std::to_address(h_output.data()), dims_2d_t{100, 100});
   for (size_t i = 0; i < 100; i++)
   {
     for (size_t j = 0; j < 100; j++)

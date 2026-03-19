@@ -43,7 +43,7 @@ static c2h::host_vector<T> get_reference(const c2h::device_vector<T>& in, const 
   c2h::host_vector<T> reference   = in;
   c2h::host_vector<FlagT> h_flags = flags;
 
-  const selector pred{thrust::raw_pointer_cast(reference.data()), thrust::raw_pointer_cast(h_flags.data())};
+  const selector pred{cuda::std::to_address(reference.data()), cuda::std::to_address(h_flags.data())};
   const auto boundary = std::stable_partition(reference.begin(), reference.end(), pred);
   std::reverse(boundary, reference.end()); // the false partition is in reverse order
   return reference;
@@ -98,7 +98,7 @@ C2H_TEST("DevicePartition::Flagged can run with empty input", "[device][partitio
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 42);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_flagged(in.begin(), flags.begin(), out.begin(), d_num_selected_out, num_items);
 
@@ -118,7 +118,7 @@ C2H_TEST("DevicePartition::Flagged handles all matched", "[device][partition_fla
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_flagged(in.begin(), flags.begin(), out.begin(), d_num_selected_out, num_items);
 
@@ -139,7 +139,7 @@ C2H_TEST("DevicePartition::Flagged handles no matched", "[device][partition_flag
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_flagged(in.begin(), flags.begin(), out.begin(), d_num_selected_out, num_items);
 
@@ -166,7 +166,7 @@ C2H_TEST("DevicePartition::Flagged does not change input", "[device][partition_f
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // copy input first
   c2h::device_vector<type> reference = in;
@@ -194,7 +194,7 @@ C2H_TEST("DevicePartition::Flagged is stable", "[device][partition_flagged]")
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_flagged(in.begin(), flags.begin(), out.begin(), d_num_selected_out, num_items);
 
@@ -219,7 +219,7 @@ C2H_TEST("DevicePartition::Flagged works with iterators", "[device][partition_fl
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_flagged(in.begin(), flags.begin(), out.begin(), d_num_selected_out, num_items);
 
@@ -244,12 +244,12 @@ C2H_TEST("DevicePartition::Flagged works with pointers", "[device][partition_fla
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_flagged(
-    thrust::raw_pointer_cast(in.data()),
-    thrust::raw_pointer_cast(flags.data()),
-    thrust::raw_pointer_cast(out.data()),
+    cuda::std::to_address(in.data()),
+    cuda::std::to_address(flags.data()),
+    cuda::std::to_address(out.data()),
     d_num_selected_out,
     num_items);
 
@@ -298,7 +298,7 @@ C2H_TEST("DevicePartition::Flagged works with flags that are convertible to bool
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_flagged(in.begin(), flags.begin(), out.begin(), d_num_selected_out, num_items);
 
@@ -321,7 +321,7 @@ C2H_TEST("DevicePartition::Flagged works with flags that alias input", "[device]
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_flagged(flags.begin(), flags.begin(), out.begin(), d_num_selected_out, num_items);
 
@@ -374,7 +374,7 @@ C2H_TEST("DevicePartition::Flagged works with different output type", "[device][
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition_flagged(in.begin(), flags.begin(), out.begin(), d_num_selected_out, num_items);
 
@@ -417,7 +417,7 @@ try
 
   // Needs to be device accessible
   c2h::device_vector<offset_t> num_selected_out(1, 0);
-  offset_t* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  offset_t* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Run test
   partition_flagged(in, in_flags, check_result_it, d_first_num_selected_out, num_items);

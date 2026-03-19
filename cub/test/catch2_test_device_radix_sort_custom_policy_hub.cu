@@ -104,7 +104,7 @@ C2H_TEST("DispatchRadixSort::Dispatch: custom policy hub", "[keys][radix][sort][
   c2h::device_vector<key_t> out_keys(num_items);
   c2h::gen(C2H_SEED(1), in_keys);
 
-  DoubleBuffer<key_t> d_keys(thrust::raw_pointer_cast(in_keys.data()), thrust::raw_pointer_cast(out_keys.data()));
+  DoubleBuffer<key_t> d_keys(cuda::std::to_address(in_keys.data()), cuda::std::to_address(out_keys.data()));
   DoubleBuffer<NullType> d_values;
 
   using policy_hub_t = my_policy_hub<key_t, offset_t>;
@@ -123,7 +123,7 @@ C2H_TEST("DispatchRadixSort::Dispatch: custom policy hub", "[keys][radix][sort][
     /* stream */ nullptr);
   c2h::device_vector<uint8_t> temp_storage(temp_size, thrust::no_init);
   dispatch_t::Dispatch(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_size,
     d_keys,
     d_values,

@@ -30,7 +30,7 @@ void for_each(nvbench::state& state, nvbench::type_list<T, OffsetT>)
 
   thrust::device_vector<T> in(elements, T{42});
 
-  input_it_t d_in   = thrust::raw_pointer_cast(in.data());
+  input_it_t d_in   = cuda::std::to_address(in.data());
   output_it_t d_out = nullptr;
 
   state.add_element_count(elements);
@@ -42,7 +42,7 @@ void for_each(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   cub::DeviceFor::ForEachCopyN(nullptr, temp_size, d_in, elements, op);
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     cub::DeviceFor::ForEachCopyN(temp_storage, temp_size, d_in, elements, op, launch.get_stream());

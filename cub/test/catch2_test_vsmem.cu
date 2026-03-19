@@ -390,8 +390,8 @@ C2H_TEST("Virtual shared memory works within algorithms", "[util][vsmem]", type_
   // Prepare input and output buffers for a simple copy algorithm test
   c2h::device_vector<uint8_t> in(num_items * sizeof(item_t));
   c2h::device_vector<uint8_t> out(num_items * sizeof(item_t));
-  auto const in_ptr  = reinterpret_cast<item_t*>(thrust::raw_pointer_cast(in.data()));
-  auto const out_ptr = reinterpret_cast<item_t*>(thrust::raw_pointer_cast(out.data()));
+  auto const in_ptr  = reinterpret_cast<item_t*>(cuda::std::to_address(in.data()));
+  auto const out_ptr = reinterpret_cast<item_t*>(cuda::std::to_address(out.data()));
 
   // Generate some random noise input data
   c2h::gen(C2H_SEED(1), in);
@@ -420,8 +420,7 @@ C2H_TEST("Virtual shared memory works within algorithms", "[util][vsmem]", type_
   launch_config_test_info_t* launch_config_info = nullptr;
   cudaMallocHost(&launch_config_info, sizeof(launch_config_test_info_t));
   c2h::device_vector<kernel_test_info_t> device_kernel_test_info(1);
-  dummy_algorithm(
-    in_ptr, out_ptr, num_items, thrust::raw_pointer_cast(device_kernel_test_info.data()), launch_config_info);
+  dummy_algorithm(in_ptr, out_ptr, num_items, cuda::std::to_address(device_kernel_test_info.data()), launch_config_info);
 
   // Make sure the algorithm worked correctly
   REQUIRE(in == out);

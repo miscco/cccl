@@ -205,7 +205,7 @@ We perform the first call now and allocate temporary storage:
                          0 /* stream */);
 
     thrust::device_vector<char> temp(temp_size);
-    auto *temp_storage = thrust::raw_pointer_cast(temp.data());
+    auto *temp_storage = cuda::std::to_address(temp.data());
 
 Finally, we can execute the timed region of the benchmark,
 which contains the second call to a CUB algorithm and performs the actual work we want to benchmark:

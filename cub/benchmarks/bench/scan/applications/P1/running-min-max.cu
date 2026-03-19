@@ -139,8 +139,8 @@ void validate(const thrust::device_vector<ValueT>& input,
   thrust::device_vector<value_t> ref_maxs(elements, thrust::no_init);
 
   size_t tmp_size{};
-  auto d_input  = thrust::raw_pointer_cast(input.data());
-  auto d_output = thrust::raw_pointer_cast(output.data());
+  auto d_input  = cuda::std::to_address(input.data());
+  auto d_output = cuda::std::to_address(output.data());
 
   cub::DeviceScan::InclusiveScanInit(
     nullptr,
@@ -153,7 +153,7 @@ void validate(const thrust::device_vector<ValueT>& input,
     stream);
 
   thrust::device_vector<nvbench::uint8_t> tmp1(tmp_size, thrust::no_init);
-  nvbench::uint8_t* d_tmp1 = thrust::raw_pointer_cast(tmp1.data());
+  nvbench::uint8_t* d_tmp1 = cuda::std::to_address(tmp1.data());
 
   cub::DeviceScan::InclusiveScanInit(
     d_tmp1,
@@ -176,7 +176,7 @@ void validate(const thrust::device_vector<ValueT>& input,
     stream);
 
   thrust::device_vector<nvbench::uint8_t> tmp2(tmp_size, thrust::no_init);
-  nvbench::uint8_t* d_tmp2 = thrust::raw_pointer_cast(tmp2.data());
+  nvbench::uint8_t* d_tmp2 = cuda::std::to_address(tmp2.data());
 
   cub::DeviceScan::InclusiveScanInit(
     d_tmp2,
@@ -229,8 +229,8 @@ void benchmark_impl(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   thrust::device_vector<pair_t> output(elements);
   thrust::device_vector<value_t> input = generate(elements);
 
-  input_raw_t d_input  = thrust::raw_pointer_cast(input.data());
-  output_it_t d_output = thrust::raw_pointer_cast(output.data());
+  input_raw_t d_input  = cuda::std::to_address(input.data());
+  output_it_t d_output = cuda::std::to_address(output.data());
 
   input_it_t inp_it(d_input, impl::embed_op<value_t>{});
 
@@ -244,7 +244,7 @@ void benchmark_impl(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   dispatch_t::Dispatch(nullptr, tmp_size, inp_it, d_output, op_t{}, wrapped_init_t{}, input.size(), bench_stream);
 
   thrust::device_vector<nvbench::uint8_t> tmp(tmp_size, thrust::no_init);
-  nvbench::uint8_t* d_tmp = thrust::raw_pointer_cast(tmp.data());
+  nvbench::uint8_t* d_tmp = cuda::std::to_address(tmp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch_t::Dispatch(d_tmp, tmp_size, inp_it, d_output, op_t{}, wrapped_init_t{}, input.size(), launch.get_stream());

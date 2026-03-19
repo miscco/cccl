@@ -46,9 +46,9 @@ void warp_combine_scan(
   T filler)
 {
   warp_combine_scan_kernel<LogicalWarpThreads, TotalWarps, T, ActionT><<<1, LogicalWarpThreads * TotalWarps>>>(
-    thrust::raw_pointer_cast(in.data()),
-    thrust::raw_pointer_cast(inclusive_out.data()),
-    thrust::raw_pointer_cast(exclusive_out.data()),
+    cuda::std::to_address(in.data()),
+    cuda::std::to_address(inclusive_out.data()),
+    cuda::std::to_address(exclusive_out.data()),
     action,
     valid_items,
     filler);
@@ -83,7 +83,7 @@ template <int LogicalWarpThreads, int TotalWarps, class T, class ActionT>
 void warp_scan(c2h::device_vector<T>& in, c2h::device_vector<T>& out, ActionT action, int valid_items)
 {
   warp_scan_kernel<LogicalWarpThreads, TotalWarps, T, ActionT><<<1, LogicalWarpThreads * TotalWarps>>>(
-    thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), action, valid_items);
+    cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), action, valid_items);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());

@@ -66,7 +66,7 @@ void TestMakeDevicePointer()
 
   thrust::device_ptr<T> p0 = thrust::device_pointer_cast(raw_ptr);
 
-  ASSERT_EQUAL(thrust::raw_pointer_cast(p0), raw_ptr);
+  ASSERT_EQUAL(cuda::std::to_address(p0), raw_ptr);
 
   thrust::device_ptr<T> p1 = thrust::device_pointer_cast(p0);
 
@@ -172,7 +172,7 @@ void TestDevicePointerCompare()
     static_assert(!::cuda::std::is_same_v<device_ptr, other_ptr>);
 
     device_ptr ptr1 = v1.data();
-    other_ptr ptr2{other_ptr{thrust::raw_pointer_cast(ptr1 + 1)}};
+    other_ptr ptr2{other_ptr{cuda::std::to_address(ptr1 + 1)}};
 
     // Equality
     ASSERT_EQUAL(true, (ptr1 == ptr1));

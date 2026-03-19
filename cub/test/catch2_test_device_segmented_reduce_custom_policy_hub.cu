@@ -64,23 +64,23 @@ C2H_TEST("DispatchSegmentedReduce::Dispatch: custom policy hub", "[segmented][re
   dispatch_t::Dispatch(
     nullptr,
     temp_size,
-    thrust::raw_pointer_cast(in_items.data()),
-    thrust::raw_pointer_cast(out_result.data()),
+    cuda::std::to_address(in_items.data()),
+    cuda::std::to_address(out_result.data()),
     num_segments,
-    thrust::raw_pointer_cast(offsets.data()),
-    thrust::raw_pointer_cast(offsets.data()) + 1,
+    cuda::std::to_address(offsets.data()),
+    cuda::std::to_address(offsets.data()) + 1,
     reduction_t{},
     output_t{},
     /* stream */ nullptr);
   c2h::device_vector<unsigned char> temp_storage(temp_size, thrust::no_init);
   dispatch_t::Dispatch(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_size,
-    thrust::raw_pointer_cast(in_items.data()),
-    thrust::raw_pointer_cast(out_result.data()),
+    cuda::std::to_address(in_items.data()),
+    cuda::std::to_address(out_result.data()),
     num_segments,
-    thrust::raw_pointer_cast(offsets.data()),
-    thrust::raw_pointer_cast(offsets.data()) + 1,
+    cuda::std::to_address(offsets.data()),
+    cuda::std::to_address(offsets.data()) + 1,
     reduction_t{},
     output_t{},
     /* stream */ nullptr);

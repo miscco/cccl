@@ -75,10 +75,10 @@ C2H_TEST("Test", "[thread_sort]", value_types, items_per_thread_list)
     c2h::host_vector<value_t> host_values(in_values);
 
     kernel<key_t, value_t, items_per_thread><<<1, threads_in_block>>>(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
-      thrust::raw_pointer_cast(in_values.data()),
-      thrust::raw_pointer_cast(out_values.data()));
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
+      cuda::std::to_address(in_values.data()),
+      cuda::std::to_address(out_values.data()));
 
     for (unsigned int tid = 0; tid < threads_in_block; tid++)
     {

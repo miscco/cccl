@@ -86,8 +86,8 @@ C2H_TEST("Radix operations extract digits from fundamental types", "[radix][oper
   c2h::host_vector<char> output_buffer_mem(sizeof(std::uint32_t));
   const c2h::host_vector<char> input_buffer_mem = get_random_buffer<key_t>();
 
-  char* output_buffer      = thrust::raw_pointer_cast(output_buffer_mem.data());
-  const char* input_buffer = thrust::raw_pointer_cast(input_buffer_mem.data());
+  char* output_buffer      = cuda::std::to_address(output_buffer_mem.data());
+  const char* input_buffer = cuda::std::to_address(input_buffer_mem.data());
   std::memcpy(&val, input_buffer, sizeof(key_t));
 
   for (int current_bit = 0; current_bit < max_key_bits; current_bit++)
@@ -252,8 +252,8 @@ void test_tuple()
   c2h::host_vector<char> output_buffer_mem(sizeof(std::uint32_t));
   const c2h::host_vector<char> input_buffer_mem = get_random_buffer<tpl_t>();
 
-  char* output_buffer      = thrust::raw_pointer_cast(output_buffer_mem.data());
-  const char* input_buffer = thrust::raw_pointer_cast(input_buffer_mem.data());
+  char* output_buffer      = cuda::std::to_address(output_buffer_mem.data());
+  const char* input_buffer = cuda::std::to_address(input_buffer_mem.data());
   buffer_to_tpl(input_buffer, tpl);
 
   auto decomposer        = decomposer_t{};
@@ -333,8 +333,8 @@ C2H_TEST("Radix operations inverse fundamental types", "[radix][operations]", fu
   c2h::host_vector<char> output_buffer_mem(sizeof(key_t));
   c2h::host_vector<char> input_buffer_mem = get_random_buffer<key_t>();
 
-  char* output_buffer = thrust::raw_pointer_cast(output_buffer_mem.data());
-  char* input_buffer  = thrust::raw_pointer_cast(input_buffer_mem.data());
+  char* output_buffer = cuda::std::to_address(output_buffer_mem.data());
+  char* input_buffer  = cuda::std::to_address(input_buffer_mem.data());
   std::memcpy(&val, input_buffer, sizeof(key_t));
 
   for (std::size_t i = 0; i < input_buffer_mem.size(); i++)
@@ -374,7 +374,7 @@ C2H_TEST("Radix operations inverse pairs", "[radix][operations]", fundamental_ty
   tpl_t tpl{};
   c2h::host_vector<char> input_buffer_mem = get_random_buffer<tpl_t>();
 
-  char* input_buffer = thrust::raw_pointer_cast(input_buffer_mem.data());
+  char* input_buffer = cuda::std::to_address(input_buffer_mem.data());
   buffer_to_tpl(input_buffer, tpl);
 
   for (std::size_t i = 0; i < input_buffer_mem.size(); i++)
@@ -383,7 +383,7 @@ C2H_TEST("Radix operations inverse pairs", "[radix][operations]", fundamental_ty
   }
 
   c2h::host_vector<char> output_buffer_mem = input_buffer_mem;
-  char* output_buffer                      = thrust::raw_pointer_cast(output_buffer_mem.data());
+  char* output_buffer                      = cuda::std::to_address(output_buffer_mem.data());
 
   tpl_t inv = traits::bit_ordered_inversion_policy::inverse(decomposer, tpl);
   tpl_to_buffer(output_buffer, inv);

@@ -78,7 +78,7 @@ C2H_TEST("DeviceRunLengthEncode::NonTrivialRuns can handle empty input", "[devic
     static_cast<int*>(nullptr),
     static_cast<int*>(nullptr),
     static_cast<int*>(nullptr),
-    thrust::raw_pointer_cast(out_num_runs.data()),
+    cuda::std::to_address(out_num_runs.data()),
     num_items);
 
   REQUIRE(out_num_runs.front() == 0);
@@ -94,7 +94,7 @@ C2H_TEST("DeviceRunLengthEncode::NonTrivialRuns can handle a single element", "[
     static_cast<int*>(nullptr),
     static_cast<int*>(nullptr),
     static_cast<int*>(nullptr),
-    thrust::raw_pointer_cast(out_num_runs.data()),
+    cuda::std::to_address(out_num_runs.data()),
     num_items);
 
   REQUIRE(out_num_runs.front() == 0);
@@ -234,10 +234,10 @@ C2H_TEST("DeviceRunLengthEncode::NonTrivialRuns can handle pointers", "[device][
   c2h::gen(C2H_SEED(2), in);
 
   run_length_encode(
-    thrust::raw_pointer_cast(in.data()),
-    thrust::raw_pointer_cast(out_offsets.data()),
-    thrust::raw_pointer_cast(out_lengths.data()),
-    thrust::raw_pointer_cast(out_num_runs.data()),
+    cuda::std::to_address(in.data()),
+    cuda::std::to_address(out_offsets.data()),
+    cuda::std::to_address(out_lengths.data()),
+    cuda::std::to_address(out_num_runs.data()),
     num_items);
 
   out_offsets.resize(out_num_runs.front());

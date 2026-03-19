@@ -48,7 +48,7 @@ C2H_TEST("Device ForEachInLayout", "[ForEachInLayout][device]")
   extents_type                  extents{};
   thrust::device_vector<data_t> d_output(cub::detail::size(extents), thrust::no_init);
   thrust::host_vector<data_t>   h_output(cub::detail::size(extents), thrust::no_init);
-  auto                          d_output_raw = cuda::std::span<data_t>{thrust::raw_pointer_cast(d_output.data()),
+  auto                          d_output_raw = cuda::std::span<data_t>{cuda::std::to_address(d_output.data()),
                                                                        3 * 2 * 2};
   thrust::host_vector<data_t>   expected = {{0, 0, 0}, {1, 0, 0}, {2, 0, 0},
                                             {0, 1, 0}, {1, 1, 0}, {2, 1, 0},

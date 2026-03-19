@@ -55,21 +55,21 @@ C2H_TEST("DeviceRleDispatch::Dispatch: custom policy hub", "[device][run_length_
   dispatch_t::Dispatch(
     nullptr,
     temp_size,
-    thrust::raw_pointer_cast(d_in.data()),
-    thrust::raw_pointer_cast(d_offsets.data()),
-    thrust::raw_pointer_cast(d_lengths.data()),
-    thrust::raw_pointer_cast(d_num_runs.data()),
+    cuda::std::to_address(d_in.data()),
+    cuda::std::to_address(d_offsets.data()),
+    cuda::std::to_address(d_lengths.data()),
+    cuda::std::to_address(d_num_runs.data()),
     equal_t{},
     num_items,
     /* stream */ nullptr);
   c2h::device_vector<unsigned char> temp_storage(temp_size, thrust::no_init);
   dispatch_t::Dispatch(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_size,
-    thrust::raw_pointer_cast(d_in.data()),
-    thrust::raw_pointer_cast(d_offsets.data()),
-    thrust::raw_pointer_cast(d_lengths.data()),
-    thrust::raw_pointer_cast(d_num_runs.data()),
+    cuda::std::to_address(d_in.data()),
+    cuda::std::to_address(d_offsets.data()),
+    cuda::std::to_address(d_lengths.data()),
+    cuda::std::to_address(d_num_runs.data()),
     equal_t{},
     num_items,
     /* stream */ nullptr);

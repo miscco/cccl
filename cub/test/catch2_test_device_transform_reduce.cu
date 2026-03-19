@@ -46,8 +46,8 @@ C2H_TEST("Device transform reduce works with pointers", "[reduce][device]", type
   c2h::device_vector<item_t> in(num_items + 1);
   c2h::gen(C2H_SEED(2), in);
 
-  item_t* d_in  = thrust::raw_pointer_cast(in.data());
-  item_t* d_out = thrust::raw_pointer_cast(out.data());
+  item_t* d_in  = cuda::std::to_address(in.data());
+  item_t* d_out = cuda::std::to_address(out.data());
 
   const c2h::host_vector<item_t> h_in = in;
   c2h::host_vector<item_t> h_transformed_in(h_in.size() - 1);
@@ -200,8 +200,8 @@ C2H_TEST("Device transform reduce doesn't let input type into reduction op", "[r
   c2h::device_vector<input_t> in(num_items, magic_val);
   c2h::device_vector<output_t> out(1);
 
-  input_t* d_in   = thrust::raw_pointer_cast(in.data());
-  output_t* d_out = thrust::raw_pointer_cast(out.data());
+  input_t* d_in   = cuda::std::to_address(in.data());
+  output_t* d_out = cuda::std::to_address(out.data());
 
   device_transform_reduce(d_in, d_out, num_items, reduction_op_t{}, transform_op_t{}, init);
 

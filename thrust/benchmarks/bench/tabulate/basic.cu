@@ -58,7 +58,7 @@ static void seg_size(nvbench::state& state, nvbench::type_list<T>)
   state.add_global_memory_writes<T>(elements);
 
   caching_allocator_t alloc;
-  seg_size_t<T> op{thrust::raw_pointer_cast(input.data())};
+  seg_size_t<T> op{cuda::std::to_address(input.data())};
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch | nvbench::exec_tag::sync,
              [&](nvbench::launch& launch) {
                thrust::tabulate(policy(alloc, launch), output.begin(), output.end(), op);

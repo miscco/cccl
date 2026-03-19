@@ -145,8 +145,8 @@ try
   thrust::device_vector<T> input = generate(elements);
   thrust::device_vector<T> output(elements);
 
-  T* d_input  = thrust::raw_pointer_cast(input.data());
-  T* d_output = thrust::raw_pointer_cast(output.data());
+  T* d_input  = cuda::std::to_address(input.data());
+  T* d_output = cuda::std::to_address(output.data());
 
   state.add_element_count(elements);
   state.add_global_memory_reads<T>(elements, "Size");
@@ -166,7 +166,7 @@ try
   thrust::device_vector<nvbench::uint8_t> tmp(tmp_size);
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch_t::Dispatch(
-      thrust::raw_pointer_cast(tmp.data()),
+      cuda::std::to_address(tmp.data()),
       tmp_size,
       d_input,
       d_output,

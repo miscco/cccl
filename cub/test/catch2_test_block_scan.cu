@@ -75,7 +75,7 @@ void block_scan(c2h::device_vector<T>& in, c2h::device_vector<T>& out, ActionT a
   dim3 block_dims(BlockDimX, BlockDimY, BlockDimZ);
 
   block_scan_kernel<Algorithm, ItemsPerThread, BlockDimX, BlockDimY, BlockDimZ, T, ActionT>
-    <<<1, block_dims>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), action);
+    <<<1, block_dims>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), action);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
@@ -87,7 +87,7 @@ void block_scan_single(c2h::device_vector<T>& in, c2h::device_vector<T>& out, Ac
   dim3 block_dims(BlockDimX, BlockDimY, BlockDimZ);
 
   block_scan_single_kernel<Algorithm, BlockDimX, BlockDimY, BlockDimZ, T, ActionT>
-    <<<1, block_dims>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), action);
+    <<<1, block_dims>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), action);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
@@ -503,7 +503,7 @@ C2H_TEST("Block scan returns valid block aggregate", "[scan][block]", algorithm,
   c2h::gen(C2H_SEED(10), d_in);
 
   block_scan<algorithm, items_per_thread, block_dim_x, block_dim_y, block_dim_z>(
-    d_in, d_out, sum_aggregate_op_t<type, mode>{target_thread_id, thrust::raw_pointer_cast(d_block_aggregate.data())});
+    d_in, d_out, sum_aggregate_op_t<type, mode>{target_thread_id, cuda::std::to_address(d_block_aggregate.data())});
 
   c2h::host_vector<type> h_out = d_in;
   type block_aggregate         = host_scan(mode, h_out, std::plus<type>{});
@@ -643,7 +643,7 @@ C2H_TEST("Block custom op scan with initial value returns valid block aggregate"
     d_in,
     d_out,
     min_init_value_aggregate_op_t<type, mode>{
-      target_thread_id, initial_value, thrust::raw_pointer_cast(d_block_aggregate.data())});
+      target_thread_id, initial_value, cuda::std::to_address(d_block_aggregate.data())});
 
   c2h::host_vector<type> h_out = d_in;
   type h_block_aggregate       = host_scan(

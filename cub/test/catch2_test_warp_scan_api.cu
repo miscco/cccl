@@ -65,7 +65,7 @@ C2H_TEST("Warp array-based inclusive scan works with initial value", "[scan][war
 {
   c2h::device_vector<int> d_out(num_warps * 32);
 
-  InclusiveWarpScanKernel<<<1, num_warps * 32>>>(thrust::raw_pointer_cast(d_out.data()));
+  InclusiveWarpScanKernel<<<1, num_warps * 32>>>(cuda::std::to_address(d_out.data()));
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
 
@@ -122,7 +122,7 @@ C2H_TEST("Warp array-based inclusive scan aggregate works with initial value", "
   c2h::device_vector<int> d_warp_aggregate(num_warps);
 
   InclusiveWarpScanKernelAggr<<<1, num_warps * 32>>>(
-    thrust::raw_pointer_cast(d_out.data()), thrust::raw_pointer_cast(d_warp_aggregate.data()));
+    cuda::std::to_address(d_out.data()), cuda::std::to_address(d_warp_aggregate.data()));
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
 
@@ -198,7 +198,7 @@ C2H_TEST("Warp array-based partial inclusive scan works with initial value", "[s
 {
   c2h::device_vector<int> d_out(num_warps * 32);
 
-  InclusiveWarpScanPartialKernel<<<1, num_warps * 32>>>(thrust::raw_pointer_cast(d_out.data()));
+  InclusiveWarpScanPartialKernel<<<1, num_warps * 32>>>(cuda::std::to_address(d_out.data()));
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
 
@@ -276,7 +276,7 @@ C2H_TEST("Warp array-based partial inclusive scan aggregate works with initial v
   c2h::device_vector<int> d_warp_aggregate(num_warps);
 
   InclusiveWarpScanPartialKernelAggr<<<1, num_warps * 32>>>(
-    thrust::raw_pointer_cast(d_out.data()), thrust::raw_pointer_cast(d_warp_aggregate.data()));
+    cuda::std::to_address(d_out.data()), cuda::std::to_address(d_warp_aggregate.data()));
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
 

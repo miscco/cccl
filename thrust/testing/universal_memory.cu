@@ -104,13 +104,13 @@ void TestUniversalRawPointerCast()
   static_assert(std::is_same<decltype(obj.get()), thrust::universal_ptr<T>>::value,
                 "Unexpected pointer type returned from std::unique_ptr::get.");
 
-  static_assert(std::is_same<decltype(thrust::raw_pointer_cast(obj.get())), T*>::value,
-                "Unexpected pointer type returned from thrust::raw_pointer_cast.");
+  static_assert(std::is_same<decltype(cuda::std::to_address(obj.get())), T*>::value,
+                "Unexpected pointer type returned from cuda::std::to_address.");
 
   static_assert(std::is_same<decltype(cuda::std::to_address(obj.get())), T*>::value,
                 "Unexpected pointer type returned from cuda::std::to_address.");
 
-  *thrust::raw_pointer_cast(obj.get()) = T(17);
+  *cuda::std::to_address(obj.get()) = T(17);
   ASSERT_EQUAL(*obj, T(17));
 
   *cuda::std::to_address(obj.get()) = T(42);

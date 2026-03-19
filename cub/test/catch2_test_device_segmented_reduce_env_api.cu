@@ -18,7 +18,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Sum accepts env with stream and determinis
   // example-begin segmented-reduce-sum-env
   int num_segments                     = 3;
   thrust::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                    = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                    = cuda::std::to_address(d_offsets.data());
   thrust::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   thrust::device_vector<int> d_out(3);
 
@@ -46,7 +46,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Sum accepts stream", "[segmented_reduce][e
   // example-begin segmented-reduce-sum-env-stream
   int num_segments                     = 3;
   thrust::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                    = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                    = cuda::std::to_address(d_offsets.data());
   thrust::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   thrust::device_vector<int> d_out(3);
 
@@ -72,7 +72,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Sum accepts run_to_run determinism require
   // example-begin segmented-reduce-sum-env-determinism
   int num_segments                     = 3;
   thrust::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                    = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                    = cuda::std::to_address(d_offsets.data());
   thrust::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   thrust::device_vector<int> d_out(3);
 
@@ -97,7 +97,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Sum accepts not_guaranteed determinism req
   // example-begin segmented-reduce-sum-env-non-determinism
   int num_segments                     = 3;
   thrust::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                    = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                    = cuda::std::to_address(d_offsets.data());
   thrust::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   thrust::device_vector<int> d_out(3);
 

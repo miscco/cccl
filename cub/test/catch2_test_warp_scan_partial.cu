@@ -324,7 +324,7 @@ C2H_TEST("Partial warp scan returns valid warp aggregate",
   warp_scan<params::logical_warp_threads, params::total_warps>(
     d_in,
     d_out,
-    sum_aggregate_op_t<type, params::mode>{target_thread_id, thrust::raw_pointer_cast(d_warp_aggregates.data())},
+    sum_aggregate_op_t<type, params::mode>{target_thread_id, cuda::std::to_address(d_warp_aggregates.data())},
     valid_items);
 
   c2h::host_vector<type> h_out = d_in;
@@ -418,7 +418,7 @@ C2H_TEST("Partial warp custom op scan returns valid warp aggregate", "[scan][war
   warp_scan<params::logical_warp_threads, params::total_warps>(
     d_in,
     d_out,
-    min_aggregate_op_t<type, params::mode>{target_thread_id, thrust::raw_pointer_cast(d_warp_aggregates.data())},
+    min_aggregate_op_t<type, params::mode>{target_thread_id, cuda::std::to_address(d_warp_aggregates.data())},
     valid_items);
 
   c2h::host_vector<type> h_out = d_in;
@@ -516,7 +516,7 @@ C2H_TEST("Partial warp custom op scan with initial value returns valid warp aggr
     d_in,
     d_out,
     min_init_value_aggregate_op_t<type, params::mode>{
-      target_thread_id, initial_value, thrust::raw_pointer_cast(d_warp_aggregates.data())},
+      target_thread_id, initial_value, cuda::std::to_address(d_warp_aggregates.data())},
     valid_items);
 
   c2h::host_vector<type> h_out = d_in;

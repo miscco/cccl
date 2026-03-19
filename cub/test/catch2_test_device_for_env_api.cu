@@ -56,7 +56,7 @@ C2H_TEST("cub::DeviceFor::Bulk env-based API", "[for][env]")
 {
   // example-begin bulk-env
   auto vec = thrust::device_vector<int>{1, 2, 3, 4};
-  square_t op{thrust::raw_pointer_cast(vec.data())};
+  square_t op{cuda::std::to_address(vec.data())};
 
   cuda::stream stream{cuda::devices[0]};
   cuda::stream_ref stream_ref{stream};
@@ -126,7 +126,7 @@ C2H_TEST("cub::DeviceFor::ForEachCopyN env-based API", "[for][env]")
   // example-begin for-each-copy-n-env
   auto vec   = thrust::device_vector<int>{1, 2, 3, 4};
   auto count = thrust::device_vector<int>(1);
-  odd_count_t op{thrust::raw_pointer_cast(count.data())};
+  odd_count_t op{cuda::std::to_address(count.data())};
 
   cuda::stream stream{cuda::devices[0]};
   cuda::stream_ref stream_ref{stream};
@@ -150,7 +150,7 @@ C2H_TEST("cub::DeviceFor::ForEachCopy env-based API", "[for][env]")
   // example-begin for-each-copy-env
   auto vec   = thrust::device_vector<int>{1, 2, 3, 4};
   auto count = thrust::device_vector<int>(1);
-  odd_count_t op{thrust::raw_pointer_cast(count.data())};
+  odd_count_t op{cuda::std::to_address(count.data())};
 
   cuda::stream stream{cuda::devices[0]};
   cuda::stream_ref stream_ref{stream};

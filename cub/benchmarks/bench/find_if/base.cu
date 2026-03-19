@@ -32,21 +32,21 @@ void find_if(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   cub::DeviceFind::FindIf(
     d_temp_storage,
     temp_storage_bytes,
-    thrust::raw_pointer_cast(dinput.data()),
-    thrust::raw_pointer_cast(d_result.data()),
+    cuda::std::to_address(dinput.data()),
+    cuda::std::to_address(d_result.data()),
     cuda::equal_to_value<T>(val),
     static_cast<OffsetT>(dinput.size()),
     0);
 
   thrust::device_vector<uint8_t> temp_storage(temp_storage_bytes, thrust::no_init);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   state.exec(nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     cub::DeviceFind::FindIf(
       d_temp_storage,
       temp_storage_bytes,
-      thrust::raw_pointer_cast(dinput.data()),
-      thrust::raw_pointer_cast(d_result.data()),
+      cuda::std::to_address(dinput.data()),
+      cuda::std::to_address(d_result.data()),
       cuda::equal_to_value<T>(val),
       static_cast<OffsetT>(dinput.size()),
       launch.get_stream());

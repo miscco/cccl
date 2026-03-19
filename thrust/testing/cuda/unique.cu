@@ -437,7 +437,7 @@ void TestUniqueWithCustomEqualityOp()
   auto data                = thrust::make_counting_iterator(T{0});
 
   thrust::device_vector<::cuda::std::uint32_t> error_counter(1, 0);
-  auto const error_counter_ptr = thrust::raw_pointer_cast(error_counter.data());
+  auto const error_counter_ptr = cuda::std::to_address(error_counter.data());
 
   Vector unique_out(num_items);
   auto unique_out_end = thrust::unique_copy(

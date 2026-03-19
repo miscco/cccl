@@ -48,9 +48,9 @@ C2H_TEST("Device ForEachInExtents", "[ForEachInExtents][device]")
   cuda::std::extents<int, 3, 2, 2> extents{};
   thrust::device_vector<data_t>    d_output1(cub::detail::size(extents), thrust::no_init);
   thrust::device_vector<data_t>    d_output2(cub::detail::size(extents), thrust::no_init);
-  auto                             d_output1_raw = cuda::std::span<data_t>{thrust::raw_pointer_cast(d_output1.data()),
+  auto                             d_output1_raw = cuda::std::span<data_t>{cuda::std::to_address(d_output1.data()),
                                                                           3 * 2 * 2};
-  auto                             d_output2_raw = cuda::std::span<data_t>{thrust::raw_pointer_cast(d_output2.data()),
+  auto                             d_output2_raw = cuda::std::span<data_t>{cuda::std::to_address(d_output2.data()),
                                                                           3 * 2 * 2};
   thrust::host_vector<data_t>      expected = {{0, 0, 0}, {0, 0, 1}, {0, 1, 0}, {0, 1, 1},
                                                {1, 0, 0}, {1, 0, 1}, {1, 1, 0}, {1, 1, 1},

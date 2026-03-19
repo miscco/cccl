@@ -50,7 +50,7 @@ struct hash_test
     cuda::std::array<Key, 1> arr_keys = {key};
 
     CUDAX_REQUIRE(hasher(key) == expected);
-    CUDAX_REQUIRE(hasher(cuda::std::span<Key>(thrust::raw_pointer_cast(arr_keys.data()), arr_keys.size())) == expected);
+    CUDAX_REQUIRE(hasher(cuda::std::span<Key>(cuda::std::to_address(arr_keys.data()), arr_keys.size())) == expected);
   }
 };
 

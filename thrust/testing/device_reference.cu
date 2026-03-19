@@ -315,7 +315,7 @@ void TestDeviceReferenceCompare()
     static_assert(!::cuda::std::is_same_v<device_ref, other_ref>);
 
     device_ref ref1 = v1.front();
-    other_ref ref2{other_pointer{thrust::raw_pointer_cast(v1.data() + 1)}};
+    other_ref ref2{other_pointer{cuda::std::to_address(v1.data() + 1)}};
 
     // Equality
     ASSERT_EQUAL(true, (ref1 == ref1));
@@ -343,7 +343,7 @@ void TestDeviceReferenceCompare()
     static_assert(!::cuda::std::is_same_v<device_ref, other_ref>);
 
     device_ref ref1 = v1.front();
-    other_ref ref2{other_pointer{thrust::raw_pointer_cast(v2.data() + 1)}};
+    other_ref ref2{other_pointer{cuda::std::to_address(v2.data() + 1)}};
 
     // Equality
     ASSERT_EQUAL(true, (ref1 == ref1));
@@ -413,8 +413,8 @@ void TestTaggedReferenceCompare()
     using tagged_ref = thrust::tagged_reference<T1, thrust::device_system_tag>;
     using tagged_ptr = typename tagged_ref::pointer;
 
-    tagged_ref ref1{tagged_ptr{thrust::raw_pointer_cast(v1.data())}};
-    tagged_ref ref2{tagged_ptr{thrust::raw_pointer_cast(v1.data() + 1)}};
+    tagged_ref ref1{tagged_ptr{cuda::std::to_address(v1.data())}};
+    tagged_ref ref2{tagged_ptr{cuda::std::to_address(v1.data() + 1)}};
 
     // Equality
     ASSERT_EQUAL(true, (ref1 == ref1));
@@ -470,7 +470,7 @@ void TestTaggedReferenceCompare()
     static_assert(!::cuda::std::is_same_v<tagged_ref, other_ref>);
 
     tagged_ref ref1 = v1.front();
-    other_ref ref2{other_pointer{thrust::raw_pointer_cast(v1.data() + 1)}};
+    other_ref ref2{other_pointer{cuda::std::to_address(v1.data() + 1)}};
 
     // Equality
     ASSERT_EQUAL(true, (ref1 == ref1));
@@ -498,7 +498,7 @@ void TestTaggedReferenceCompare()
     static_assert(!::cuda::std::is_same_v<tagged_ref, other_ref>);
 
     tagged_ref ref1 = v1.front();
-    other_ref ref2{other_pointer{thrust::raw_pointer_cast(v2.data() + 1)}};
+    other_ref ref2{other_pointer{cuda::std::to_address(v2.data() + 1)}};
 
     // Equality
     ASSERT_EQUAL(true, (ref1 == ref1));

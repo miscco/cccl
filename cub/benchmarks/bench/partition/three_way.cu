@@ -59,11 +59,11 @@ void partition(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   thrust::device_vector<T> out_2(elements);
   thrust::device_vector<T> out_3(elements);
 
-  input_it_t d_in                  = thrust::raw_pointer_cast(in.data());
-  output_it_t d_out_1              = thrust::raw_pointer_cast(out_1.data());
-  output_it_t d_out_2              = thrust::raw_pointer_cast(out_2.data());
-  output_it_t d_out_3              = thrust::raw_pointer_cast(out_3.data());
-  num_selected_it_t d_num_selected = thrust::raw_pointer_cast(num_selected.data());
+  input_it_t d_in                  = cuda::std::to_address(in.data());
+  output_it_t d_out_1              = cuda::std::to_address(out_1.data());
+  output_it_t d_out_2              = cuda::std::to_address(out_2.data());
+  output_it_t d_out_3              = cuda::std::to_address(out_3.data());
+  num_selected_it_t d_num_selected = cuda::std::to_address(num_selected.data());
 
   state.add_element_count(elements);
   state.add_global_memory_reads<T>(elements);
@@ -94,7 +94,7 @@ void partition(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   dispatch(nullptr, 0);
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size, thrust::no_init);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch(temp_storage, launch.get_stream());

@@ -222,7 +222,7 @@ try
 
   // Invoke device-side algorithm being under test
   CubDebugExit(cub::DeviceCopy::Batched(
-    thrust::raw_pointer_cast(d_temp_storage.data()),
+    cuda::std::to_address(d_temp_storage.data()),
     temp_storage_bytes,
     d_range_srcs,
     d_range_dsts,
@@ -308,7 +308,7 @@ void nontrivial_constructor_test()
   cub::DeviceCopy::Batched(d_temp_storage, temp_storage_bytes, a_iter.begin(), b_iter.begin(), sizes, num_buffers);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   cub::DeviceCopy::Batched(d_temp_storage, temp_storage_bytes, a_iter.begin(), b_iter.begin(), sizes, num_buffers);
 

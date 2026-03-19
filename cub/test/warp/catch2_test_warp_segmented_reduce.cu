@@ -109,7 +109,7 @@ template <int LOGICAL_WARP_THREADS, int TOTAL_WARPS, typename T, typename Action
 void warp_reduce(c2h::device_vector<T>& in, c2h::device_vector<T>& out, ActionT action)
 {
   warp_reduce_kernel<LOGICAL_WARP_THREADS, TOTAL_WARPS, T, ActionT><<<1, LOGICAL_WARP_THREADS * TOTAL_WARPS>>>(
-    thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), action);
+    cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), action);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
@@ -285,7 +285,7 @@ C2H_TEST("Warp segmented sum works", "[reduce][warp]", full_type_list, logical_w
 
   // Run test
   warp_reduce<params::logical_warp_threads, params::total_warps>(
-    d_in, d_out, warp_seg_sum_t{thrust::raw_pointer_cast(d_flags.data())});
+    d_in, d_out, warp_seg_sum_t{cuda::std::to_address(d_flags.data())});
 
   // Prepare verification data
   c2h::host_vector<type> h_in       = d_in;
@@ -331,7 +331,7 @@ C2H_TEST("Warp segmented reduction works", "[reduce][warp]", builtin_type_list, 
 
   // Run test
   warp_reduce<params::logical_warp_threads, params::total_warps>(
-    d_in, d_out, warp_seg_reduction_t{thrust::raw_pointer_cast(d_flags.data()), red_op_t{}});
+    d_in, d_out, warp_seg_reduction_t{cuda::std::to_address(d_flags.data()), red_op_t{}});
 
   // Prepare verification data
   c2h::host_vector<type> h_in       = d_in;

@@ -51,10 +51,10 @@ C2H_TEST("Dispatch reduce can be called with custom policy_hub", "[reduce][devic
 
   // Prepare input data and output
   c2h::device_vector<T> in_items(num_items, 42);
-  auto d_in_it = thrust::raw_pointer_cast(in_items.data());
+  auto d_in_it = cuda::std::to_address(in_items.data());
 
   c2h::device_vector<T> out_result(1);
-  auto d_out_it = unwrap_it(thrust::raw_pointer_cast(out_result.data()));
+  auto d_out_it = unwrap_it(cuda::std::to_address(out_result.data()));
 
   // Run test
   using dispatch_t =

@@ -62,19 +62,19 @@ static void range(nvbench::state& state, nvbench::type_list<SampleT, CounterT, O
   thrust::device_vector<SampleT> levels_g = levels_r;
   thrust::device_vector<SampleT> levels_b = levels_g;
 
-  SampleT* d_levels_r = thrust::raw_pointer_cast(levels_r.data());
-  SampleT* d_levels_g = thrust::raw_pointer_cast(levels_g.data());
-  SampleT* d_levels_b = thrust::raw_pointer_cast(levels_b.data());
+  SampleT* d_levels_r = cuda::std::to_address(levels_r.data());
+  SampleT* d_levels_g = cuda::std::to_address(levels_g.data());
+  SampleT* d_levels_b = cuda::std::to_address(levels_b.data());
 
   thrust::device_vector<CounterT> hist_r(num_bins);
   thrust::device_vector<CounterT> hist_g(num_bins);
   thrust::device_vector<CounterT> hist_b(num_bins);
   thrust::device_vector<SampleT> input = generate(elements * num_channels, entropy, lower_level, upper_level);
 
-  SampleT* d_input        = thrust::raw_pointer_cast(input.data());
-  CounterT* d_histogram_r = thrust::raw_pointer_cast(hist_r.data());
-  CounterT* d_histogram_g = thrust::raw_pointer_cast(hist_g.data());
-  CounterT* d_histogram_b = thrust::raw_pointer_cast(hist_b.data());
+  SampleT* d_input        = cuda::std::to_address(input.data());
+  CounterT* d_histogram_r = cuda::std::to_address(hist_r.data());
+  CounterT* d_histogram_g = cuda::std::to_address(hist_g.data());
+  CounterT* d_histogram_b = cuda::std::to_address(hist_b.data());
 
   std::uint8_t* d_temp_storage = nullptr;
   std::size_t temp_storage_bytes{};
@@ -102,7 +102,7 @@ static void range(nvbench::state& state, nvbench::type_list<SampleT, CounterT, O
     is_byte_sample);
 
   thrust::device_vector<nvbench::uint8_t> tmp(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(tmp.data());
+  d_temp_storage = cuda::std::to_address(tmp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch_t::DispatchRange(

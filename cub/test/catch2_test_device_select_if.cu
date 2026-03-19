@@ -86,7 +86,7 @@ C2H_TEST("DeviceSelect::If can run with empty input", "[device][select_if]", typ
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 42);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_if(in.begin(), out.begin(), d_num_selected_out, num_items, always_true_t{});
 
@@ -104,7 +104,7 @@ C2H_TEST("DeviceSelect::If handles all matched", "[device][select_if]", types)
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_if(in.begin(), out.begin(), d_first_num_selected_out, num_items, always_true_t{});
 
@@ -123,7 +123,7 @@ C2H_TEST("DeviceSelect::If handles no matched", "[device][select_if]", types)
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_if(in.begin(), out.begin(), d_first_num_selected_out, num_items, always_false_t{});
 
@@ -144,7 +144,7 @@ C2H_TEST("DeviceSelect::If does not change input", "[device][select_if]", types)
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // copy input first
   c2h::device_vector<type> reference = in;
@@ -168,7 +168,7 @@ C2H_TEST("DeviceSelect::If is stable", "[device][select_if]")
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_if(in.begin(), out.begin(), d_first_num_selected_out, num_items, le);
 
@@ -199,7 +199,7 @@ C2H_TEST("DeviceSelect::If works with iterators", "[device][select_if]", all_typ
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_if(in.begin(), out.begin(), d_first_num_selected_out, num_items, le);
 
@@ -222,10 +222,10 @@ C2H_TEST("DeviceSelect::If works with pointers", "[device][select_if]", types)
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_if(
-    thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), d_first_num_selected_out, num_items, le);
+    cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), d_first_num_selected_out, num_items, le);
 
   const auto boundary = out.begin() + num_selected_out[0];
   REQUIRE(thrust::all_of(c2h::device_policy, out.begin(), boundary, le));
@@ -245,7 +245,7 @@ C2H_TEST("DeviceSelect::If works in place", "[device][select_if]", types)
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Ensure that we create the same output as std
   c2h::host_vector<type> reference = in;
@@ -292,7 +292,7 @@ C2H_TEST("DeviceSelect::If works with a different output type", "[device][select
 
   // Needs to be device accessible
   c2h::device_vector<int> num_selected_out(1, 0);
-  int* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   select_if(in.begin(), out.begin(), d_first_num_selected_out, num_items, le);
 
@@ -326,7 +326,7 @@ try
 
   // Needs to be device accessible
   c2h::device_vector<offset_t> num_selected_out(1, 0);
-  offset_t* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  offset_t* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Run test
   constexpr offset_t match_every_nth = 1000000;
@@ -379,7 +379,7 @@ try
 
   // Needs to be device accessible
   c2h::device_vector<offset_t> num_selected_out(1, 0);
-  offset_t* d_first_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  offset_t* d_first_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Run test
   select_if(in, out.begin(), d_first_num_selected_out, num_items, always_true_t{});

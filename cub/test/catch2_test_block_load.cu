@@ -79,7 +79,7 @@ void test_block_load(const c2h::device_vector<T>& d_input, InputIteratorT input)
 
   c2h::device_vector<T> d_output(d_input.size());
   kernel<ItemsPerThread, ThreadsInBlock, LoadAlgorithm><<<1, ThreadsInBlock>>>(
-    sufficient_resources, input, thrust::raw_pointer_cast(d_output.data()), static_cast<int>(d_input.size()));
+    sufficient_resources, input, cuda::std::to_address(d_output.data()), static_cast<int>(d_input.size()));
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(d_input == d_output);
@@ -136,7 +136,7 @@ C2H_TEST("Block load works with even block sizes",
   c2h::gen(C2H_SEED(10), d_input);
 
   test_block_load<params::items_per_thread, params::threads_in_block, params::load_algorithm>(
-    d_input, thrust::raw_pointer_cast(d_input.data()));
+    d_input, cuda::std::to_address(d_input.data()));
 }
 
 C2H_TEST("Block load works with even odd sizes",
@@ -152,7 +152,7 @@ C2H_TEST("Block load works with even odd sizes",
   c2h::device_vector<type> d_input(GENERATE_COPY(take(10, random(0, params::tile_size))));
   c2h::gen(C2H_SEED(10), d_input);
   test_block_load<params::items_per_thread, params::threads_in_block, params::load_algorithm>(
-    d_input, thrust::raw_pointer_cast(d_input.data()));
+    d_input, cuda::std::to_address(d_input.data()));
 }
 
 // WAR bug in vec type handling in NVCC 12.0 + GCC 11.4 + C++20
@@ -166,7 +166,7 @@ C2H_TEST(
   c2h::device_vector<type> d_input(GENERATE_COPY(take(10, random(0, params::tile_size))));
   c2h::gen(C2H_SEED(10), d_input);
   test_block_load<params::items_per_thread, params::threads_in_block, params::load_algorithm>(
-    d_input, thrust::raw_pointer_cast(d_input.data()));
+    d_input, cuda::std::to_address(d_input.data()));
 }
 #endif // !(NVCC 12.0 and GCC 11.4 and C++20)
 
@@ -180,7 +180,7 @@ C2H_TEST("Block load works with custom types", "[load][block]", items_per_thread
 
   c2h::device_vector<type> d_input(GENERATE_COPY(take(10, random(0, tile_size))));
   c2h::gen(C2H_SEED(10), d_input);
-  test_block_load<items_per_thread, threads_in_block, load_algorithm>(d_input, thrust::raw_pointer_cast(d_input.data()));
+  test_block_load<items_per_thread, threads_in_block, load_algorithm>(d_input, cuda::std::to_address(d_input.data()));
 }
 
 C2H_TEST("Block load works with caching iterators", "[load][block]", items_per_thread, load_algorithm)
@@ -193,8 +193,7 @@ C2H_TEST("Block load works with caching iterators", "[load][block]", items_per_t
 
   c2h::device_vector<type> d_input(GENERATE_COPY(take(10, random(0, tile_size))));
   c2h::gen(C2H_SEED(10), d_input);
-  cub::CacheModifiedInputIterator<cub::CacheLoadModifier::LOAD_DEFAULT, type> in(
-    thrust::raw_pointer_cast(d_input.data()));
+  cub::CacheModifiedInputIterator<cub::CacheLoadModifier::LOAD_DEFAULT, type> in(cuda::std::to_address(d_input.data()));
   test_block_load<items_per_thread, threads_in_block, load_algorithm>(d_input, in);
 }
 
@@ -219,6 +218,6 @@ C2H_TEST("Vectorized block load with const and non-const datatype and different 
   thrust::copy_n(d_input_ref.begin(), tile_size, d_input.begin() + offset_for_elements);
 
   test_block_load<items_per_thread, threads_in_block, load_algorithm, type, input_ptr_type>(
-    d_input_ref, thrust::raw_pointer_cast(d_input.data()) + offset_for_elements);
+    d_input_ref, cuda::std::to_address(d_input.data()) + offset_for_elements);
 }
 #endif

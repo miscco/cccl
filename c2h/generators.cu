@@ -75,14 +75,14 @@ public:
 
     generate();
 
-    return thrust::raw_pointer_cast(m_distribution.data());
+    return cuda::std::to_address(m_distribution.data());
   }
 
   // re-fills the currently held distribution vector with new random values
   void generate()
   {
 #if C2H_HAS_CURAND
-    curandGenerateUniform(m_gen, thrust::raw_pointer_cast(m_distribution.data()), m_distribution.size());
+    curandGenerateUniform(m_gen, cuda::std::to_address(m_distribution.data()), m_distribution.size());
 #else
     thrust::tabulate(device_policy, m_distribution.begin(), m_distribution.end(), i_to_rnd_t{m_gen});
     m_gen.discard(m_distribution.size());
@@ -246,7 +246,7 @@ void init_key_segments(::cuda::std::span<const OffsetT> segment_offsets, KeyT* d
   device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
 #  endif // THRUST_VERSION >= 300100
 
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // TODO(bgruber): replace by a non-CUB implementation
   cub::DeviceCopy::Batched(

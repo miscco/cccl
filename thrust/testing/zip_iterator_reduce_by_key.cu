@@ -129,12 +129,12 @@ struct TestZipIteratorReduceByKey
       thrust::device_vector<float> d_data6(n, 0.0f);
 
       // run on host
-      const T* h_begin1     = thrust::raw_pointer_cast(h_data1.data());
-      const T* h_begin2     = thrust::raw_pointer_cast(h_data2.data());
-      const float* h_begin3 = thrust::raw_pointer_cast(h_data3.data());
-      T* h_begin4           = thrust::raw_pointer_cast(h_data4.data());
-      T* h_begin5           = thrust::raw_pointer_cast(h_data5.data());
-      float* h_begin6       = thrust::raw_pointer_cast(h_data6.data());
+      const T* h_begin1     = cuda::std::to_address(h_data1.data());
+      const T* h_begin2     = cuda::std::to_address(h_data2.data());
+      const float* h_begin3 = cuda::std::to_address(h_data3.data());
+      T* h_begin4           = cuda::std::to_address(h_data4.data());
+      T* h_begin5           = cuda::std::to_address(h_data5.data());
+      float* h_begin6       = cuda::std::to_address(h_data6.data());
       thrust::reduce_by_key(
         thrust::host,
         thrust::make_zip_iterator(h_begin1, h_begin2),
@@ -144,12 +144,12 @@ struct TestZipIteratorReduceByKey
         h_begin6);
 
       // run on device
-      const T* d_begin1     = thrust::raw_pointer_cast(d_data1.data());
-      const T* d_begin2     = thrust::raw_pointer_cast(d_data2.data());
-      const float* d_begin3 = thrust::raw_pointer_cast(d_data3.data());
-      T* d_begin4           = thrust::raw_pointer_cast(d_data4.data());
-      T* d_begin5           = thrust::raw_pointer_cast(d_data5.data());
-      float* d_begin6       = thrust::raw_pointer_cast(d_data6.data());
+      const T* d_begin1     = cuda::std::to_address(d_data1.data());
+      const T* d_begin2     = cuda::std::to_address(d_data2.data());
+      const float* d_begin3 = cuda::std::to_address(d_data3.data());
+      T* d_begin4           = cuda::std::to_address(d_data4.data());
+      T* d_begin5           = cuda::std::to_address(d_data5.data());
+      float* d_begin6       = cuda::std::to_address(d_data6.data());
       thrust::reduce_by_key(
         thrust::device,
         thrust::make_zip_iterator(d_begin1, d_begin2),

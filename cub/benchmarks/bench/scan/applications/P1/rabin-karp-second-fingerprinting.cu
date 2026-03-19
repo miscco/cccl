@@ -325,8 +325,8 @@ static void inclusive_scan(nvbench::state& state, nvbench::type_list<BitsetT, Of
   // a large prime
   ZpT p = static_cast<ZpT>(state.get_int64("Modulus"));
 
-  raw_it_t d_input      = thrust::raw_pointer_cast(input.data());
-  output_ptr_t d_output = thrust::raw_pointer_cast(output.data());
+  raw_it_t d_input      = cuda::std::to_address(input.data());
+  output_ptr_t d_output = cuda::std::to_address(output.data());
 
   input_it_t inp_it(d_input, impl::ChunkToMat<input_t>(p));
   output_it_t out_it(static_cast<OffsetT>(elements - 1), d_output);
@@ -341,7 +341,7 @@ static void inclusive_scan(nvbench::state& state, nvbench::type_list<BitsetT, Of
   dispatch_t::Dispatch(nullptr, tmp_size, inp_it, out_it, op_t{p}, wrapped_init_t{}, input.size(), bench_stream);
 
   thrust::device_vector<nvbench::uint8_t> tmp(tmp_size, thrust::no_init);
-  nvbench::uint8_t* d_tmp = thrust::raw_pointer_cast(tmp.data());
+  nvbench::uint8_t* d_tmp = cuda::std::to_address(tmp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch_t::Dispatch(

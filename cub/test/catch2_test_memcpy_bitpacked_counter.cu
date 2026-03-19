@@ -96,9 +96,9 @@ C2H_TEST("The bit_packed_counter used by DeviceMemcpy works", "[memcpy]", test_c
 
   // Run tests with densely bit-packed counters
   test_bit_packed_counter_kernel<num_items, max_item_value, prefer_power_of_two_bits><<<1, 1>>>(
-    thrust::raw_pointer_cast(bins_in.data()),
-    thrust::raw_pointer_cast(increments_in.data()),
-    thrust::raw_pointer_cast(counts_out.data()),
+    cuda::std::to_address(bins_in.data()),
+    cuda::std::to_address(increments_in.data()),
+    cuda::std::to_address(counts_out.data()),
     num_increments);
 
   // Result verification

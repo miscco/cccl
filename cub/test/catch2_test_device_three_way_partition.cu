@@ -89,7 +89,7 @@ C2H_TEST("Device three-way partition can handle empty problems", "[partition][de
   type* d_second_part_out{};
   type* d_unselected_out{};
   c2h::device_vector<type> num_selected_out{42, 42};
-  type* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  type* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   less_than_t<type> le(type{0});
   greater_or_equal_t<type> ge(type{1});
@@ -141,13 +141,13 @@ cub_partition(FirstPartSelectionOp first_selector, SecondPartSelectionOp second_
   const int num_items = static_cast<int>(in.size());
   three_way_partition_result_t<T> result(num_items);
 
-  T* d_in              = thrust::raw_pointer_cast(in.data());
-  T* d_first_part_out  = thrust::raw_pointer_cast(result.first_part.data());
-  T* d_second_part_out = thrust::raw_pointer_cast(result.second_part.data());
-  T* d_unselected_out  = thrust::raw_pointer_cast(result.unselected.data());
+  T* d_in              = cuda::std::to_address(in.data());
+  T* d_first_part_out  = cuda::std::to_address(result.first_part.data());
+  T* d_second_part_out = cuda::std::to_address(result.second_part.data());
+  T* d_unselected_out  = cuda::std::to_address(result.unselected.data());
 
   c2h::device_vector<int> num_selected_out(2);
-  int* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  int* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   partition(
     d_in,
@@ -457,7 +457,7 @@ try
 
   // Needs to be device accessible
   c2h::device_vector<offset_t> num_selected_out{0, 0};
-  offset_t* d_num_selected_out = thrust::raw_pointer_cast(num_selected_out.data());
+  offset_t* d_num_selected_out = cuda::std::to_address(num_selected_out.data());
 
   // Run test
   partition(

@@ -41,7 +41,7 @@ struct mark_present_for_each
 template <class Policy>
 void test_for_each_n(const Policy& policy, thrust::device_vector<bool>& res)
 {
-  mark_present_for_each fn{thrust::raw_pointer_cast(res.data())};
+  mark_present_for_each fn{cuda::std::to_address(res.data())};
 
   { // empty should not access anything
     const auto result = cuda::std::for_each_n(policy, static_cast<int*>(nullptr), 0, fn);

@@ -50,7 +50,7 @@ C2H_TEST("cub::DeviceSelect::FlaggedIf works with int data elements", "[select][
 
   // Run selection
   cub::DeviceSelect::FlaggedIf(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_storage_bytes,
     d_in.begin(),
     d_flags.begin(),
@@ -86,7 +86,7 @@ C2H_TEST("cub::DeviceSelect::FlaggedIf in-place works with int data elements", "
 
   // Run selection
   cub::DeviceSelect::FlaggedIf(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_storage_bytes,
     d_data.begin(),
     d_flags.begin(),

@@ -213,7 +213,7 @@ C2H_TEST("DeviceMergeSort::SortKeysCopy works",
   // Perform sort
   c2h::device_vector<key_t> keys_out(num_items, static_cast<key_t>(42));
   sort_keys_copy(
-    thrust::raw_pointer_cast(keys_in.data()), thrust::raw_pointer_cast(keys_out.data()), num_items, custom_less_op_t{});
+    cuda::std::to_address(keys_in.data()), cuda::std::to_address(keys_out.data()), num_items, custom_less_op_t{});
 
   // Verify results
   auto key_ranks_it     = cuda::counting_iterator(offset_t{});
@@ -237,7 +237,7 @@ C2H_TEST("DeviceMergeSort::SortKeys works", "[merge][sort][device]", wide_key_ty
     c2h::device_policy, key_ranks.begin(), key_ranks.end(), keys_in_out.begin(), rank_to_key_op_t<offset_t, key_t>{});
 
   // Perform sort
-  sort_keys(thrust::raw_pointer_cast(keys_in_out.data()), num_items, custom_less_op_t{});
+  sort_keys(cuda::std::to_address(keys_in_out.data()), num_items, custom_less_op_t{});
 
   // Verify results
   auto key_ranks_it     = cuda::counting_iterator(offset_t{});
@@ -268,7 +268,7 @@ C2H_TEST("DeviceMergeSort::StableSortKeysCopy works and performs a stable sort w
   // Perform sort
   c2h::device_vector<key_t> keys_out(num_items, rank_to_key_op_t<offset_t, key_t>{}(42));
   stable_sort_keys_copy(
-    thrust::raw_pointer_cast(keys_in.data()), thrust::raw_pointer_cast(keys_out.data()), num_items, custom_less_op_t{});
+    cuda::std::to_address(keys_in.data()), cuda::std::to_address(keys_out.data()), num_items, custom_less_op_t{});
 
   // Verify results
   c2h::host_vector<key_t> keys_expected(keys_in);
@@ -290,7 +290,7 @@ C2H_TEST("DeviceMergeSort::StableSortKeys works", "[merge][sort][device]")
   c2h::gen(C2H_SEED(2), keys_in_out);
 
   // Perform sort
-  stable_sort_keys(thrust::raw_pointer_cast(keys_in_out.data()), num_items, custom_less_op_t{});
+  stable_sort_keys(cuda::std::to_address(keys_in_out.data()), num_items, custom_less_op_t{});
 
   // Verify results
   c2h::host_vector<key_t> keys_expected(keys_in_out);
@@ -319,10 +319,10 @@ C2H_TEST("DeviceMergeSort::SortPairsCopy works",
   c2h::device_vector<key_t> keys_out(num_items, static_cast<key_t>(42));
   c2h::device_vector<offset_t> values_out(num_items, static_cast<offset_t>(42));
   sort_pairs_copy(
-    thrust::raw_pointer_cast(keys_in.data()),
-    thrust::raw_pointer_cast(key_ranks.data()),
-    thrust::raw_pointer_cast(keys_out.data()),
-    thrust::raw_pointer_cast(values_out.data()),
+    cuda::std::to_address(keys_in.data()),
+    cuda::std::to_address(key_ranks.data()),
+    cuda::std::to_address(keys_out.data()),
+    cuda::std::to_address(values_out.data()),
     num_items,
     custom_less_op_t{});
 
@@ -351,10 +351,8 @@ C2H_TEST("DeviceMergeSort::SortPairs works", "[merge][sort][device]", wide_key_t
     c2h::device_policy, key_ranks.begin(), key_ranks.end(), keys_in_out.begin(), rank_to_key_op_t<offset_t, key_t>{});
 
   // Perform sort
-  sort_pairs(thrust::raw_pointer_cast(keys_in_out.data()),
-             thrust::raw_pointer_cast(key_ranks.data()),
-             num_items,
-             custom_less_op_t{});
+  sort_pairs(
+    cuda::std::to_address(keys_in_out.data()), cuda::std::to_address(key_ranks.data()), num_items, custom_less_op_t{});
 
   // Verify results
   auto key_ranks_it       = cuda::counting_iterator(offset_t{});
@@ -392,8 +390,8 @@ C2H_TEST(
   std::stable_sort(zipped_expected_it, zipped_expected_it + num_items, compare_first_lt_op_t{});
 
   // Perform sort
-  stable_sort_pairs(thrust::raw_pointer_cast(keys_in_out.data()),
-                    thrust::raw_pointer_cast(values_in_out.data()),
+  stable_sort_pairs(cuda::std::to_address(keys_in_out.data()),
+                    cuda::std::to_address(values_in_out.data()),
                     num_items,
                     custom_less_op_t{});
 
@@ -427,7 +425,7 @@ C2H_TEST("DeviceMergeSort::StableSortPairs works for large inputs",
       arrays.deallocate_outputs();
 
       // Perform sort
-      stable_sort_keys(thrust::raw_pointer_cast(arrays.keys_in.data()), num_items, custom_less_op_t{});
+      stable_sort_keys(cuda::std::to_address(arrays.keys_in.data()), num_items, custom_less_op_t{});
 
       // Verify results
       arrays.verify_unstable_key_sort(num_items, is_descending, arrays.keys_in);
@@ -451,7 +449,7 @@ C2H_TEST("DeviceMergeSort::StableSortPairs works for large inputs",
       thrust::copy(counting_it, counting_it + num_items, keys_in_out.begin());
 
       // Perform sort
-      stable_sort_keys(thrust::raw_pointer_cast(keys_in_out.data()), num_items, custom_less_op_t{});
+      stable_sort_keys(cuda::std::to_address(keys_in_out.data()), num_items, custom_less_op_t{});
 
       // Perform comparison
       auto expected_result_it =
@@ -479,7 +477,7 @@ C2H_TEST("DeviceMergeSort::StableSortPairs works for large inputs",
       thrust::copy(rev_sorted_it, rev_sorted_it + num_items, keys_in_out.begin());
 
       // Perform sort
-      stable_sort_keys(thrust::raw_pointer_cast(keys_in_out.data()), num_items, custom_less_op_t{});
+      stable_sort_keys(cuda::std::to_address(keys_in_out.data()), num_items, custom_less_op_t{});
 
       // Perform comparison
       auto expected_result_it =

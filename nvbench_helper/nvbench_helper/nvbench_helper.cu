@@ -55,7 +55,7 @@ private:
 const double* host_generator_t::new_uniform_distribution(seed_t seed, std::size_t num_items)
 {
   m_distribution.resize(num_items);
-  double* h_distribution = thrust::raw_pointer_cast(m_distribution.data());
+  double* h_distribution = cuda::std::to_address(m_distribution.data());
 
   std::default_random_engine re(seed.get());
   std::uniform_real_distribution<double> dist(0.0, 1.0);
@@ -71,7 +71,7 @@ const double* host_generator_t::new_uniform_distribution(seed_t seed, std::size_
 const double* host_generator_t::new_lognormal_distribution(seed_t seed, std::size_t num_items)
 {
   m_distribution.resize(num_items);
-  double* h_distribution = thrust::raw_pointer_cast(m_distribution.data());
+  double* h_distribution = cuda::std::to_address(m_distribution.data());
 
   std::default_random_engine re(seed.get());
   std::lognormal_distribution<double> dist(lognormal_mean, lognormal_sigma);
@@ -87,7 +87,7 @@ const double* host_generator_t::new_lognormal_distribution(seed_t seed, std::siz
 const double* host_generator_t::new_constant(std::size_t num_items, double val)
 {
   m_distribution.resize(num_items);
-  double* h_distribution = thrust::raw_pointer_cast(m_distribution.data());
+  double* h_distribution = cuda::std::to_address(m_distribution.data());
   thrust::fill_n(thrust::host, h_distribution, num_items, val);
   return h_distribution;
 }
@@ -144,7 +144,7 @@ struct random_to_item_t
 const double* device_generator_t::new_uniform_distribution(seed_t seed, std::size_t num_items)
 {
   m_distribution.resize(num_items);
-  double* d_distribution = thrust::raw_pointer_cast(m_distribution.data());
+  double* d_distribution = cuda::std::to_address(m_distribution.data());
 
   curandSetPseudoRandomGeneratorSeed(m_gen, seed.get());
   curandGenerateUniformDouble(m_gen, d_distribution, num_items);
@@ -155,7 +155,7 @@ const double* device_generator_t::new_uniform_distribution(seed_t seed, std::siz
 const double* device_generator_t::new_lognormal_distribution(seed_t seed, std::size_t num_items)
 {
   m_distribution.resize(num_items);
-  double* d_distribution = thrust::raw_pointer_cast(m_distribution.data());
+  double* d_distribution = cuda::std::to_address(m_distribution.data());
 
   curandSetPseudoRandomGeneratorSeed(m_gen, seed.get());
   curandGenerateLogNormalDouble(m_gen, d_distribution, num_items, lognormal_mean, lognormal_sigma);
@@ -166,7 +166,7 @@ const double* device_generator_t::new_lognormal_distribution(seed_t seed, std::s
 const double* device_generator_t::new_constant(std::size_t num_items, double val)
 {
   m_distribution.resize(num_items);
-  double* d_distribution = thrust::raw_pointer_cast(m_distribution.data());
+  double* d_distribution = cuda::std::to_address(m_distribution.data());
   thrust::fill_n(thrust::device, d_distribution, num_items, val);
   return d_distribution;
 }
@@ -365,7 +365,7 @@ void generator_t::generate(
       constexpr bool is_device = std::is_same_v<DistT, device_generator_t>;
       using vec_t              = std::conditional_t<is_device, thrust::device_vector<T>, thrust::host_vector<T>>;
       vec_t tmp_vec(span.size());
-      cuda::std::span<T> tmp(thrust::raw_pointer_cast(tmp_vec.data()), tmp_vec.size());
+      cuda::std::span<T> tmp(cuda::std::to_address(tmp_vec.data()), tmp_vec.size());
 
       for (int i = 0; i < number_of_steps; i++, ++seed)
       {
@@ -444,7 +444,7 @@ void generator_t::generate(
                                                     thrust::host_vector<cuda::std::complex<T>>>;
 
       vec_t tmp_vec(span.size());
-      cuda::std::span<cuda::std::complex<T>> tmp(thrust::raw_pointer_cast(tmp_vec.data()), tmp_vec.size());
+      cuda::std::span<cuda::std::complex<T>> tmp(cuda::std::to_address(tmp_vec.data()), tmp_vec.size());
 
       for (int i = 0; i < number_of_steps; i++, ++seed)
       {
@@ -627,7 +627,7 @@ void gen_key_segments(executor exec, seed_t, cuda::std::span<T> keys, cuda::std:
       d_temp_storage, temp_storage_bytes, d_range_srcs, d_range_dsts, d_range_sizes, total_segments);
 
     thrust::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-    d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+    d_temp_storage = cuda::std::to_address(temp_storage.data());
 
     cub::DeviceCopy::Batched(
       d_temp_storage, temp_storage_bytes, d_range_srcs, d_range_dsts, d_range_sizes, total_segments);
@@ -708,14 +708,14 @@ void gen_uniform_key_segments_host(
 
   {
     cuda::std::span<std::size_t> segment_offsets_span(
-      thrust::raw_pointer_cast(segment_offsets.data()), segment_offsets.size());
+      cuda::std::to_address(segment_offsets.data()), segment_offsets.size());
     const std::size_t offsets_size =
       gen_uniform_offsets(executor::host, seed, segment_offsets_span, min_segment_size, max_segment_size);
     segment_offsets.resize(offsets_size);
   }
 
   cuda::std::span<std::size_t> segment_offsets_span(
-    thrust::raw_pointer_cast(segment_offsets.data()), segment_offsets.size());
+    cuda::std::to_address(segment_offsets.data()), segment_offsets.size());
 
   gen_key_segments(executor::host, seed, keys, segment_offsets_span);
 }
@@ -728,14 +728,14 @@ void gen_uniform_key_segments_device(
 
   {
     cuda::std::span<std::size_t> segment_offsets_span(
-      thrust::raw_pointer_cast(segment_offsets.data()), segment_offsets.size());
+      cuda::std::to_address(segment_offsets.data()), segment_offsets.size());
     const std::size_t offsets_size =
       gen_uniform_offsets(executor::device, seed, segment_offsets_span, min_segment_size, max_segment_size);
     segment_offsets.resize(offsets_size);
   }
 
   cuda::std::span<std::size_t> segment_offsets_span(
-    thrust::raw_pointer_cast(segment_offsets.data()), segment_offsets.size());
+    cuda::std::to_address(segment_offsets.data()), segment_offsets.size());
 
   gen_key_segments(executor::device, seed, keys, segment_offsets_span);
 }

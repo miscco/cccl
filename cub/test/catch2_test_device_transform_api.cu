@@ -97,8 +97,8 @@ void test_transform_stable_api()
   auto input1 = thrust::device_vector<int>{0, -2, 5, 3};
   auto input2 = thrust::device_vector<int>{52, 31, -11, 30};
 
-  auto* input1_ptr = thrust::raw_pointer_cast(input1.data());
-  auto* input2_ptr = thrust::raw_pointer_cast(input2.data());
+  auto* input1_ptr = cuda::std::to_address(input1.data());
+  auto* input2_ptr = cuda::std::to_address(input2.data());
 
   auto op = [input1_ptr, input2_ptr] __device__(const int& a) -> int {
     const auto i = &a - input1_ptr; // we depend on the address of a

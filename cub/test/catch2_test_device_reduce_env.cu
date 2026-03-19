@@ -72,7 +72,7 @@ TEST_CASE("Device reduce works with default environment", "[reduce][device]")
 
   num_items_t num_items = 1;
   c2h::device_vector<int> d_block_size(1);
-  block_size_check_t block_size_check{thrust::raw_pointer_cast(d_block_size.data())};
+  block_size_check_t block_size_check{cuda::std::to_address(d_block_size.data())};
   auto d_in  = cuda::constant_iterator(value_t{1});
   auto d_out = thrust::device_vector<value_t>(1);
 
@@ -137,7 +137,7 @@ C2H_TEST("Device reduce can be tuned", "[reduce][device]", block_sizes)
 {
   constexpr int target_block_size = c2h::get<0, TestType>::value;
   c2h::device_vector<int> d_block_size(1);
-  block_size_check_t block_size_check{thrust::raw_pointer_cast(d_block_size.data())};
+  block_size_check_t block_size_check{cuda::std::to_address(d_block_size.data())};
 
   auto num_items = 1;
   auto d_in      = cuda::constant_iterator(1);
@@ -224,7 +224,7 @@ C2H_TEST("Device reduce uses environment", "[reduce][device]", requirements)
     else if constexpr (cub::detail::is_non_deterministic_v<determinism_t>)
     {
       using policy_t = cub::detail::reduce::policy_selector_from_types<accumulator_t, offset_t, op_t>;
-      auto* raw_ptr  = thrust::raw_pointer_cast(d_out.data());
+      auto* raw_ptr  = cuda::std::to_address(d_out.data());
 
       REQUIRE(
         cudaSuccess
@@ -342,7 +342,7 @@ C2H_TEST("Device sum uses environment", "[reduce][device]", requirements)
     else if constexpr (cub::detail::is_non_deterministic_v<determinism_t>)
     {
       using policy_t = cub::detail::reduce::policy_selector_from_types<accumulator_t, offset_t, op_t>;
-      auto* raw_ptr  = thrust::raw_pointer_cast(d_out.data());
+      auto* raw_ptr  = cuda::std::to_address(d_out.data());
 
       REQUIRE(
         cudaSuccess

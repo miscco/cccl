@@ -38,9 +38,9 @@ void warp_combine_scan(
   c2h::device_vector<T>& in, c2h::device_vector<T>& inclusive_out, c2h::device_vector<T>& exclusive_out, ActionT action)
 {
   warp_combine_scan_kernel<LOGICAL_WARP_THREADS, TOTAL_WARPS, T, ActionT><<<1, LOGICAL_WARP_THREADS * TOTAL_WARPS>>>(
-    thrust::raw_pointer_cast(in.data()),
-    thrust::raw_pointer_cast(inclusive_out.data()),
-    thrust::raw_pointer_cast(exclusive_out.data()),
+    cuda::std::to_address(in.data()),
+    cuda::std::to_address(inclusive_out.data()),
+    cuda::std::to_address(exclusive_out.data()),
     action);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
@@ -73,7 +73,7 @@ template <int LOGICAL_WARP_THREADS, int TOTAL_WARPS, class T, class ActionT>
 void warp_scan(c2h::device_vector<T>& in, c2h::device_vector<T>& out, ActionT action)
 {
   warp_scan_kernel<LOGICAL_WARP_THREADS, TOTAL_WARPS, T, ActionT><<<1, LOGICAL_WARP_THREADS * TOTAL_WARPS>>>(
-    thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), action);
+    cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), action);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
@@ -415,7 +415,7 @@ C2H_TEST("Warp scan returns valid warp aggregate",
   warp_scan<params::logical_warp_threads, params::total_warps>(
     d_in,
     d_out,
-    sum_aggregate_op_t<type, params::mode>{target_thread_id, thrust::raw_pointer_cast(d_warp_aggregates.data())});
+    sum_aggregate_op_t<type, params::mode>{target_thread_id, cuda::std::to_address(d_warp_aggregates.data())});
 
   c2h::host_vector<type> h_out = d_in;
 
@@ -480,7 +480,7 @@ C2H_TEST("Warp custom op scan returns valid warp aggregate", "[scan][warp]", typ
   warp_scan<params::logical_warp_threads, params::total_warps>(
     d_in,
     d_out,
-    min_aggregate_op_t<type, params::mode>{target_thread_id, thrust::raw_pointer_cast(d_warp_aggregates.data())});
+    min_aggregate_op_t<type, params::mode>{target_thread_id, cuda::std::to_address(d_warp_aggregates.data())});
 
   c2h::host_vector<type> h_out = d_in;
 
@@ -561,7 +561,7 @@ C2H_TEST("Warp custom op scan with initial value returns valid warp aggregate",
     d_in,
     d_out,
     min_init_value_aggregate_op_t<type, params::mode>{
-      target_thread_id, initial_value, thrust::raw_pointer_cast(d_warp_aggregates.data())});
+      target_thread_id, initial_value, cuda::std::to_address(d_warp_aggregates.data())});
 
   c2h::host_vector<type> h_out = d_in;
 

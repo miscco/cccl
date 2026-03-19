@@ -46,7 +46,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Reduce works with int data elements", "[se
   // example-begin segmented-reduce-reduce
   int num_segments                  = 3;
   c2h::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                 = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                 = cuda::std::to_address(d_offsets.data());
   c2h::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   c2h::device_vector<int> d_out(3);
   CustomMin min_op;
@@ -67,7 +67,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Reduce works with int data elements", "[se
     initial_value);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::Reduce(
@@ -92,7 +92,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Sum works with int data elements", "[segme
   // example-begin segmented-reduce-sum
   int num_segments                  = 3;
   c2h::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                 = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                 = cuda::std::to_address(d_offsets.data());
   c2h::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   c2h::device_vector<int> d_out(3);
 
@@ -103,7 +103,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Sum works with int data elements", "[segme
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, d_offsets_it, d_offsets_it + 1);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::Sum(
@@ -120,7 +120,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Min works with int data elements", "[segme
   // example-begin segmented-reduce-min
   int num_segments                  = 3;
   c2h::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                 = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                 = cuda::std::to_address(d_offsets.data());
   c2h::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   c2h::device_vector<int> d_out(3);
 
@@ -131,7 +131,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Min works with int data elements", "[segme
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, d_offsets_it, d_offsets_it + 1);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::Min(
@@ -148,7 +148,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::ArgMin works with int data elements", "[se
   // example-begin segmented-reduce-argmin
   int num_segments                  = 3;
   c2h::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                 = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                 = cuda::std::to_address(d_offsets.data());
   c2h::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   c2h::device_vector<cub::KeyValuePair<int, int>> d_out(3);
 
@@ -159,7 +159,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::ArgMin works with int data elements", "[se
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, d_offsets_it, d_offsets_it + 1);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::ArgMin(
@@ -176,7 +176,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Max works with int data elements", "[segme
   // example-begin segmented-reduce-max
   int num_segments                  = 3;
   c2h::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                 = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                 = cuda::std::to_address(d_offsets.data());
   c2h::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   c2h::device_vector<int> d_out(3);
 
@@ -187,7 +187,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Max works with int data elements", "[segme
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, d_offsets_it, d_offsets_it + 1);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::Max(
@@ -204,7 +204,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::ArgMax works with int data elements", "[se
   // example-begin segmented-reduce-argmax
   int num_segments                  = 3;
   c2h::device_vector<int> d_offsets = {0, 3, 3, 7};
-  auto d_offsets_it                 = thrust::raw_pointer_cast(d_offsets.data());
+  auto d_offsets_it                 = cuda::std::to_address(d_offsets.data());
   c2h::device_vector<int> d_in{8, 6, 7, 5, 3, 0, 9};
   c2h::device_vector<cub::KeyValuePair<int, int>> d_out(3);
 
@@ -215,7 +215,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::ArgMax works with int data elements", "[se
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, d_offsets_it, d_offsets_it + 1);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::ArgMax(
@@ -245,7 +245,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Reduce Fixed Segment Size works with int d
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, segment_size, min_op, initial_value);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::Reduce(
@@ -273,7 +273,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Sum Fixed Segment Size works with int data
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, segment_size);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::Sum(
@@ -301,7 +301,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Min Fixed Segment Size works with int data
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, segment_size);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::Min(
@@ -329,7 +329,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::ArgMin Fixed Segment Size works with int d
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, segment_size);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::ArgMin(
@@ -360,7 +360,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::Max Fixed Segment Size works with int data
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, segment_size);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::Max(
@@ -388,7 +388,7 @@ C2H_TEST("cub::DeviceSegmentedReduce::ArgMax Fixed Segment Size works with int d
     d_temp_storage, temp_storage_bytes, d_in.begin(), d_out.begin(), num_segments, segment_size);
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // Run reduction
   cub::DeviceSegmentedReduce::ArgMax(

@@ -102,7 +102,7 @@ auto to_caller_vector_of_ptrs(array<c2h::device_vector<T>, N>& in)
   c2h::host_vector<decltype(cast_if_half_pointer(cs::declval<T*>()))> r(N);
   for (size_t i = 0; i < N; i++)
   {
-    r[i] = cast_if_half_pointer(thrust::raw_pointer_cast(in[i].data()));
+    r[i] = cast_if_half_pointer(cuda::std::to_address(in[i].data()));
   }
   return r;
 }
@@ -113,7 +113,7 @@ auto to_array_of_ptrs(array<c2h::device_vector<T>, N>& in)
   array<decltype(cast_if_half_pointer(cs::declval<T*>())), N> r;
   for (size_t i = 0; i < N; i++)
   {
-    r[i] = cast_if_half_pointer(thrust::raw_pointer_cast(in[i].data()));
+    r[i] = cast_if_half_pointer(cuda::std::to_address(in[i].data()));
   }
   return r;
 }
@@ -124,7 +124,7 @@ auto to_array_of_const_ptrs(array<c2h::device_vector<T>, N>& in)
   array<decltype(cast_if_half_pointer(cs::declval<const T*>())), N> r;
   for (size_t i = 0; i < N; i++)
   {
-    r[i] = cast_if_half_pointer(thrust::raw_pointer_cast(in[i].data()));
+    r[i] = cast_if_half_pointer(cuda::std::to_address(in[i].data()));
   }
   return r;
 }
@@ -341,7 +341,7 @@ void test_even_and_range(LevelT max_level, int max_level_count, OffsetT width, O
 
     // Compute result and verify
     {
-      const auto* sample_ptr = cast_if_half_pointer(thrust::raw_pointer_cast(d_samples.data()));
+      const auto* sample_ptr = cast_if_half_pointer(cuda::std::to_address(d_samples.data()));
       if constexpr (ActiveChannels == 1 && Channels == 1)
       {
         if (true)
@@ -362,7 +362,7 @@ void test_even_and_range(LevelT max_level, int max_level_count, OffsetT width, O
           // compile old API entry-point
           histogram_even(
             sample_ptr,
-            cast_if_half_pointer(thrust::raw_pointer_cast(d_histogram[0].data())),
+            cast_if_half_pointer(cuda::std::to_address(d_histogram[0].data())),
             num_levels[0],
             cast_if_half_pointer(lower_level.data())[0],
             cast_if_half_pointer(upper_level.data())[0],
@@ -395,10 +395,10 @@ void test_even_and_range(LevelT max_level, int max_level_count, OffsetT width, O
           const auto d_upper_level = caller_vector<LevelT>(upper_level.begin(), upper_level.end());
           multi_histogram_even<Channels, ActiveChannels>(
             sample_ptr,
-            cast_if_half_pointer(thrust::raw_pointer_cast(d_histogram_ptrs.data())),
-            thrust::raw_pointer_cast(d_num_levels.data()),
-            cast_if_half_pointer(thrust::raw_pointer_cast(d_lower_level.data())),
-            cast_if_half_pointer(thrust::raw_pointer_cast(d_upper_level.data())),
+            cast_if_half_pointer(cuda::std::to_address(d_histogram_ptrs.data())),
+            cuda::std::to_address(d_num_levels.data()),
+            cast_if_half_pointer(cuda::std::to_address(d_lower_level.data())),
+            cast_if_half_pointer(cuda::std::to_address(d_upper_level.data())),
             width,
             height,
             row_pitch);
@@ -429,7 +429,7 @@ void test_even_and_range(LevelT max_level, int max_level_count, OffsetT width, O
 
     // Compute result and verify
     {
-      const auto* sample_ptr = cast_if_half_pointer(thrust::raw_pointer_cast(d_samples.data()));
+      const auto* sample_ptr = cast_if_half_pointer(cuda::std::to_address(d_samples.data()));
       auto d_levels          = array<c2h::device_vector<LevelT>, ActiveChannels>{};
       std::copy(h_levels.begin(), h_levels.end(), d_levels.begin());
       if constexpr (ActiveChannels == 1 && Channels == 1)
@@ -451,9 +451,9 @@ void test_even_and_range(LevelT max_level, int max_level_count, OffsetT width, O
           // compile old API entry-point
           histogram_range(
             sample_ptr,
-            cast_if_half_pointer(thrust::raw_pointer_cast(d_histogram[0].data())),
+            cast_if_half_pointer(cuda::std::to_address(d_histogram[0].data())),
             num_levels[0],
-            cast_if_half_pointer(thrust::raw_pointer_cast(d_levels[0].data())),
+            cast_if_half_pointer(cuda::std::to_address(d_levels[0].data())),
             width,
             height,
             row_pitch);
@@ -477,9 +477,9 @@ void test_even_and_range(LevelT max_level, int max_level_count, OffsetT width, O
           const auto level_ptrs   = to_caller_vector_of_ptrs(d_levels);
           multi_histogram_range<Channels, ActiveChannels>(
             sample_ptr,
-            cast_if_half_pointer(thrust::raw_pointer_cast(d_histogram_ptrs.data())),
-            thrust::raw_pointer_cast(d_num_levels.data()),
-            cast_if_half_pointer(thrust::raw_pointer_cast(level_ptrs.data())),
+            cast_if_half_pointer(cuda::std::to_address(d_histogram_ptrs.data())),
+            cuda::std::to_address(d_num_levels.data()),
+            cast_if_half_pointer(cuda::std::to_address(level_ptrs.data())),
             width,
             height,
             row_pitch);
@@ -637,10 +637,10 @@ C2H_TEST("DeviceHistogram::HistogramRange levels/samples aliasing", "[histogram_
   auto d_histogram = c2h::device_vector<int>(num_levels - 1);
   auto d_samples   = c2h::device_vector<int>(cs::begin(h_samples), cs::end(h_samples));
   histogram_range(
-    thrust::raw_pointer_cast(d_samples.data()),
-    thrust::raw_pointer_cast(d_histogram.data()),
+    cuda::std::to_address(d_samples.data()),
+    cuda::std::to_address(d_histogram.data()),
     num_levels,
-    thrust::raw_pointer_cast(d_samples.data()), // Alias levels with samples (fancy way to `d_histogram[bin]++`).
+    cuda::std::to_address(d_samples.data()), // Alias levels with samples (fancy way to `d_histogram[bin]++`).
     static_cast<int>(d_samples.size()));
 
   auto h_histogram = c2h::host_vector<int>(d_histogram);
@@ -779,8 +779,8 @@ C2H_TEST("DeviceHistogram::HistogramEven bin calculation regression", "[histogra
 
   auto d_histogram = c2h::device_vector<int>(h_histogram_ref.size());
   histogram_even(
-    thrust::raw_pointer_cast(d_samples.data()),
-    thrust::raw_pointer_cast(d_histogram.data()),
+    cuda::std::to_address(d_samples.data()),
+    cuda::std::to_address(d_histogram.data()),
     num_levels,
     lower_level,
     upper_level,

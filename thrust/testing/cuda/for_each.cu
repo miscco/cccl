@@ -36,7 +36,7 @@ void TestForEachLargeRegisterFootprint()
 
   thrust::device_vector<int> data(NUM_REGISTERS, 12345);
 
-  thrust::device_vector<int*> input(1, thrust::raw_pointer_cast(&data[0])); // length is irrelevant
+  thrust::device_vector<int*> input(1, cuda::std::to_address(&data[0])); // length is irrelevant
 
   thrust::for_each(input.begin(), input.end(), CopyFunctorWithManyRegisters<NUM_REGISTERS>());
 }
@@ -51,7 +51,7 @@ void TestForEachNLargeRegisterFootprint()
 
   thrust::device_vector<int> data(NUM_REGISTERS, 12345);
 
-  thrust::device_vector<int*> input(1, thrust::raw_pointer_cast(&data[0])); // length is irrelevant
+  thrust::device_vector<int*> input(1, cuda::std::to_address(&data[0])); // length is irrelevant
 
   thrust::for_each_n(input.begin(), input.size(), CopyFunctorWithManyRegisters<NUM_REGISTERS>());
 }
@@ -224,7 +224,7 @@ void TestForEachCudaStreams()
   thrust::device_vector<int> output(7, 0);
 
   mark_present_for_each<int> f;
-  f.ptr = thrust::raw_pointer_cast(output.data());
+  f.ptr = cuda::std::to_address(output.data());
 
   thrust::for_each(thrust::cuda::par.on(s), input.begin(), input.end(), f);
 

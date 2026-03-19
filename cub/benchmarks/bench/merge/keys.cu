@@ -47,9 +47,9 @@ void keys(nvbench::state& state, nvbench::type_list<KeyT, OffsetT>)
   auto [keys_lhs, keys_rhs] = generate_lhs_rhs<KeyT>(num_items_lhs, num_items_rhs, entropy);
 
   thrust::device_vector<KeyT> keys_out(elements);
-  KeyT* d_keys_lhs = thrust::raw_pointer_cast(keys_lhs.data());
-  KeyT* d_keys_rhs = thrust::raw_pointer_cast(keys_rhs.data());
-  KeyT* d_keys_out = thrust::raw_pointer_cast(keys_out.data());
+  KeyT* d_keys_lhs = cuda::std::to_address(keys_lhs.data());
+  KeyT* d_keys_rhs = cuda::std::to_address(keys_rhs.data());
+  KeyT* d_keys_out = cuda::std::to_address(keys_out.data());
 
   // Enable throughput calculations and add "Size" column to results.
   state.add_element_count(elements);
@@ -80,7 +80,7 @@ void keys(nvbench::state& state, nvbench::type_list<KeyT, OffsetT>)
   );
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     cub::detail::merge::dispatch(

@@ -99,12 +99,12 @@ C2H_TEST("Device scan works with all device interfaces", "[by_key][scan][device]
   // Get array of keys from segment offsets
   c2h::device_vector<key_t> segment_keys(num_items);
   c2h::init_key_segments(segment_offsets, segment_keys);
-  auto d_keys_it = thrust::raw_pointer_cast(segment_keys.data());
+  auto d_keys_it = cuda::std::to_address(segment_keys.data());
 
   // Generate input data
   c2h::device_vector<value_t> in_values(num_items);
   c2h::gen(C2H_SEED(2), in_values, cuda::std::numeric_limits<value_t>::min());
-  auto d_values_it = thrust::raw_pointer_cast(in_values.data());
+  auto d_values_it = cuda::std::to_address(in_values.data());
 
 // Skip DeviceScan::InclusiveSum and DeviceScan::ExclusiveSum tests for extended floating-point
 // types because of unbounded epsilon due to pseudo associativity of the addition operation over
@@ -120,7 +120,7 @@ C2H_TEST("Device scan works with all device interfaces", "[by_key][scan][device]
 
     // Run test
     c2h::device_vector<output_t> out_values(num_items);
-    auto d_values_out_it = thrust::raw_pointer_cast(out_values.data());
+    auto d_values_out_it = cuda::std::to_address(out_values.data());
     device_inclusive_sum_by_key(d_keys_it, d_values_it, d_values_out_it, num_items, eq_op_t{});
 
     // Verify result
@@ -132,7 +132,7 @@ C2H_TEST("Device scan works with all device interfaces", "[by_key][scan][device]
       // Copy input values to memory allocated for output values, to ensure in_values are
       // unchanged for a (potentially) subsequent test that uses in_values as input
       out_values            = in_values;
-      auto values_in_out_it = thrust::raw_pointer_cast(out_values.data());
+      auto values_in_out_it = cuda::std::to_address(out_values.data());
       device_inclusive_sum_by_key(d_keys_it, values_in_out_it, values_in_out_it, num_items, eq_op_t{});
 
       // Verify result
@@ -151,7 +151,7 @@ C2H_TEST("Device scan works with all device interfaces", "[by_key][scan][device]
 
     // Run test
     c2h::device_vector<output_t> out_values(num_items);
-    auto d_values_out_it = thrust::raw_pointer_cast(out_values.data());
+    auto d_values_out_it = cuda::std::to_address(out_values.data());
     device_exclusive_sum_by_key(d_keys_it, d_values_it, d_values_out_it, num_items, eq_op_t{});
 
     // Verify result
@@ -163,7 +163,7 @@ C2H_TEST("Device scan works with all device interfaces", "[by_key][scan][device]
       // Copy input values to memory allocated for output values, to ensure in_values are
       // unchanged for a (potentially) subsequent test that uses in_values as input
       out_values            = in_values;
-      auto values_in_out_it = thrust::raw_pointer_cast(out_values.data());
+      auto values_in_out_it = cuda::std::to_address(out_values.data());
       device_exclusive_sum_by_key(d_keys_it, values_in_out_it, values_in_out_it, num_items, eq_op_t{});
 
       // Verify result
@@ -182,7 +182,7 @@ C2H_TEST("Device scan works with all device interfaces", "[by_key][scan][device]
 
     // Run test
     c2h::device_vector<output_t> out_values(num_items);
-    auto d_values_out_it = thrust::raw_pointer_cast(out_values.data());
+    auto d_values_out_it = cuda::std::to_address(out_values.data());
     device_inclusive_scan_by_key(
       d_keys_it, unwrap_it(d_values_it), unwrap_it(d_values_out_it), op_t{}, num_items, eq_op_t{});
 
@@ -195,7 +195,7 @@ C2H_TEST("Device scan works with all device interfaces", "[by_key][scan][device]
       // Copy input values to memory allocated for output values, to ensure in_values are
       // unchanged for a (potentially) subsequent test that uses in_values as input
       out_values            = in_values;
-      auto values_in_out_it = thrust::raw_pointer_cast(out_values.data());
+      auto values_in_out_it = cuda::std::to_address(out_values.data());
       device_inclusive_scan_by_key(
         d_keys_it, unwrap_it(values_in_out_it), unwrap_it(values_in_out_it), op_t{}, num_items, eq_op_t{});
 
@@ -218,7 +218,7 @@ C2H_TEST("Device scan works with all device interfaces", "[by_key][scan][device]
 
     // Run test
     c2h::device_vector<output_t> out_values(num_items);
-    auto d_values_out_it = thrust::raw_pointer_cast(out_values.data());
+    auto d_values_out_it = cuda::std::to_address(out_values.data());
     using init_t         = cub::detail::it_value_t<decltype(unwrap_it(d_values_out_it))>;
     device_exclusive_scan_by_key(
       d_keys_it, unwrap_it(d_values_it), unwrap_it(d_values_out_it), scan_op, init_t{}, num_items, eq_op_t{});
@@ -232,7 +232,7 @@ C2H_TEST("Device scan works with all device interfaces", "[by_key][scan][device]
       // Copy input values to memory allocated for output values, to ensure in_values are
       // unchanged for a (potentially) subsequent test that uses in_values as input
       out_values            = in_values;
-      auto values_in_out_it = thrust::raw_pointer_cast(out_values.data());
+      auto values_in_out_it = cuda::std::to_address(out_values.data());
       device_exclusive_scan_by_key(
         d_keys_it, unwrap_it(values_in_out_it), unwrap_it(values_in_out_it), scan_op, init_t{}, num_items, eq_op_t{});
 
@@ -286,12 +286,12 @@ C2H_TEST("Device scan works when memory for keys and results alias one another",
   // Get array of keys from segment offsets
   c2h::device_vector<key_t> segment_keys(num_items);
   c2h::init_key_segments(segment_offsets, segment_keys);
-  auto d_keys_it = thrust::raw_pointer_cast(segment_keys.data());
+  auto d_keys_it = cuda::std::to_address(segment_keys.data());
 
   // Generate input data
   c2h::device_vector<value_t> in_values(num_items);
   c2h::gen(C2H_SEED(2), in_values, cuda::std::numeric_limits<value_t>::min());
-  auto d_values_it = thrust::raw_pointer_cast(in_values.data());
+  auto d_values_it = cuda::std::to_address(in_values.data());
 
   SECTION("inclusive sum")
   {

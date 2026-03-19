@@ -83,8 +83,8 @@ int main() {
   // Compute the sum reduction of `data` using a custom kernel
   constexpr int block_size = 256;
   int const num_blocks = cuda::ceil_div(N, block_size);
-  reduce<block_size><<<num_blocks, block_size>>>(cuda::std::span<int const>(thrust::raw_pointer_cast(data.data()), data.size()),
-                                                 cuda::std::span<int>(thrust::raw_pointer_cast(kernel_result.data()), 1));
+  reduce<block_size><<<num_blocks, block_size>>>(cuda::std::span<int const>(cuda::std::to_address(data.data()), data.size()),
+                                                 cuda::std::span<int>(cuda::std::to_address(kernel_result.data()), 1));
 
   auto const err = cudaDeviceSynchronize();
   if (err != cudaSuccess) {

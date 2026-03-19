@@ -98,8 +98,7 @@ C2H_TEST("DeviceTopK::{Min,Max}Keys work as expected", "[keys][topk][device]", k
   c2h::device_vector<key_t> expected_keys(keys_in);
 
   // Run the top-k algorithm
-  topk_keys<direction>(
-    thrust::raw_pointer_cast(keys_in.data()), thrust::raw_pointer_cast(keys_out.data()), num_items, k);
+  topk_keys<direction>(cuda::std::to_address(keys_in.data()), cuda::std::to_address(keys_out.data()), num_items, k);
 
   // Sort the entire input data as result reference
   thrust::sort(expected_keys.begin(), expected_keys.end(), comparator_t{});
@@ -137,7 +136,7 @@ C2H_TEST("DeviceTopK::{Min,Max}Keys work with iterators", "[keys][topk][device]"
   c2h::device_vector<key_t> keys_out(k, static_cast<key_t>(42));
 
   // Run the top-k algorithm
-  topk_keys<direction>(keys_in, thrust::raw_pointer_cast(keys_out.data()), num_items, k);
+  topk_keys<direction>(keys_in, cuda::std::to_address(keys_out.data()), num_items, k);
 
   // Verify results
   thrust::sort(keys_out.begin(), keys_out.end(), comparator_t{});
@@ -181,7 +180,7 @@ try
   c2h::device_vector<key_t> keys_out(k, static_cast<key_t>(42));
 
   // Run the top-k algorithm
-  topk_keys<direction>(keys_in, thrust::raw_pointer_cast(keys_out.data()), num_items, k);
+  topk_keys<direction>(keys_in, cuda::std::to_address(keys_out.data()), num_items, k);
 
   // Verify results
   thrust::sort(keys_out.begin(), keys_out.end(), comparator_t{});
@@ -236,7 +235,7 @@ C2H_TEST("DeviceTopK::{Min,Max}Keys works with custom keys and decomposers",
   if constexpr (direction == cub::detail::topk::select::max)
   {
     cub::DeviceTopK::MaxKeys(
-      thrust::raw_pointer_cast(temp_storage.data()),
+      cuda::std::to_address(temp_storage.data()),
       temp_storage_bytes,
       keys_in.begin(),
       keys_out.begin(),
@@ -248,7 +247,7 @@ C2H_TEST("DeviceTopK::{Min,Max}Keys works with custom keys and decomposers",
   else
   {
     cub::DeviceTopK::MinKeys(
-      thrust::raw_pointer_cast(temp_storage.data()),
+      cuda::std::to_address(temp_storage.data()),
       temp_storage_bytes,
       keys_in.begin(),
       keys_out.begin(),

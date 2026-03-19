@@ -493,9 +493,9 @@ void launch(ActionT action, Args... args)
   static_assert(!cuda::std::execution::__queryable_with<env_t, cuda::mr::__get_memory_resource_t>,
                 "Don't specify memory resource for launch tests.");
   auto mr = device_side_memory_resource{
-    thrust::raw_pointer_cast(d_temp_storage.data()),
-    thrust::raw_pointer_cast(d_allocated.data()),
-    thrust::raw_pointer_cast(d_deallocated.data())};
+    cuda::std::to_address(d_temp_storage.data()),
+    cuda::std::to_address(d_allocated.data()),
+    cuda::std::to_address(d_deallocated.data())};
   auto mr_env    = cuda::std::execution::prop{cuda::mr::__get_memory_resource_t{}, mr};
   auto fixed_env = cuda::std::execution::env{mr_env, stream_env, env};
 
@@ -503,7 +503,7 @@ void launch(ActionT action, Args... args)
 
   cuda::std::apply(
     [&](auto... args) {
-      device_side_api_launch_kernel<<<1, 1>>>(thrust::raw_pointer_cast(d_error.data()), action, args...);
+      device_side_api_launch_kernel<<<1, 1>>>(cuda::std::to_address(d_error.data()), action, args...);
       REQUIRE(cudaSuccess == d_error[0]);
     },
     fixed_args);

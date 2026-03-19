@@ -142,10 +142,7 @@ template <int ItemsPerThread, int ThreadsInBlock, class KeyT, class ActionT>
 void block_merge_sort(c2h::device_vector<KeyT>& keys, ActionT action)
 {
   block_merge_sort_kernel<ThreadsInBlock, ItemsPerThread><<<1, ThreadsInBlock>>>(
-    thrust::raw_pointer_cast(keys.data()),
-    static_cast<int>(keys.size()),
-    cuda::std::numeric_limits<KeyT>::max(),
-    action);
+    cuda::std::to_address(keys.data()), static_cast<int>(keys.size()), cuda::std::numeric_limits<KeyT>::max(), action);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
@@ -155,8 +152,8 @@ template <int ItemsPerThread, int ThreadsInBlock, class KeyT, class ValueT, clas
 void block_merge_sort(c2h::device_vector<KeyT>& keys, c2h::device_vector<ValueT>& vals, ActionT action)
 {
   block_merge_sort_kernel<ThreadsInBlock, ItemsPerThread><<<1, ThreadsInBlock>>>(
-    thrust::raw_pointer_cast(keys.data()),
-    thrust::raw_pointer_cast(vals.data()),
+    cuda::std::to_address(keys.data()),
+    cuda::std::to_address(vals.data()),
     static_cast<int>(keys.size()),
     cuda::std::numeric_limits<KeyT>::max(),
     action);
@@ -195,8 +192,8 @@ C2H_TEST("Block merge sort can sort keys in partial tiles",
   c2h::gen(C2H_SEED(10), d_keys);
 
   c2h::host_vector<key_t> h_reference = d_keys;
-  std::stable_sort(thrust::raw_pointer_cast(h_reference.data()),
-                   thrust::raw_pointer_cast(h_reference.data()) + h_reference.size(),
+  std::stable_sort(cuda::std::to_address(h_reference.data()),
+                   cuda::std::to_address(h_reference.data()) + h_reference.size(),
                    CustomLess{});
 
   block_merge_sort<params::items_per_thread, params::threads_in_block>(d_keys, stable_sort_keys_partial_tile_t{});
@@ -215,8 +212,8 @@ C2H_TEST(
   c2h::gen(C2H_SEED(10), d_keys);
 
   c2h::host_vector<key_t> h_reference = d_keys;
-  std::stable_sort(thrust::raw_pointer_cast(h_reference.data()),
-                   thrust::raw_pointer_cast(h_reference.data()) + h_reference.size(),
+  std::stable_sort(cuda::std::to_address(h_reference.data()),
+                   cuda::std::to_address(h_reference.data()) + h_reference.size(),
                    CustomLess{});
 
   block_merge_sort<params::items_per_thread, params::threads_in_block>(d_keys, stable_sort_keys_full_tile_t{});
@@ -251,8 +248,8 @@ C2H_TEST("Block merge sort can sort pairs in partial tiles",
     h_ref[idx] = std::make_pair(h_keys[idx], h_vals[idx]);
   }
 
-  std::stable_sort(thrust::raw_pointer_cast(h_ref.data()),
-                   thrust::raw_pointer_cast(h_ref.data()) + h_ref.size(),
+  std::stable_sort(cuda::std::to_address(h_ref.data()),
+                   cuda::std::to_address(h_ref.data()) + h_ref.size(),
                    [](pair_t l, pair_t r) -> bool {
                      return l.first < r.first;
                    });
@@ -294,8 +291,8 @@ C2H_TEST(
     h_ref[idx] = std::make_pair(h_keys[idx], h_vals[idx]);
   }
 
-  std::stable_sort(thrust::raw_pointer_cast(h_ref.data()),
-                   thrust::raw_pointer_cast(h_ref.data()) + h_ref.size(),
+  std::stable_sort(cuda::std::to_address(h_ref.data()),
+                   cuda::std::to_address(h_ref.data()) + h_ref.size(),
                    [](pair_t l, pair_t r) -> bool {
                      return l.first < r.first;
                    });
@@ -338,8 +335,8 @@ C2H_TEST("Block merge sort can sort pairs with mixed types", "[merge sort][block
     h_ref[idx] = std::make_pair(h_keys[idx], h_vals[idx]);
   }
 
-  std::stable_sort(thrust::raw_pointer_cast(h_ref.data()),
-                   thrust::raw_pointer_cast(h_ref.data()) + h_ref.size(),
+  std::stable_sort(cuda::std::to_address(h_ref.data()),
+                   cuda::std::to_address(h_ref.data()) + h_ref.size(),
                    [](pair_t l, pair_t r) -> bool {
                      return l.first < r.first;
                    });
@@ -372,8 +369,8 @@ C2H_TEST("Block merge sort can sort large tiles", "[merge sort][block]", threads
   c2h::gen(C2H_SEED(10), d_keys);
 
   c2h::host_vector<key_t> h_reference = d_keys;
-  std::stable_sort(thrust::raw_pointer_cast(h_reference.data()),
-                   thrust::raw_pointer_cast(h_reference.data()) + h_reference.size(),
+  std::stable_sort(cuda::std::to_address(h_reference.data()),
+                   cuda::std::to_address(h_reference.data()) + h_reference.size(),
                    CustomLess{});
 
   block_merge_sort<items_per_thread, threads_in_block>(d_keys, stable_sort_keys_full_tile_t{});
@@ -393,8 +390,8 @@ C2H_TEST("Block merge sort is stable", "[merge sort][block]", threads_in_block)
   c2h::gen(C2H_SEED(10), d_keys);
 
   c2h::host_vector<key_t> h_reference = d_keys;
-  std::stable_sort(thrust::raw_pointer_cast(h_reference.data()),
-                   thrust::raw_pointer_cast(h_reference.data()) + h_reference.size(),
+  std::stable_sort(cuda::std::to_address(h_reference.data()),
+                   cuda::std::to_address(h_reference.data()) + h_reference.size(),
                    CustomLess{});
 
   block_merge_sort<items_per_thread, threads_in_block>(d_keys, stable_sort_keys_full_tile_t{});

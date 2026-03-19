@@ -754,7 +754,7 @@ void TestCopyWithBigIndexesHelper(int magnitude)
   thrust::device_ptr<bool> has_executed = thrust::device_malloc<bool>(1);
   *has_executed                         = false;
 
-  only_set_when_expected_it out = {(1ll << magnitude) - 1, thrust::raw_pointer_cast(has_executed)};
+  only_set_when_expected_it out = {(1ll << magnitude) - 1, cuda::std::to_address(has_executed)};
 
   thrust::copy(thrust::device, begin, end, out);
 

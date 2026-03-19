@@ -178,7 +178,7 @@ struct large_array_sort_helper
     keys_in.resize(num_items);
     keys_out.resize(num_items);
     keys_buffer =
-      cub::DoubleBuffer<KeyType>(thrust::raw_pointer_cast(keys_in.data()), thrust::raw_pointer_cast(keys_out.data()));
+      cub::DoubleBuffer<KeyType>(cuda::std::to_address(keys_in.data()), cuda::std::to_address(keys_out.data()));
 
     TIME(timer.print_elapsed_seconds_and_reset("Device Alloc"));
 
@@ -330,9 +330,9 @@ struct large_array_sort_helper
     TIME(timer.print_elapsed_seconds_and_reset("Prep device outputs"));
 
     keys_buffer =
-      cub::DoubleBuffer<KeyType>(thrust::raw_pointer_cast(keys_in.data()), thrust::raw_pointer_cast(keys_out.data()));
-    values_buffer = cub::DoubleBuffer<ValueType>(
-      thrust::raw_pointer_cast(values_in.data()), thrust::raw_pointer_cast(values_out.data()));
+      cub::DoubleBuffer<KeyType>(cuda::std::to_address(keys_in.data()), cuda::std::to_address(keys_out.data()));
+    values_buffer =
+      cub::DoubleBuffer<ValueType>(cuda::std::to_address(values_in.data()), cuda::std::to_address(values_out.data()));
   }
 
   // Verify the results of sorting the keys_in produced by initialize_for_stable_pair_sort.

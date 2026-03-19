@@ -122,7 +122,7 @@ void gen_it(T* d_buffer,
             bool randomize,
             thrust::default_random_engine& rne)
 {
-  OffsetT* d_offsets = thrust::raw_pointer_cast(offsets.data());
+  OffsetT* d_offsets = cuda::std::to_address(offsets.data());
 
   if (randomize)
   {
@@ -134,7 +134,7 @@ void gen_it(T* d_buffer,
     thrust::tabulate(sizes.begin(), sizes.end(), offset_to_size_t<T, OffsetT>{d_offsets});
     thrust::scatter(sizes.begin(), sizes.end(), map.begin(), offsets.begin());
     thrust::exclusive_scan(offsets.begin(), offsets.end(), offsets.begin());
-    OffsetT* d_map = thrust::raw_pointer_cast(map.data());
+    OffsetT* d_map = cuda::std::to_address(map.data());
     thrust::tabulate(output.begin(), output.end(), reordered_offset_to_ptr_t<T, OffsetT>{d_buffer, d_map, d_offsets});
   }
   else
@@ -177,9 +177,9 @@ void copy(nvbench::state& state,
   thrust::device_vector<offset_t> offsets =
     generate.uniform.segment_offsets(elements, min_buffer_size, max_buffer_size);
 
-  T* d_input_buffer   = thrust::raw_pointer_cast(input_buffer.data());
-  T* d_output_buffer  = thrust::raw_pointer_cast(output_buffer.data());
-  offset_t* d_offsets = thrust::raw_pointer_cast(offsets.data());
+  T* d_input_buffer   = cuda::std::to_address(input_buffer.data());
+  T* d_output_buffer  = cuda::std::to_address(output_buffer.data());
+  offset_t* d_offsets = cuda::std::to_address(offsets.data());
 
   const auto buffers = offsets.size() - 1;
 
@@ -197,9 +197,9 @@ void copy(nvbench::state& state,
   offsets.shrink_to_fit();
   d_offsets = nullptr;
 
-  input_buffer_it_t d_input_buffers   = thrust::raw_pointer_cast(input_buffers.data());
-  output_buffer_it_t d_output_buffers = thrust::raw_pointer_cast(output_buffers.data());
-  buffer_size_it_t d_buffer_sizes     = thrust::raw_pointer_cast(buffer_sizes.data());
+  input_buffer_it_t d_input_buffers   = cuda::std::to_address(input_buffers.data());
+  output_buffer_it_t d_output_buffers = cuda::std::to_address(output_buffers.data());
+  buffer_size_it_t d_buffer_sizes     = cuda::std::to_address(buffer_sizes.data());
 
   state.add_element_count(elements);
   state.add_global_memory_writes<T>(elements);
@@ -214,7 +214,7 @@ void copy(nvbench::state& state,
     d_temp_storage, temp_storage_bytes, d_input_buffers, d_output_buffers, d_buffer_sizes, buffers, 0);
 
   thrust::device_vector<nvbench::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch | nvbench::exec_tag::sync,
              [&](nvbench::launch& launch) {

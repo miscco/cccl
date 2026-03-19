@@ -66,7 +66,7 @@ This API is very useful for determining the *number of thread blocks* required t
         // ...dividing some "n" by "threads_per_block" may lead to a remainder,
         // requiring the kernel to be launched with an extra thread block to handle it.
         auto num_thread_blocks = cuda::ceil_div(num_items, threads_per_block);
-        auto d_ptr             = thrust::raw_pointer_cast(d_vector.data());
+        auto d_ptr             = cuda::std::to_address(d_vector.data());
         cuda::std::span<float> d_span(d_ptr, num_items);
 
         vector_scale_kernel<<<num_thread_blocks, threads_per_block>>>(d_span, scale);

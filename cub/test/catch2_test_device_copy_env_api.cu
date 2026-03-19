@@ -30,8 +30,8 @@ C2H_TEST("cub::DeviceCopy::Batched accepts env with stream", "[copy][env]")
   thrust::sequence(d_src.begin(), d_src.end(), 1);
 
   // Each range is a contiguous slice of range_size elements
-  const int* src_base = thrust::raw_pointer_cast(d_src.data());
-  int* dst_base       = thrust::raw_pointer_cast(d_dst.data());
+  const int* src_base = cuda::std::to_address(d_src.data());
+  int* dst_base       = cuda::std::to_address(d_dst.data());
 
   thrust::device_vector<const int*> d_input_ptrs{src_base, src_base + range_size, src_base + 2 * range_size};
   thrust::device_vector<int*> d_output_ptrs{dst_base, dst_base + range_size, dst_base + 2 * range_size};
@@ -42,9 +42,9 @@ C2H_TEST("cub::DeviceCopy::Batched accepts env with stream", "[copy][env]")
   auto env = cuda::std::execution::env{stream_ref};
 
   auto error = cub::DeviceCopy::Batched(
-    thrust::raw_pointer_cast(d_input_ptrs.data()),
-    thrust::raw_pointer_cast(d_output_ptrs.data()),
-    thrust::raw_pointer_cast(d_sizes.data()),
+    cuda::std::to_address(d_input_ptrs.data()),
+    cuda::std::to_address(d_output_ptrs.data()),
+    cuda::std::to_address(d_sizes.data()),
     num_ranges,
     env);
   if (error != cudaSuccess)
@@ -73,8 +73,8 @@ C2H_TEST("cub::DeviceCopy::Copy mdspan accepts env with stream", "[copy][env]")
   using extents_t = cuda::std::extents<int, N, M>;
   using mdspan_t  = cuda::std::mdspan<float, extents_t, cuda::std::layout_right>; // row-major
 
-  mdspan_t mdspan_in(thrust::raw_pointer_cast(d_input.data()), extents_t{});
-  mdspan_t mdspan_out(thrust::raw_pointer_cast(d_output.data()), extents_t{});
+  mdspan_t mdspan_in(cuda::std::to_address(d_input.data()), extents_t{});
+  mdspan_t mdspan_out(cuda::std::to_address(d_output.data()), extents_t{});
 
   cuda::stream stream{cuda::devices[0]};
   cuda::stream_ref stream_ref{stream};

@@ -87,14 +87,12 @@ try
   c2h::host_vector<byte_offset_t> h_dst_offsets(d_buffer_dst_offsets);
 
   // Prepare d_buffer_srcs
-  offset_to_ptr_op<src_ptr_t> src_transform_op{thrust::raw_pointer_cast(d_in.data())};
-  auto d_buffer_srcs =
-    cuda::transform_iterator(thrust::raw_pointer_cast(d_buffer_src_offsets.data()), src_transform_op);
+  offset_to_ptr_op<src_ptr_t> src_transform_op{cuda::std::to_address(d_in.data())};
+  auto d_buffer_srcs = cuda::transform_iterator(cuda::std::to_address(d_buffer_src_offsets.data()), src_transform_op);
 
   // Prepare d_buffer_dsts
-  offset_to_ptr_op<dst_ptr_t> dst_transform_op{thrust::raw_pointer_cast(d_out.data())};
-  auto d_buffer_dsts =
-    cuda::transform_iterator(thrust::raw_pointer_cast(d_buffer_dst_offsets.data()), dst_transform_op);
+  offset_to_ptr_op<dst_ptr_t> dst_transform_op{cuda::std::to_address(d_out.data())};
+  auto d_buffer_dsts = cuda::transform_iterator(cuda::std::to_address(d_buffer_dst_offsets.data()), dst_transform_op);
 
   // Invoke device-side algorithm
   memcpy_batched(d_buffer_srcs, d_buffer_dsts, d_buffer_sizes.begin(), num_buffers);
@@ -131,8 +129,8 @@ try
   thrust::copy(input_data_it, input_data_it + num_items, d_in.begin());
 
   const auto num_buffers = 1;
-  auto d_buffer_srcs     = cuda::constant_iterator(static_cast<void*>(thrust::raw_pointer_cast(d_in.data())));
-  auto d_buffer_dsts     = cuda::constant_iterator(static_cast<void*>(thrust::raw_pointer_cast(d_out.data())));
+  auto d_buffer_srcs     = cuda::constant_iterator(static_cast<void*>(cuda::std::to_address(d_in.data())));
+  auto d_buffer_dsts     = cuda::constant_iterator(static_cast<void*>(cuda::std::to_address(d_out.data())));
   auto d_buffer_sizes    = cuda::constant_iterator(num_bytes);
   memcpy_batched(d_buffer_srcs, d_buffer_dsts, d_buffer_sizes, num_buffers);
 
@@ -183,9 +181,8 @@ try
   c2h::host_vector<byte_offset_t> h_dst_offsets(d_buffer_dst_offsets);
 
   // Prepare d_buffer_srcs
-  offset_to_ptr_op<src_ptr_t> src_transform_op{thrust::raw_pointer_cast(d_in.data())};
-  auto d_buffer_srcs =
-    cuda::transform_iterator(thrust::raw_pointer_cast(d_buffer_src_offsets.data()), src_transform_op);
+  offset_to_ptr_op<src_ptr_t> src_transform_op{cuda::std::to_address(d_in.data())};
+  auto d_buffer_srcs = cuda::transform_iterator(cuda::std::to_address(d_buffer_src_offsets.data()), src_transform_op);
 
   // Return nullptr for the first num_empty_buffers and only the actual destination pointers for the rest
   prepend_n_constants_op<decltype(d_buffer_srcs), src_ptr_t> src_skip_first_n_op{
@@ -194,9 +191,9 @@ try
     cuda::transform_iterator(cuda::counting_iterator(buffer_offset_t{0}), src_skip_first_n_op);
 
   // Prepare d_buffer_dsts
-  offset_to_ptr_op<dst_ptr_t> dst_transform_op{thrust::raw_pointer_cast(d_out.data())};
+  offset_to_ptr_op<dst_ptr_t> dst_transform_op{cuda::std::to_address(d_out.data())};
   cuda::transform_iterator<offset_to_ptr_op<dst_ptr_t>, byte_offset_t*> d_buffer_dsts(
-    thrust::raw_pointer_cast(d_buffer_dst_offsets.data()), dst_transform_op);
+    cuda::std::to_address(d_buffer_dst_offsets.data()), dst_transform_op);
 
   // Return nullptr for the first num_empty_buffers and only the actual destination pointers for the rest
   prepend_n_constants_op<decltype(d_buffer_dsts), dst_ptr_t> dst_skip_first_n_op{

@@ -51,12 +51,12 @@ void thrust_algorithm(context& ctx, ZippedIt& first, ZippedIt& last, OutIt& outp
 
   // Extract underlying iterators from the zip iterator
   auto itA = cuda::std::get<0>(first.get_iterator_tuple());
-  int* A   = thrust::raw_pointer_cast(&(*itA));
+  int* A   = cuda::std::to_address(&(*itA));
 
   auto itB = cuda::std::get<1>(first.get_iterator_tuple());
-  char* B  = thrust::raw_pointer_cast(&(*itB));
+  char* B  = cuda::std::to_address(&(*itB));
 
-  int* C = thrust::raw_pointer_cast(output.data());
+  int* C = cuda::std::to_address(output.data());
 
   auto lA = ctx.logical_data(make_slice(A, num_elements), data_location);
   auto lB = ctx.logical_data(make_slice(B, num_elements), data_location);

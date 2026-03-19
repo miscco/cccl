@@ -148,7 +148,7 @@ template <int ItemsPerThread, int ThreadsInBlock, class T, class ActionT>
 void block_adj_diff(c2h::device_vector<T>& data, bool in_place, ActionT action)
 {
   block_adj_diff_kernel<ThreadsInBlock, ItemsPerThread, T, ActionT>
-    <<<1, ThreadsInBlock>>>(thrust::raw_pointer_cast(data.data()), action, in_place);
+    <<<1, ThreadsInBlock>>>(cuda::std::to_address(data.data()), action, in_place);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());

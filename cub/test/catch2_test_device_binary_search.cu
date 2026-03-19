@@ -47,11 +47,11 @@ void test_vectorized(Variant variant, HostVariant host_variant, std::size_t num_
 
   using Result = std::ptrdiff_t;
   c2h::device_vector<Result> offsets_d(target_values_d.size(), thrust::default_init);
-  variant(thrust::raw_pointer_cast(values_d.data()),
+  variant(cuda::std::to_address(values_d.data()),
           num_items,
-          thrust::raw_pointer_cast(target_values_d.data()),
+          cuda::std::to_address(target_values_d.data()),
           target_values_d.size(),
-          thrust::raw_pointer_cast(offsets_d.data()),
+          cuda::std::to_address(offsets_d.data()),
           compare_op);
 
   c2h::host_vector<Value> target_values_h = target_values_d;

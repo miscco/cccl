@@ -52,7 +52,7 @@ C2H_TEST("Device bulk works with temporary storage", "[bulk][device]")
 {
   // example-begin bulk-temp-storage
   c2h::device_vector<int> vec = {1, 2, 3, 4};
-  square_t op{thrust::raw_pointer_cast(vec.data())};
+  square_t op{cuda::std::to_address(vec.data())};
 
   // 1) Get temp storage size
   std::uint8_t* d_temp_storage{};
@@ -61,7 +61,7 @@ C2H_TEST("Device bulk works with temporary storage", "[bulk][device]")
 
   // 2) Allocate temp storage
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // 3) Perform bulk operation
   auto result = cub::DeviceFor::Bulk(d_temp_storage, temp_storage_bytes, vec.size(), op);
@@ -80,7 +80,7 @@ C2H_TEST("Device bulk works without temporary storage", "[bulk][device]")
 {
   // example-begin bulk-wo-temp-storage
   c2h::device_vector<int> vec = {1, 2, 3, 4};
-  square_t op{thrust::raw_pointer_cast(vec.data())};
+  square_t op{cuda::std::to_address(vec.data())};
 
   auto result = cub::DeviceFor::Bulk(vec.size(), op);
   if (result != cudaSuccess)
@@ -111,7 +111,7 @@ C2H_TEST("Device for each n works with temporary storage", "[for_each][device]")
 
   // 2) Allocate temp storage
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // 3) Perform for each n operation
   result = cub::DeviceFor::ForEachN(d_temp_storage, temp_storage_bytes, vec.begin(), vec.size(), op);
@@ -161,7 +161,7 @@ C2H_TEST("Device for each works with temporary storage", "[for_each][device]")
 
   // 2) Allocate temp storage
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // 3) Perform for each operation
   result = cub::DeviceFor::ForEach(d_temp_storage, temp_storage_bytes, vec.begin(), vec.end(), op);
@@ -199,7 +199,7 @@ C2H_TEST("Device for each n copy works with temporary storage", "[for_each][devi
   // example-begin for-each-copy-n-temp-storage
   c2h::device_vector<int> vec = {1, 2, 3, 4};
   c2h::device_vector<int> count(1);
-  odd_count_t op{thrust::raw_pointer_cast(count.data())};
+  odd_count_t op{cuda::std::to_address(count.data())};
 
   // 1) Get temp storage size
   std::uint8_t* d_temp_storage{};
@@ -212,7 +212,7 @@ C2H_TEST("Device for each n copy works with temporary storage", "[for_each][devi
 
   // 2) Allocate temp storage
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // 3) Perform for each n operation
   result = cub::DeviceFor::ForEachCopyN(d_temp_storage, temp_storage_bytes, vec.begin(), vec.size(), op);
@@ -232,7 +232,7 @@ C2H_TEST("Device for each n copy works without temporary storage", "[for_each][d
   // example-begin for-each-copy-n-wo-temp-storage
   c2h::device_vector<int> vec = {1, 2, 3, 4};
   c2h::device_vector<int> count(1);
-  odd_count_t op{thrust::raw_pointer_cast(count.data())};
+  odd_count_t op{cuda::std::to_address(count.data())};
 
   auto result = cub::DeviceFor::ForEachCopyN(vec.begin(), vec.size(), op);
   if (result != cudaSuccess)
@@ -251,7 +251,7 @@ C2H_TEST("Device for each copy works with temporary storage", "[for_each][device
   // example-begin for-each-copy-temp-storage
   c2h::device_vector<int> vec = {1, 2, 3, 4};
   c2h::device_vector<int> count(1);
-  odd_count_t op{thrust::raw_pointer_cast(count.data())};
+  odd_count_t op{cuda::std::to_address(count.data())};
 
   // 1) Get temp storage size
   std::uint8_t* d_temp_storage{};
@@ -264,7 +264,7 @@ C2H_TEST("Device for each copy works with temporary storage", "[for_each][device
 
   // 2) Allocate temp storage
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   // 3) Perform for each n operation
   result = cub::DeviceFor::ForEachCopy(d_temp_storage, temp_storage_bytes, vec.begin(), vec.end(), op);
@@ -284,7 +284,7 @@ C2H_TEST("Device for each copy works without temporary storage", "[for_each][dev
   // example-begin for-each-copy-wo-temp-storage
   c2h::device_vector<int> vec = {1, 2, 3, 4};
   c2h::device_vector<int> count(1);
-  odd_count_t op{thrust::raw_pointer_cast(count.data())};
+  odd_count_t op{cuda::std::to_address(count.data())};
 
   auto result = cub::DeviceFor::ForEachCopy(vec.begin(), vec.end(), op);
   if (result != cudaSuccess)

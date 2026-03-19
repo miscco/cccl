@@ -75,7 +75,7 @@ void test_copy_if(const Policy& policy, const thrust::device_vector<int>& input,
 
     { // With pointer
       cuda::std::fill(policy, output.begin(), output.end(), -1);
-      auto ptr       = thrust::raw_pointer_cast(input.data());
+      auto ptr       = cuda::std::to_address(input.data());
       const auto res = cuda::std::copy_if(policy, ptr, ptr + size, output.begin(), is_even{});
       CHECK(thrust::equal(output.begin(), output.end(), cuda::strided_iterator{cuda::counting_iterator{0}, 2}));
       CHECK(res == output.end());

@@ -192,67 +192,67 @@ void run_thread_reduce_kernel(
   {
     case 1:
       thread_reduce_kernel<1>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 2:
       thread_reduce_kernel<2>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 3:
       thread_reduce_kernel<3>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 4:
       thread_reduce_kernel<4>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 5:
       thread_reduce_kernel<5>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 6:
       thread_reduce_kernel<6>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 7:
       thread_reduce_kernel<7>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 8:
       thread_reduce_kernel<8>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 9:
       thread_reduce_kernel<9>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 10:
       thread_reduce_kernel<10>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 11:
       thread_reduce_kernel<11>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 12:
       thread_reduce_kernel<12>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 13:
       thread_reduce_kernel<13>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 14:
       thread_reduce_kernel<14>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 15:
       thread_reduce_kernel<15>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     case 16:
       thread_reduce_kernel<16>
-        <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+        <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
       break;
     default:
       FAIL("Unsupported number of items");
@@ -345,20 +345,20 @@ C2H_TEST("ThreadReduce Container Tests", "[reduce][thread]")
   auto reference_result      = std::accumulate(h_in.begin(), h_in.end(), 0, std::plus<int>{});
 
   thread_reduce_kernel_array<max_size>
-    <<<1, 1>>>(thrust::raw_pointer_cast(d_in.data()), thrust::raw_pointer_cast(d_out.data()), cuda::std::plus<>{});
+    <<<1, 1>>>(cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), cuda::std::plus<>{});
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   verify_results(reference_result, c2h::host_vector<int>(d_out)[0]);
 
   thread_reduce_kernel_span<max_size>
-    <<<1, 1>>>(thrust::raw_pointer_cast(d_in.data()), thrust::raw_pointer_cast(d_out.data()), cuda::std::plus<>{});
+    <<<1, 1>>>(cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), cuda::std::plus<>{});
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   verify_results(reference_result, c2h::host_vector<int>(d_out)[0]);
 
 #if _CCCL_STD_VER >= 2023
   thread_reduce_kernel_mdspan<max_size>
-    <<<1, 1>>>(thrust::raw_pointer_cast(d_in.data()), thrust::raw_pointer_cast(d_out.data()), cuda::std::plus<>{});
+    <<<1, 1>>>(cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), cuda::std::plus<>{});
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   verify_results(reference_result, c2h::host_vector<int>(d_out)[0]);

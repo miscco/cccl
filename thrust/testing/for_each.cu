@@ -32,7 +32,7 @@ void TestForEachSimple()
   Vector output(7, (T) 0);
 
   mark_present_for_each<T> f;
-  f.ptr = thrust::raw_pointer_cast(output.data());
+  f.ptr = cuda::std::to_address(output.data());
 
   typename Vector::iterator result = thrust::for_each(input.begin(), input.end(), f);
 
@@ -86,7 +86,7 @@ void TestForEachNSimple()
   Vector output(7, (T) 0);
 
   mark_present_for_each<T> f;
-  f.ptr = thrust::raw_pointer_cast(output.data());
+  f.ptr = cuda::std::to_address(output.data());
 
   typename Vector::iterator result = thrust::for_each_n(input.begin(), input.size(), f);
 
@@ -136,7 +136,7 @@ void TestForEachSimpleAnySystem()
   thrust::device_vector<int> output(7, 0);
 
   mark_present_for_each<int> f;
-  f.ptr = thrust::raw_pointer_cast(output.data());
+  f.ptr = cuda::std::to_address(output.data());
 
   thrust::counting_iterator<int> result =
     thrust::for_each(thrust::make_counting_iterator(0), thrust::make_counting_iterator(5), f);
@@ -152,7 +152,7 @@ void TestForEachNSimpleAnySystem()
   thrust::device_vector<int> output(7, 0);
 
   mark_present_for_each<int> f;
-  f.ptr = thrust::raw_pointer_cast(output.data());
+  f.ptr = cuda::std::to_address(output.data());
 
   thrust::counting_iterator<int> result = thrust::for_each_n(thrust::make_counting_iterator(0), 5, f);
 
@@ -348,7 +348,7 @@ void TestForEachWithBigIndexesHelper(int magnitude)
   thrust::device_ptr<bool> has_executed = thrust::device_malloc<bool>(1);
   *has_executed                         = false;
 
-  only_set_when_expected fn = {(1ull << magnitude) - 1, thrust::raw_pointer_cast(has_executed)};
+  only_set_when_expected fn = {(1ull << magnitude) - 1, cuda::std::to_address(has_executed)};
 
   thrust::for_each(thrust::device, begin, end, fn);
 

@@ -57,10 +57,10 @@ static void rle(nvbench::state& state, nvbench::type_list<T, OffsetT, RunLengthT
   thrust::device_vector<run_length_t> out_lengths(elements);
   thrust::device_vector<T> in_keys = generate.uniform.key_segments(elements, min_segment_size, max_segment_size);
 
-  const T* d_in_keys          = thrust::raw_pointer_cast(in_keys.data());
-  offset_t* d_out_offsets     = thrust::raw_pointer_cast(out_offsets.data());
-  run_length_t* d_out_lengths = thrust::raw_pointer_cast(out_lengths.data());
-  offset_t* d_num_runs_out    = thrust::raw_pointer_cast(num_runs_out.data());
+  const T* d_in_keys          = cuda::std::to_address(in_keys.data());
+  offset_t* d_out_offsets     = cuda::std::to_address(out_offsets.data());
+  run_length_t* d_out_lengths = cuda::std::to_address(out_lengths.data());
+  offset_t* d_num_runs_out    = cuda::std::to_address(num_runs_out.data());
 
   std::uint8_t* d_temp_storage{};
   std::size_t temp_storage_bytes{};
@@ -87,7 +87,7 @@ static void rle(nvbench::state& state, nvbench::type_list<T, OffsetT, RunLengthT
   dispatch_on_stream(cudaStream_t{0});
 
   thrust::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   dispatch_on_stream(cudaStream_t{0});
   cudaDeviceSynchronize();

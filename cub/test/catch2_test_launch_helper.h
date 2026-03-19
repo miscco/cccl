@@ -105,7 +105,7 @@ void launch(ActionT action, Args... args)
 
   cudaGraph_t graph{};
   REQUIRE(cudaSuccess == cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal));
-  error = action(thrust::raw_pointer_cast(temp_storage.data()), temp_storage_bytes, args..., stream);
+  error = action(cuda::std::to_address(temp_storage.data()), temp_storage_bytes, args..., stream);
   REQUIRE(cudaSuccess == cudaStreamEndCapture(stream, &graph));
   REQUIRE(cudaSuccess == error);
 
@@ -137,11 +137,7 @@ void launch(ActionT action, Args... args)
   c2h::device_vector<cudaError_t> d_error(1, cudaErrorInvalidValue);
   c2h::device_vector<std::size_t> d_temp_storage_bytes(1, thrust::no_init);
   device_side_api_launch_kernel<<<1, 1>>>(
-    nullptr,
-    thrust::raw_pointer_cast(d_temp_storage_bytes.data()),
-    thrust::raw_pointer_cast(d_error.data()),
-    action,
-    args...);
+    nullptr, cuda::std::to_address(d_temp_storage_bytes.data()), cuda::std::to_address(d_error.data()), action, args...);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(cudaSuccess == d_error[0]);
@@ -149,9 +145,9 @@ void launch(ActionT action, Args... args)
   c2h::device_vector<std::uint8_t> temp_storage(d_temp_storage_bytes[0], thrust::no_init);
 
   device_side_api_launch_kernel<<<1, 1>>>(
-    thrust::raw_pointer_cast(temp_storage.data()),
-    thrust::raw_pointer_cast(d_temp_storage_bytes.data()),
-    thrust::raw_pointer_cast(d_error.data()),
+    cuda::std::to_address(temp_storage.data()),
+    cuda::std::to_address(d_temp_storage_bytes.data()),
+    cuda::std::to_address(d_error.data()),
     action,
     args...);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
@@ -174,7 +170,7 @@ void launch(ActionT action, Args... args)
 
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes, thrust::no_init);
 
-  error = action(thrust::raw_pointer_cast(temp_storage.data()), temp_storage_bytes, args...);
+  error = action(cuda::std::to_address(temp_storage.data()), temp_storage_bytes, args...);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(cudaSuccess == error);

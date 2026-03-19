@@ -229,9 +229,9 @@ C2H_TEST(
   c2h::device_vector<int> d_error_counter(1, 0);
 
   warp_load<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>(
-    thrust::raw_pointer_cast(d_in.data()),
+    cuda::std::to_address(d_in.data()),
     delegate_t{valid_items, oob_default},
-    thrust::raw_pointer_cast(d_error_counter.data()));
+    cuda::std::to_address(d_error_counter.data()));
 
   const int num_errors               = d_error_counter[0];
   constexpr int expected_error_count = 0;
@@ -256,11 +256,11 @@ C2H_TEST("Warp load guarded range works with cache modified iterator",
 
   auto d_in =
     generate_input<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>();
-  auto in_it = cub::CacheModifiedInputIterator<load_modifier, type>(thrust::raw_pointer_cast(d_in.data()));
+  auto in_it = cub::CacheModifiedInputIterator<load_modifier, type>(cuda::std::to_address(d_in.data()));
   c2h::device_vector<int> d_error_counter(1, 0);
 
   warp_load<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>(
-    in_it, delegate_t{valid_items, oob_default}, thrust::raw_pointer_cast(d_error_counter.data()));
+    in_it, delegate_t{valid_items, oob_default}, cuda::std::to_address(d_error_counter.data()));
 
   const auto num_errors              = d_error_counter[0];
   constexpr int expected_error_count = 0;
@@ -283,7 +283,7 @@ C2H_TEST("Warp load unguarded range works with pointer",
   c2h::device_vector<int> d_error_counter(1, 0);
 
   warp_load<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>(
-    thrust::raw_pointer_cast(d_in.data()), delegate_t{}, thrust::raw_pointer_cast(d_error_counter.data()));
+    cuda::std::to_address(d_in.data()), delegate_t{}, cuda::std::to_address(d_error_counter.data()));
 
   const auto num_errors              = d_error_counter[0];
   constexpr int expected_error_count = 0;
@@ -305,11 +305,11 @@ C2H_TEST("Warp load unguarded range works with cache modified iterator",
 
   auto d_in =
     generate_input<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>();
-  auto in_it = cub::CacheModifiedInputIterator<load_modifier, type>(thrust::raw_pointer_cast(d_in.data()));
+  auto in_it = cub::CacheModifiedInputIterator<load_modifier, type>(cuda::std::to_address(d_in.data()));
   c2h::device_vector<int> d_error_counter(1, 0);
 
   warp_load<params::algorithm, params::logical_warp_threads, params::items_per_thread, params::total_warps, type>(
-    in_it, delegate_t{}, thrust::raw_pointer_cast(d_error_counter.data()));
+    in_it, delegate_t{}, cuda::std::to_address(d_error_counter.data()));
 
   const auto num_errors              = d_error_counter[0];
   constexpr int expected_error_count = 0;
@@ -343,9 +343,9 @@ C2H_TEST("Vectorized warp load with const and non-const datatype and different a
             params::items_per_thread,
             params::total_warps,
             type,
-            input_ptr_type>(thrust::raw_pointer_cast(d_in.data()) + offset_for_elements,
+            input_ptr_type>(cuda::std::to_address(d_in.data()) + offset_for_elements,
                             delegate_t{},
-                            thrust::raw_pointer_cast(d_error_counter.data()));
+                            cuda::std::to_address(d_error_counter.data()));
 
   const auto num_errors              = d_error_counter[0];
   constexpr int expected_error_count = 0;

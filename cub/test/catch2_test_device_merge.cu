@@ -43,11 +43,11 @@ void test_keys(Offset size1 = 3623, Offset size2 = 6346, CompareOp compare_op = 
   // CAPTURE(keys1_d, keys2_d);
 
   c2h::device_vector<Key> result_d(size1 + size2, thrust::default_init);
-  merge_keys(thrust::raw_pointer_cast(keys1_d.data()),
+  merge_keys(cuda::std::to_address(keys1_d.data()),
              static_cast<Offset>(keys1_d.size()),
-             thrust::raw_pointer_cast(keys2_d.data()),
+             cuda::std::to_address(keys2_d.data()),
              static_cast<Offset>(keys2_d.size()),
-             thrust::raw_pointer_cast(result_d.data()),
+             cuda::std::to_address(result_d.data()),
              compare_op);
 
   c2h::host_vector<Key> keys1_h = keys1_d;
@@ -205,14 +205,14 @@ void test_pairs(
   c2h::device_vector<Key> result_keys_d(size1 + size2, thrust::no_init);
   c2h::device_vector<Value> result_values_d(size1 + size2, thrust::no_init);
   merge_pairs(
-    thrust::raw_pointer_cast(keys1_d.data()),
-    thrust::raw_pointer_cast(values1_d.data()),
+    cuda::std::to_address(keys1_d.data()),
+    cuda::std::to_address(values1_d.data()),
     static_cast<Offset>(keys1_d.size()),
-    thrust::raw_pointer_cast(keys2_d.data()),
-    thrust::raw_pointer_cast(values2_d.data()),
+    cuda::std::to_address(keys2_d.data()),
+    cuda::std::to_address(values2_d.data()),
     static_cast<Offset>(keys2_d.size()),
-    thrust::raw_pointer_cast(result_keys_d.data()),
-    thrust::raw_pointer_cast(result_values_d.data()),
+    cuda::std::to_address(result_keys_d.data()),
+    cuda::std::to_address(result_values_d.data()),
     compare_op);
 
   // compute reference result

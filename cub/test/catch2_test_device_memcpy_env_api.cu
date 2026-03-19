@@ -28,15 +28,15 @@ C2H_TEST("cub::DeviceMemcpy::Batched accepts env with stream", "[memcpy][env]")
 
   // Source pointers: one per buffer, pointing into d_src
   auto d_src_ptrs = thrust::device_vector<const int*>{
-    thrust::raw_pointer_cast(d_src.data()) + 0,
-    thrust::raw_pointer_cast(d_src.data()) + 2,
-    thrust::raw_pointer_cast(d_src.data()) + 5};
+    cuda::std::to_address(d_src.data()) + 0,
+    cuda::std::to_address(d_src.data()) + 2,
+    cuda::std::to_address(d_src.data()) + 5};
 
   // Destination pointers: buffers 0,1 go to d_dst_a, buffer 2 goes to d_dst_b
   auto d_dst_ptrs = thrust::device_vector<int*>{
-    thrust::raw_pointer_cast(d_dst_a.data()) + 0,
-    thrust::raw_pointer_cast(d_dst_a.data()) + 2,
-    thrust::raw_pointer_cast(d_dst_b.data()) + 0};
+    cuda::std::to_address(d_dst_a.data()) + 0,
+    cuda::std::to_address(d_dst_a.data()) + 2,
+    cuda::std::to_address(d_dst_b.data()) + 0};
 
   // Sizes in bytes for each buffer
   auto d_sizes = thrust::device_vector<int>{
@@ -49,9 +49,9 @@ C2H_TEST("cub::DeviceMemcpy::Batched accepts env with stream", "[memcpy][env]")
   auto env = cuda::std::execution::env{stream_ref};
 
   auto error = cub::DeviceMemcpy::Batched(
-    thrust::raw_pointer_cast(d_src_ptrs.data()),
-    thrust::raw_pointer_cast(d_dst_ptrs.data()),
-    thrust::raw_pointer_cast(d_sizes.data()),
+    cuda::std::to_address(d_src_ptrs.data()),
+    cuda::std::to_address(d_dst_ptrs.data()),
+    cuda::std::to_address(d_sizes.data()),
     num_buffers,
     env);
   if (error != cudaSuccess)

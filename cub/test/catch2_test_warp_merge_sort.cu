@@ -283,7 +283,7 @@ void warp_merge_sort(
 {
   warp_merge_sort_kernel<ITEMS_PER_THREAD, LOGICAL_WARP_THREADS, TOTAL_WARPS>
     <<<1, LOGICAL_WARP_THREADS * TOTAL_WARPS>>>(
-      thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), segment_sizes, oob_default, action);
+      cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), segment_sizes, oob_default, action);
 
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
@@ -310,10 +310,10 @@ void warp_merge_sort(
 {
   warp_merge_sort_kernel<ITEMS_PER_THREAD, LOGICAL_WARP_THREADS, TOTAL_WARPS>
     <<<1, LOGICAL_WARP_THREADS * TOTAL_WARPS>>>(
-      thrust::raw_pointer_cast(keys_in.data()),
-      thrust::raw_pointer_cast(keys_out.data()),
-      thrust::raw_pointer_cast(values_in.data()),
-      thrust::raw_pointer_cast(values_out.data()),
+      cuda::std::to_address(keys_in.data()),
+      cuda::std::to_address(keys_out.data()),
+      cuda::std::to_address(values_in.data()),
+      cuda::std::to_address(values_out.data()),
       segment_sizes,
       oob_default,
       action);

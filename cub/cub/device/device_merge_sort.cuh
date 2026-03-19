@@ -69,7 +69,7 @@ CUB_NAMESPACE_BEGIN
  *   nullptr,
  *   temp_storage_bytes,
  *   reverse_iter,
- *   thrust::raw_pointer_cast(d_values.data()),
+ *   cuda::std::to_address(d_values.data()),
  *   num_items,
  *   CustomLess());
  *
@@ -81,7 +81,7 @@ CUB_NAMESPACE_BEGIN
  *   d_temp_storage,
  *   temp_storage_bytes,
  *   reverse_iter,
- *   thrust::raw_pointer_cast(d_values.data()),
+ *   cuda::std::to_address(d_values.data()),
  *   num_items,
  *   CustomLess());
  * @endcode

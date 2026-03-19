@@ -94,7 +94,7 @@ C2H_TEST("Device find_if works", "[device][find_if]", value_types, offset_types)
     init_default_constant(default_constant, 1);
     thrust::fill(c2h::device_policy, in_items.begin(), in_items.end(), default_constant);
   }
-  auto d_in_it = thrust::raw_pointer_cast(in_items.data());
+  auto d_in_it = cuda::std::to_address(in_items.data());
 
   using predice_t = cuda::equal_to_value<input_t>;
   input_t val_to_find{};
@@ -121,7 +121,7 @@ C2H_TEST("Device find_if works", "[device][find_if]", value_types, offset_types)
 
     // Run test
     c2h::device_vector<offset_t> out_result(1, thrust::no_init);
-    find_if(d_in_it, thrust::raw_pointer_cast(out_result.data()), predicate, num_items);
+    find_if(d_in_it, cuda::std::to_address(out_result.data()), predicate, num_items);
     REQUIRE(expected_result == out_result[0]);
   }
 
@@ -150,7 +150,7 @@ C2H_TEST("Device find_if works", "[device][find_if]", value_types, offset_types)
 
         // Run test
         c2h::device_vector<offset_t> out_result(1, thrust::no_init);
-        find_if(d_in_it + offset, thrust::raw_pointer_cast(out_result.data()), predicate, num_items - offset);
+        find_if(d_in_it + offset, cuda::std::to_address(out_result.data()), predicate, num_items - offset);
         REQUIRE(expected == out_result[0]);
       }
     }
@@ -183,7 +183,7 @@ C2H_TEST("Device find_if works with non primitive iterator", "[device][find_if]"
   {
     c2h::device_vector<offset_t> out_result(1, thrust::no_init);
     auto predicate = cuda::equal_to_value<input_t>{val_to_find};
-    find_if(c_it, thrust::raw_pointer_cast(out_result.data()), predicate, num_items);
+    find_if(c_it, cuda::std::to_address(out_result.data()), predicate, num_items);
     REQUIRE(expected_if_found == out_result[0]);
   }
 
@@ -265,9 +265,9 @@ C2H_TEST("Device find_if works with non default constructible types", "[device][
   // fill with arbitrary values dont use c2h gen because NotDefaultConstructible is not default constructible
   thrust::tabulate(c2h::device_policy, d_vec.begin(), d_vec.end(), index_to_value{});
 
-  auto it = thrust::raw_pointer_cast(d_vec.data());
+  auto it = cuda::std::to_address(d_vec.data());
   c2h::device_vector<offset_t> out_result(1, thrust::no_init);
   auto predicate = cuda::equal_to_value<NotDefaultConstructible>{NotDefaultConstructible{val_to_find}};
-  find_if(it, thrust::raw_pointer_cast(out_result.data()), predicate, num_items);
+  find_if(it, cuda::std::to_address(out_result.data()), predicate, num_items);
   REQUIRE(val_to_find == out_result[0]);
 }

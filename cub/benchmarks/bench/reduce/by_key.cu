@@ -49,11 +49,11 @@ static void reduce(nvbench::state& state, nvbench::type_list<KeyT, ValueT, Offse
   thrust::device_vector<KeyT> out_keys(elements);
   thrust::device_vector<KeyT> in_keys = generate.uniform.key_segments(elements, min_segment_size, max_segment_size);
 
-  const KeyT* d_in_keys   = thrust::raw_pointer_cast(in_keys.data());
-  KeyT* d_out_keys        = thrust::raw_pointer_cast(out_keys.data());
-  const ValueT* d_in_vals = thrust::raw_pointer_cast(in_vals.data());
-  ValueT* d_out_vals      = thrust::raw_pointer_cast(out_vals.data());
-  OffsetT* d_num_runs_out = thrust::raw_pointer_cast(num_runs_out.data());
+  const KeyT* d_in_keys   = cuda::std::to_address(in_keys.data());
+  KeyT* d_out_keys        = cuda::std::to_address(out_keys.data());
+  const ValueT* d_in_vals = cuda::std::to_address(in_vals.data());
+  ValueT* d_out_vals      = cuda::std::to_address(out_vals.data());
+  OffsetT* d_num_runs_out = cuda::std::to_address(num_runs_out.data());
 
   std::uint8_t* d_temp_storage{};
   std::size_t temp_storage_bytes{};
@@ -82,7 +82,7 @@ static void reduce(nvbench::state& state, nvbench::type_list<KeyT, ValueT, Offse
   dispatch_on_stream(cudaStream_t{0});
 
   thrust::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   dispatch_on_stream(cudaStream_t{0});
   cudaDeviceSynchronize();

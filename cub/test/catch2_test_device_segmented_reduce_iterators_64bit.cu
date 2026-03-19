@@ -48,8 +48,8 @@ C2H_TEST("Device segmented reduce works with fancy input iterators and 64-bit of
 
   // prepare device iterators
   auto in_it        = cuda::constant_iterator(iterator_value);
-  auto d_offsets_it = thrust::raw_pointer_cast(segment_offsets.data());
-  auto d_out_it     = thrust::raw_pointer_cast(device_result.data());
+  auto d_offsets_it = cuda::std::to_address(segment_offsets.data());
+  auto d_out_it     = cuda::std::to_address(device_result.data());
 
   // reduce
   device_segmented_reduce(in_it, d_out_it, num_segments, d_offsets_it, d_offsets_it + 1, op_t{}, offset_t{});

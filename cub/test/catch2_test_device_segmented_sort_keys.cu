@@ -85,7 +85,7 @@ C2H_TEST("DeviceSegmentedSortKeys: Empty segments", "[keys][segmented][sort][dev
   const bool sort_buffer     = GENERATE(pointers, double_buffer);
 
   c2h::device_vector<int> offsets(num_segments + 1, int{});
-  const int* d_offsets = thrust::raw_pointer_cast(offsets.data());
+  const int* d_offsets = cuda::std::to_address(offsets.data());
 
   cub::DoubleBuffer<KeyT> keys_buffer(nullptr, nullptr);
   cub::DoubleBuffer<cub::NullType> values_buffer(nullptr, nullptr);
@@ -208,8 +208,8 @@ try
     segment_iterator_t{num_empty_segments, num_segments, segment_size, num_items});
 
   stable_sort_keys(
-    thrust::raw_pointer_cast(in_keys.data()),
-    thrust::raw_pointer_cast(out_keys.data()),
+    cuda::std::to_address(in_keys.data()),
+    cuda::std::to_address(out_keys.data()),
     static_cast<offset_t>(num_items),
     static_cast<segment_offset_t>(num_segments),
     offsets,
@@ -251,11 +251,11 @@ try
   verification_helper.prepare_verification_data(in_keys);
 
   stable_sort_keys(
-    thrust::raw_pointer_cast(in_keys.data()),
-    thrust::raw_pointer_cast(out_keys.data()),
+    cuda::std::to_address(in_keys.data()),
+    cuda::std::to_address(out_keys.data()),
     static_cast<offset_t>(num_items),
     static_cast<segment_offset_t>(num_segments),
-    thrust::raw_pointer_cast(offsets.data()),
+    cuda::std::to_address(offsets.data()),
     offsets.cbegin() + 1);
 
   // Verify the keys are sorted correctly

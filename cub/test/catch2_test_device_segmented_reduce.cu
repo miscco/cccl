@@ -93,12 +93,12 @@ C2H_TEST("Device reduce works with all device interfaces", "[segmented][reduce][
   c2h::device_vector<offset_t> segment_offsets = c2h::gen_uniform_offsets<offset_t>(
     C2H_SEED(1), num_items, std::get<0>(seg_size_range), std::get<1>(seg_size_range));
   const offset_t num_segments = static_cast<offset_t>(segment_offsets.size() - 1);
-  auto d_offsets_it           = thrust::raw_pointer_cast(segment_offsets.data());
+  auto d_offsets_it           = cuda::std::to_address(segment_offsets.data());
 
   // Generate input data
   c2h::device_vector<input_t> in_items(num_items);
   c2h::gen(C2H_SEED(2), in_items);
-  auto d_in_it = thrust::raw_pointer_cast(in_items.data());
+  auto d_in_it = cuda::std::to_address(in_items.data());
 
   SECTION("reduce")
   {
@@ -114,7 +114,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[segmented][reduce][
 
     // Run test
     c2h::device_vector<output_t> out_result(num_segments);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     using init_t  = cub::detail::it_value_t<decltype(unwrap_it(d_out_it))>;
     device_segmented_reduce(
       unwrap_it(d_in_it), unwrap_it(d_out_it), num_segments, d_offsets_it, d_offsets_it + 1, reduction_op, init_t{});
@@ -137,7 +137,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[segmented][reduce][
 
     // Run test
     c2h::device_vector<output_t> out_result(num_segments);
-    auto d_out_it = unwrap_it(thrust::raw_pointer_cast(out_result.data()));
+    auto d_out_it = unwrap_it(cuda::std::to_address(out_result.data()));
     device_segmented_sum(d_in_it, d_out_it, num_segments, d_offsets_it, d_offsets_it + 1);
 
     // Verify result
@@ -156,7 +156,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[segmented][reduce][
 
     // Run test
     c2h::device_vector<output_t> out_result(num_segments);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     device_segmented_min(unwrap_it(d_in_it), unwrap_it(d_out_it), num_segments, d_offsets_it, d_offsets_it + 1);
 
     // Verify result
@@ -174,7 +174,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[segmented][reduce][
 
     // Run test
     c2h::device_vector<output_t> out_result(num_segments);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     device_segmented_max(unwrap_it(d_in_it), unwrap_it(d_out_it), num_segments, d_offsets_it, d_offsets_it + 1);
 
     // Verify result
@@ -192,7 +192,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[segmented][reduce][
     // Run test
     c2h::device_vector<result_t> out_result(num_segments);
     device_segmented_arg_max(
-      d_in_it, thrust::raw_pointer_cast(out_result.data()), num_segments, d_offsets_it, d_offsets_it + 1);
+      d_in_it, cuda::std::to_address(out_result.data()), num_segments, d_offsets_it, d_offsets_it + 1);
 
     // Verify result
     REQUIRE(expected_result == out_result);
@@ -210,7 +210,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[segmented][reduce][
     // Run test
     c2h::device_vector<result_t> out_result(num_segments);
     device_segmented_arg_min(
-      d_in_it, thrust::raw_pointer_cast(out_result.data()), num_segments, d_offsets_it, d_offsets_it + 1);
+      d_in_it, cuda::std::to_address(out_result.data()), num_segments, d_offsets_it, d_offsets_it + 1);
     // Verify result
     REQUIRE(expected_result == out_result);
   }
@@ -243,7 +243,7 @@ C2H_TEST("Device fixed size segmented reduce works with all device interfaces",
   c2h::device_vector<input_t> in_items(num_items);
   c2h::gen(C2H_SEED(2), in_items);
 
-  auto d_in_it = thrust::raw_pointer_cast(in_items.data());
+  auto d_in_it = cuda::std::to_address(in_items.data());
 
   SECTION("reduce")
   {
@@ -263,7 +263,7 @@ C2H_TEST("Device fixed size segmented reduce works with all device interfaces",
 
     // Run test
     c2h::device_vector<output_t> out_result(num_segments);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
 
     using init_t = cub::detail::it_value_t<decltype(unwrap_it(d_out_it))>;
     init_t init  = static_cast<init_t>(*unwrap_it(&default_constant));
@@ -287,7 +287,7 @@ C2H_TEST("Device fixed size segmented reduce works with all device interfaces",
 
     // Run test
     c2h::device_vector<output_t> d_out_result(num_segments);
-    auto d_out_it = unwrap_it(thrust::raw_pointer_cast(d_out_result.data()));
+    auto d_out_it = unwrap_it(cuda::std::to_address(d_out_result.data()));
     device_segmented_sum(d_in_it, d_out_it, num_segments, segment_size);
 
     c2h::host_vector<output_t> h_out_result(d_out_result);
@@ -312,7 +312,7 @@ C2H_TEST("Device fixed size segmented reduce works with all device interfaces",
 
     // Run test
     c2h::device_vector<output_t> d_out_result(num_segments);
-    auto d_out_it = thrust::raw_pointer_cast(d_out_result.data());
+    auto d_out_it = cuda::std::to_address(d_out_result.data());
     device_segmented_min(unwrap_it(d_in_it), unwrap_it(d_out_it), num_segments, segment_size);
 
     c2h::host_vector<output_t> h_out_result(d_out_result);
@@ -330,7 +330,7 @@ C2H_TEST("Device fixed size segmented reduce works with all device interfaces",
 
     // Run test
     c2h::device_vector<result_t> d_out_result(num_segments);
-    device_segmented_arg_min(d_in_it, thrust::raw_pointer_cast(d_out_result.data()), num_segments, segment_size);
+    device_segmented_arg_min(d_in_it, cuda::std::to_address(d_out_result.data()), num_segments, segment_size);
 
     c2h::host_vector<result_t> h_out_result(d_out_result);
     // Verify result
@@ -353,7 +353,7 @@ C2H_TEST("Device fixed size segmented reduce works with all device interfaces",
 
     // Run test
     c2h::device_vector<output_t> d_out_result(num_segments);
-    auto d_out_it = thrust::raw_pointer_cast(d_out_result.data());
+    auto d_out_it = cuda::std::to_address(d_out_result.data());
     device_segmented_max(unwrap_it(d_in_it), unwrap_it(d_out_it), num_segments, segment_size);
 
     c2h::host_vector<output_t> h_out_result(d_out_result);
@@ -371,7 +371,7 @@ C2H_TEST("Device fixed size segmented reduce works with all device interfaces",
 
     // Run test
     c2h::device_vector<result_t> d_out_result(num_segments);
-    device_segmented_arg_max(d_in_it, thrust::raw_pointer_cast(d_out_result.data()), num_segments, segment_size);
+    device_segmented_arg_max(d_in_it, cuda::std::to_address(d_out_result.data()), num_segments, segment_size);
 
     c2h::host_vector<result_t> h_out_result(d_out_result);
     // Verify result

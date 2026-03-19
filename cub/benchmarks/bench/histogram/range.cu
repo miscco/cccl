@@ -57,13 +57,13 @@ static void range(nvbench::state& state, nvbench::type_list<SampleT, CounterT, O
 
   // TODO Extract sequence to the helper TU
   thrust::sequence(levels.begin(), levels.end(), lower_level, step);
-  SampleT* d_levels = thrust::raw_pointer_cast(levels.data());
+  SampleT* d_levels = cuda::std::to_address(levels.data());
 
   thrust::device_vector<SampleT> input = generate(elements, entropy, lower_level, upper_level);
   thrust::device_vector<CounterT> hist(num_bins);
 
-  SampleT* d_input      = thrust::raw_pointer_cast(input.data());
-  CounterT* d_histogram = thrust::raw_pointer_cast(hist.data());
+  SampleT* d_input      = cuda::std::to_address(input.data());
+  CounterT* d_histogram = cuda::std::to_address(hist.data());
 
   std::uint8_t* d_temp_storage = nullptr;
   std::size_t temp_storage_bytes{};
@@ -91,7 +91,7 @@ static void range(nvbench::state& state, nvbench::type_list<SampleT, CounterT, O
     is_byte_sample);
 
   thrust::device_vector<nvbench::uint8_t> tmp(temp_storage_bytes);
-  d_temp_storage = thrust::raw_pointer_cast(tmp.data());
+  d_temp_storage = cuda::std::to_address(tmp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     dispatch_t::DispatchRange(

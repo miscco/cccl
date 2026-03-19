@@ -42,7 +42,7 @@ C2H_TEST("Deterministic Device reduce works with float and double on gpu", "[red
 
   c2h::device_vector<type> d_output(1);
 
-  const type* d_input_ptr = thrust::raw_pointer_cast(d_input.data());
+  const type* d_input_ptr = cuda::std::to_address(d_input.data());
 
   const auto env = cuda::execution::require(cuda::execution::determinism::gpu_to_gpu);
   auto error =
@@ -259,7 +259,7 @@ C2H_TEST("Deterministic Device reduce works with float and double on gpu with di
   c2h::device_vector<std::uint8_t> temp_storage(temp_storage_bytes);
 
   error = cub::detail::rfa::dispatch<input_it_t, output_it_t, int, init_t, transform_t, accum_t>(
-    thrust::raw_pointer_cast(temp_storage.data()), temp_storage_bytes, input, d_output.begin(), num_items);
+    cuda::std::to_address(temp_storage.data()), temp_storage_bytes, input, d_output.begin(), num_items);
   REQUIRE(error == cudaSuccess);
 
   auto h_input = cuda::transform_iterator(input, transform_t{});

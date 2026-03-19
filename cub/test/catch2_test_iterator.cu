@@ -78,7 +78,7 @@ void test_iterator(InputIteratorT d_in, const c2h::host_vector<T>& h_reference)
   c2h::device_vector<InputIteratorT> d_itrs(2, d_in); // TODO(bgruber): using a raw allocation halves the compile time
                                                       // (nvcc 12.5), because we instantiate a lot of device_vectors
 
-  test_iterator_kernel<<<1, 1>>>(d_in, thrust::raw_pointer_cast(d_out.data()), thrust::raw_pointer_cast(d_itrs.data()));
+  test_iterator_kernel<<<1, 1>>>(d_in, cuda::std::to_address(d_out.data()), cuda::std::to_address(d_itrs.data()));
   CubDebugExit(cudaPeekAtLastError());
   CubDebugExit(cudaDeviceSynchronize());
 
@@ -114,7 +114,7 @@ static_assert(cuda::std::is_void_v<cub::detail::it_value_t<cub::CacheModifiedOut
 //     h_data[0], h_data[100], h_data[1000], h_data[10000], h_data[1], h_data[21], h_data[11], h_data[0]};
 //   test_iterator(
 //     cub::CacheModifiedInputIterator<cache_modifier, T>(const_cast<const
-//     T*>(thrust::raw_pointer_cast(d_data.data()))), h_reference);
+//     T*>(cuda::std::to_address(d_data.data()))), h_reference);
 // }
 
 template <typename T>
@@ -140,7 +140,7 @@ C2H_TEST("Test tex-obj texture iterator", "[iterator]", types)
   cub::TexObjInputIterator<T> d_obj_itr;
 
   CubDebugExit(
-    d_obj_itr.BindTexture(const_cast<const T*>(thrust::raw_pointer_cast(d_data.data())), sizeof(T) * TEST_VALUES));
+    d_obj_itr.BindTexture(const_cast<const T*>(cuda::std::to_address(d_data.data())), sizeof(T) * TEST_VALUES));
   test_iterator(d_obj_itr, h_reference);
 }
 
@@ -167,7 +167,7 @@ C2H_TEST("Test texture transform iterator", "[iterator]", types)
   using TextureIterator = cub::TexObjInputIterator<T>;
   TextureIterator d_tex_itr;
   CubDebugExit(
-    d_tex_itr.BindTexture(const_cast<const T*>(thrust::raw_pointer_cast(d_data.data())), sizeof(T) * TEST_VALUES));
+    d_tex_itr.BindTexture(const_cast<const T*>(cuda::std::to_address(d_data.data())), sizeof(T) * TEST_VALUES));
   cuda::transform_iterator<transform_op_t<T>, TextureIterator> xform_itr(d_tex_itr, op);
   test_iterator(xform_itr, h_reference);
   CubDebugExit(d_tex_itr.UnbindTexture());

@@ -184,8 +184,8 @@ C2H_TEST("ThreadScanExclusive Integral Type Tests",
     scan_op);
 
   thread_scan_exclusive_partial_kernel<num_items><<<1, 1>>>(
-    thrust::raw_pointer_cast(d_in.data()),
-    thrust::raw_pointer_cast(d_out.data()),
+    cuda::std::to_address(d_in.data()),
+    cuda::std::to_address(d_out.data()),
     scan_op,
     valid_items,
     prefix,
@@ -241,8 +241,8 @@ C2H_TEST("ThreadScanExclusive Floating-Point Type Tests",
     scan_op);
 
   thread_scan_exclusive_partial_kernel<num_items><<<1, 1>>>(
-    thrust::raw_pointer_cast(d_in.data()),
-    thrust::raw_pointer_cast(d_out.data()),
+    cuda::std::to_address(d_in.data()),
+    cuda::std::to_address(d_out.data()),
     scan_op,
     valid_items,
     prefix,
@@ -303,8 +303,8 @@ C2H_TEST("ThreadScanExclusive Narrow PrecisionType Tests",
     scan_op);
 
   thread_scan_exclusive_partial_kernel<num_items><<<1, 1>>>(
-    unwrap_it(thrust::raw_pointer_cast(d_in.data())),
-    unwrap_it(thrust::raw_pointer_cast(d_out.data())),
+    unwrap_it(cuda::std::to_address(d_in.data())),
+    unwrap_it(cuda::std::to_address(d_out.data())),
     scan_op,
     valid_items,
     *unwrap_it(&prefix),
@@ -339,24 +339,14 @@ C2H_TEST("ThreadScanExclusive Container Tests", "[scan][thread]")
     h_in.cbegin(), h_in.cbegin() + bounded_valid_items, reference_result.begin(), 0, cuda::std::plus<>{});
 
   thread_scan_exclusive_partial_kernel_array<max_size><<<1, 1>>>(
-    thrust::raw_pointer_cast(d_in.data()),
-    thrust::raw_pointer_cast(d_out.data()),
-    cuda::std::plus<>{},
-    valid_items,
-    0,
-    true);
+    cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), cuda::std::plus<>{}, valid_items, 0, true);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(reference_result == d_out);
 
   thrust::fill(d_out.begin(), d_out.end(), 0);
   thread_scan_exclusive_partial_kernel_span<max_size><<<1, 1>>>(
-    thrust::raw_pointer_cast(d_in.data()),
-    thrust::raw_pointer_cast(d_out.data()),
-    cuda::std::plus<>{},
-    valid_items,
-    0,
-    true);
+    cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), cuda::std::plus<>{}, valid_items, 0, true);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(reference_result == d_out);
@@ -364,12 +354,7 @@ C2H_TEST("ThreadScanExclusive Container Tests", "[scan][thread]")
 #if _CCCL_STD_VER >= 2023
   thrust::fill(d_out.begin(), d_out.end(), 0);
   thread_scan_exclusive_partial_kernel_mdspan<max_size><<<1, 1>>>(
-    thrust::raw_pointer_cast(d_in.data()),
-    thrust::raw_pointer_cast(d_out.data()),
-    cuda::std::plus<>{},
-    valid_items,
-    0,
-    true);
+    cuda::std::to_address(d_in.data()), cuda::std::to_address(d_out.data()), cuda::std::plus<>{}, valid_items, 0, true);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
   REQUIRE(reference_result == d_out);
@@ -406,9 +391,9 @@ C2H_TEST("ThreadScanExclusive Invalid Test", "[scan][thread]")
   c2h::device_vector<segment> d_out(max_size);
   c2h::device_vector<bool> error_flag(1, false);
   thread_scan_exclusive_partial_kernel<max_size><<<1, 1>>>(
-    thrust::raw_pointer_cast(d_in.data()),
-    thrust::raw_pointer_cast(d_out.data()),
-    merge_segments_op{thrust::raw_pointer_cast(error_flag.data())},
+    cuda::std::to_address(d_in.data()),
+    cuda::std::to_address(d_out.data()),
+    merge_segments_op{cuda::std::to_address(error_flag.data())},
     valid_items,
     prefix,
     apply_prefix,

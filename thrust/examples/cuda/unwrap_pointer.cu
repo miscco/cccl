@@ -13,7 +13,7 @@ int main()
   thrust::device_ptr<int> dev_ptr = thrust::device_malloc<int>(N);
 
   // extract raw pointer from device_ptr
-  int* raw_ptr = thrust::raw_pointer_cast(dev_ptr);
+  int* raw_ptr = cuda::std::to_address(dev_ptr);
 
   // use raw_ptr in CUDA API functions
   cudaMemset(raw_ptr, 0, N * sizeof(int));
@@ -25,7 +25,7 @@ int main()
   thrust::device_vector<int> d_vec(N);
 
   // note: d_vec.data() returns a device_ptr
-  raw_ptr = thrust::raw_pointer_cast(d_vec.data());
+  raw_ptr = cuda::std::to_address(d_vec.data());
 
   return 0;
 }

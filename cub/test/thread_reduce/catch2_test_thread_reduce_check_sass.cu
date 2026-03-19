@@ -129,7 +129,7 @@ void run_thread_reduce_kernel(
   const c2h::device_vector<T>& in, c2h::device_vector<T>& out, ReduceOperator reduce_operator)
 {
   thread_reduce_kernel<18>
-    <<<1, 1>>>(thrust::raw_pointer_cast(in.data()), thrust::raw_pointer_cast(out.data()), reduce_operator);
+    <<<1, 1>>>(cuda::std::to_address(in.data()), cuda::std::to_address(out.data()), reduce_operator);
   REQUIRE(cudaSuccess == cudaPeekAtLastError());
   REQUIRE(cudaSuccess == cudaDeviceSynchronize());
 }

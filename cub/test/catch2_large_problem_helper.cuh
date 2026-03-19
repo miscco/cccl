@@ -96,7 +96,7 @@ struct large_problem_test_helper
   cuda::tabulate_output_iterator<flag_correct_writes_op<ExpectedValuesItT>>
   get_flagging_output_iterator(ExpectedValuesItT expected_it)
   {
-    auto check_op = make_checking_write_op(expected_it, thrust::raw_pointer_cast(correctness_flags.data()));
+    auto check_op = make_checking_write_op(expected_it, cuda::std::to_address(correctness_flags.data()));
     return cuda::make_tabulate_output_iterator(check_op);
   }
 

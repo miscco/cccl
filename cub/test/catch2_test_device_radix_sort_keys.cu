@@ -94,16 +94,16 @@ C2H_TEST("DeviceRadixSort::SortKeys: basic testing", "[keys][radix][sort][device
   if (is_descending)
   {
     sort_keys_descending(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
       num_items,
       begin_bit<key_t>(),
       end_bit<key_t>());
   }
   else
   {
-    sort_keys(thrust::raw_pointer_cast(in_keys.data()),
-              thrust::raw_pointer_cast(out_keys.data()),
+    sort_keys(cuda::std::to_address(in_keys.data()),
+              cuda::std::to_address(out_keys.data()),
               num_items,
               begin_bit<key_t>(),
               end_bit<key_t>());
@@ -142,19 +142,12 @@ C2H_TEST("DeviceRadixSort::SortKeys: bit windows", "[keys][radix][sort][device]"
   if (is_descending)
   {
     sort_keys_descending(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
-      num_items,
-      begin_bit,
-      end_bit);
+      cuda::std::to_address(in_keys.data()), cuda::std::to_address(out_keys.data()), num_items, begin_bit, end_bit);
   }
   else
   {
-    sort_keys(thrust::raw_pointer_cast(in_keys.data()),
-              thrust::raw_pointer_cast(out_keys.data()),
-              num_items,
-              begin_bit,
-              end_bit);
+    sort_keys(
+      cuda::std::to_address(in_keys.data()), cuda::std::to_address(out_keys.data()), num_items, begin_bit, end_bit);
   }
 
   REQUIRE(ref_keys == out_keys);
@@ -199,16 +192,16 @@ C2H_TEST("DeviceRadixSort::SortKeys: negative zero handling", "[keys][radix][sor
   if (is_descending)
   {
     sort_keys_descending(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
       num_items,
       begin_bit<key_t>(),
       end_bit<key_t>());
   }
   else
   {
-    sort_keys(thrust::raw_pointer_cast(in_keys.data()),
-              thrust::raw_pointer_cast(out_keys.data()),
+    sort_keys(cuda::std::to_address(in_keys.data()),
+              cuda::std::to_address(out_keys.data()),
               num_items,
               begin_bit<key_t>(),
               end_bit<key_t>());
@@ -264,16 +257,16 @@ C2H_TEST("DeviceRadixSort::SortKeys: NaN handling", "[keys][radix][sort][device]
   if (is_descending)
   {
     sort_keys_descending(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
       num_items,
       begin_bit<key_t>(),
       end_bit<key_t>());
   }
   else
   {
-    sort_keys(thrust::raw_pointer_cast(in_keys.data()),
-              thrust::raw_pointer_cast(out_keys.data()),
+    sort_keys(cuda::std::to_address(in_keys.data()),
+              cuda::std::to_address(out_keys.data()),
               num_items,
               begin_bit<key_t>(),
               end_bit<key_t>());
@@ -321,16 +314,16 @@ C2H_TEST("DeviceRadixSort::SortKeys: entropy reduction", "[keys][radix][sort][de
   if (is_descending)
   {
     sort_keys_descending(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
       num_items,
       begin_bit<key_t>(),
       end_bit<key_t>());
   }
   else
   {
-    sort_keys(thrust::raw_pointer_cast(in_keys.data()),
-              thrust::raw_pointer_cast(out_keys.data()),
+    sort_keys(cuda::std::to_address(in_keys.data()),
+              cuda::std::to_address(out_keys.data()),
               num_items,
               begin_bit<key_t>(),
               end_bit<key_t>());
@@ -355,16 +348,16 @@ C2H_TEST("DeviceRadixSort::SortKeys: uniform values", "[keys][radix][sort][devic
   if (is_descending)
   {
     sort_keys_descending(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
       num_items,
       begin_bit<key_t>(),
       end_bit<key_t>());
   }
   else
   {
-    sort_keys(thrust::raw_pointer_cast(in_keys.data()),
-              thrust::raw_pointer_cast(out_keys.data()),
+    sort_keys(cuda::std::to_address(in_keys.data()),
+              cuda::std::to_address(out_keys.data()),
               num_items,
               begin_bit<key_t>(),
               end_bit<key_t>());
@@ -396,16 +389,16 @@ C2H_TEST("DeviceRadixSort::SortKeys: NumItemsT", "[keys][radix][sort][device]", 
   if (is_descending)
   {
     sort_keys_descending(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
       num_items,
       begin_bit<key_t>(),
       end_bit<key_t>());
   }
   else
   {
-    sort_keys(thrust::raw_pointer_cast(in_keys.data()),
-              thrust::raw_pointer_cast(out_keys.data()),
+    sort_keys(cuda::std::to_address(in_keys.data()),
+              cuda::std::to_address(out_keys.data()),
               num_items,
               begin_bit<key_t>(),
               end_bit<key_t>());
@@ -430,8 +423,7 @@ C2H_TEST("DeviceRadixSort::SortKeys: DoubleBuffer API", "[keys][radix][sort][dev
   auto ref_keys = radix_sort_reference(in_keys, is_descending);
 
   c2h::device_vector<key_t> out_keys(num_items);
-  cub::DoubleBuffer<key_t> key_buffer(
-    thrust::raw_pointer_cast(in_keys.data()), thrust::raw_pointer_cast(out_keys.data()));
+  cub::DoubleBuffer<key_t> key_buffer(cuda::std::to_address(in_keys.data()), cuda::std::to_address(out_keys.data()));
 
   double_buffer_sort_t action(is_descending);
   action.initialize();

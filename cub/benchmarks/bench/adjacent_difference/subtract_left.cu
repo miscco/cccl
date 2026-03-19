@@ -35,8 +35,8 @@ void left(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   thrust::device_vector<T> in = generate(elements);
   thrust::device_vector<T> out(elements);
 
-  input_it_t d_in   = thrust::raw_pointer_cast(in.data());
-  output_it_t d_out = thrust::raw_pointer_cast(out.data());
+  input_it_t d_in   = cuda::std::to_address(in.data());
+  output_it_t d_out = cuda::std::to_address(out.data());
 
   state.add_element_count(elements);
   state.add_global_memory_reads<T>(elements);
@@ -60,7 +60,7 @@ void left(nvbench::state& state, nvbench::type_list<T, OffsetT>)
     );
 
   thrust::device_vector<std::uint8_t> temp_storage(temp_storage_bytes, thrust::no_init);
-  std::uint8_t* d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  std::uint8_t* d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     cub::detail::adjacent_difference::

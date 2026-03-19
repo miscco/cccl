@@ -499,7 +499,7 @@ void TestInclusiveScanWithIndirection()
 
   Vector data{0, 1, 2, 1, 2, 0, 1};
   Vector table{0, 1, 2, 0, 1, 2};
-  thrust::inclusive_scan(data.begin(), data.end(), data.begin(), plus_mod3<T>(thrust::raw_pointer_cast(&table[0])));
+  thrust::inclusive_scan(data.begin(), data.end(), data.begin(), plus_mod3<T>(cuda::std::to_address(&table[0])));
 
   ASSERT_EQUAL(data, (Vector{0, 1, 0, 1, 0, 0, 1}));
 }
@@ -529,7 +529,7 @@ void TestInclusiveScanWithConstAccumulator()
   Vector data{0, 1, 2, 1, 2, 0, 1};
   Vector table{0, 1, 2, 0, 1, 2};
   thrust::inclusive_scan(
-    data.begin(), data.end(), data.begin(), const_ref_plus_mod3<T>(thrust::raw_pointer_cast(&table[0])));
+    data.begin(), data.end(), data.begin(), const_ref_plus_mod3<T>(cuda::std::to_address(&table[0])));
 
   ASSERT_EQUAL(data, (Vector{0, 1, 0, 1, 0, 0, 1}));
 }
@@ -607,7 +607,7 @@ void TestInclusiveScanWithBigIndexesHelper(int magnitude)
   thrust::device_ptr<bool> has_executed = thrust::device_malloc<bool>(1);
   *has_executed                         = false;
 
-  only_set_when_expected_it out = {(1ll << magnitude), thrust::raw_pointer_cast(has_executed)};
+  only_set_when_expected_it out = {(1ll << magnitude), cuda::std::to_address(has_executed)};
 
   thrust::inclusive_scan(thrust::device, begin, end, out);
 
@@ -638,7 +638,7 @@ void TestExclusiveScanWithBigIndexesHelper(int magnitude)
   thrust::device_ptr<bool> has_executed = thrust::device_malloc<bool>(1);
   *has_executed                         = false;
 
-  only_set_when_expected_it out = {(1ll << magnitude) - 1, thrust::raw_pointer_cast(has_executed)};
+  only_set_when_expected_it out = {(1ll << magnitude) - 1, cuda::std::to_address(has_executed)};
 
   thrust::exclusive_scan(thrust::device, begin, end, out, 0ll);
 

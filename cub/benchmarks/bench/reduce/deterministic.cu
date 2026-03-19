@@ -37,8 +37,8 @@ void deterministic_sum(nvbench::state& state, nvbench::type_list<T>)
   thrust::device_vector<T> in = generate(elements);
   thrust::device_vector<T> out(1);
 
-  input_it_t d_in   = thrust::raw_pointer_cast(in.data());
-  output_it_t d_out = thrust::raw_pointer_cast(out.data());
+  input_it_t d_in   = cuda::std::to_address(in.data());
+  output_it_t d_out = cuda::std::to_address(out.data());
   state.add_element_count(elements);
   state.add_global_memory_reads<T>(elements, "Size");
   state.add_global_memory_writes<T>(out.size());
@@ -49,7 +49,7 @@ void deterministic_sum(nvbench::state& state, nvbench::type_list<T>)
     nullptr, temp_storage_bytes, d_in, d_out, elements, init_t{}, /* stream */ nullptr);
 
   thrust::device_vector<nvbench::uint8_t> temp_storage(temp_storage_bytes);
-  auto* d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  auto* d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   state.exec(nvbench::exec_tag::no_batch | nvbench::exec_tag::sync, [&](nvbench::launch& launch) {
     cub::detail::rfa::dispatch<

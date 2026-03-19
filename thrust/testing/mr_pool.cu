@@ -330,7 +330,7 @@ void TestPoolCachingOversized()
     auto ptr3 = pool.allocate(4930528);
     pool.deallocate(ptr3, 4930528);
     auto ptr4 = pool.allocate(14640080);
-    std::memset(thrust::raw_pointer_cast(ptr4), 0xff, 14640080);
+    std::memset(cuda::std::to_address(ptr4), 0xff, 14640080);
 
     auto crash = pool.allocate(4930528);
 

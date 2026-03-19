@@ -30,7 +30,7 @@ void for_each(nvbench::state& state, nvbench::type_list<T, OffsetT>)
 
   thrust::device_vector<T> in(elements, T{42});
 
-  input_it_t d_in = thrust::raw_pointer_cast(in.data());
+  input_it_t d_in = cuda::std::to_address(in.data());
   // `d_out` exists for visibility
   // All inputs are equal to `42`, while the operator is searching for `0`.
   // If the operator finds `0` in the input sequence, it's an issue leading to a segfault.
@@ -45,7 +45,7 @@ void for_each(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   cub::DeviceFor::ForEachN(nullptr, temp_size, d_in, elements, op);
 
   thrust::device_vector<nvbench::uint8_t> temp(temp_size);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch, [&](nvbench::launch& launch) {
     cub::DeviceFor::ForEachN(temp_storage, temp_size, d_in, elements, op, launch.get_stream());

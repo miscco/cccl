@@ -502,9 +502,9 @@ void generate_unsorted_derived_inputs(
   static constexpr bool sort_pairs = !::cuda::std::is_same_v<ValueT, cub::NullType>;
 
   const int num_segments          = static_cast<int>(d_offsets.size() - 1);
-  const int* offsets              = thrust::raw_pointer_cast(d_offsets.data());
-  KeyT* keys                      = thrust::raw_pointer_cast(d_keys.data());
-  [[maybe_unused]] ValueT* values = thrust::raw_pointer_cast(d_values.data());
+  const int* offsets              = cuda::std::to_address(d_offsets.data());
+  KeyT* keys                      = cuda::std::to_address(d_keys.data());
+  [[maybe_unused]] ValueT* values = cuda::std::to_address(d_values.data());
 
   // Build keys in reversed order from how they'll eventually be sorted:
   thrust::for_each(c2h::nosync_device_policy,
@@ -537,9 +537,9 @@ void validate_sorted_derived_outputs(
 {
   C2H_TIME_SCOPE("validate_sorted_derived_outputs");
   const int num_segments = static_cast<int>(d_offsets.size() - 1);
-  const KeyT* keys       = thrust::raw_pointer_cast(d_keys.data());
-  ValueT* values         = thrust::raw_pointer_cast(d_values.data());
-  const int* offsets     = thrust::raw_pointer_cast(d_offsets.data());
+  const KeyT* keys       = cuda::std::to_address(d_keys.data());
+  ValueT* values         = cuda::std::to_address(d_values.data());
+  const int* offsets     = cuda::std::to_address(d_offsets.data());
 
   REQUIRE(thrust::all_of(c2h::device_policy,
                          cuda::counting_iterator(0),
@@ -726,9 +726,9 @@ void validate_sorted_random_outputs(
     }
     else
     {
-      const KeyT* ref_keys     = thrust::raw_pointer_cast(d_ref_keys.data());
-      const ValueT* ref_values = thrust::raw_pointer_cast(d_ref_values.data());
-      ValueT* test_values      = thrust::raw_pointer_cast(d_sorted_values.data());
+      const KeyT* ref_keys     = cuda::std::to_address(d_ref_keys.data());
+      const ValueT* ref_values = cuda::std::to_address(d_ref_values.data());
+      ValueT* test_values      = cuda::std::to_address(d_sorted_values.data());
 
       REQUIRE(thrust::all_of(
         c2h::device_policy,
@@ -1286,12 +1286,12 @@ void test_segments_derived(const c2h::device_vector<int>& d_offsets_vec)
     }
   }
 
-  const int* d_begin_offsets = thrust::raw_pointer_cast(d_offsets_vec.data());
-  const int* d_end_offsets   = thrust::raw_pointer_cast(d_offsets_vec.data() + 1);
-  KeyT* d_keys_input         = thrust::raw_pointer_cast(keys_input.data());
-  KeyT* d_keys_output        = thrust::raw_pointer_cast(keys_output.data());
-  ValueT* d_values_input     = thrust::raw_pointer_cast(values_input.data());
-  ValueT* d_values_output    = thrust::raw_pointer_cast(values_output.data());
+  const int* d_begin_offsets = cuda::std::to_address(d_offsets_vec.data());
+  const int* d_end_offsets   = cuda::std::to_address(d_offsets_vec.data() + 1);
+  KeyT* d_keys_input         = cuda::std::to_address(keys_input.data());
+  KeyT* d_keys_output        = cuda::std::to_address(keys_output.data());
+  ValueT* d_values_input     = cuda::std::to_address(values_input.data());
+  ValueT* d_values_output    = cuda::std::to_address(values_output.data());
 
   call_cub_segmented_sort_api(
     sort_descending,
@@ -1387,8 +1387,8 @@ void test_segments_random(
   host_sort_random_inputs(
     sort_descending,
     num_segments,
-    thrust::raw_pointer_cast(h_begin_offsets.data()),
-    thrust::raw_pointer_cast(h_end_offsets.data()),
+    cuda::std::to_address(h_begin_offsets.data()),
+    cuda::std::to_address(h_end_offsets.data()),
     h_keys_ref,
     h_values_ref);
 
@@ -1430,10 +1430,10 @@ void test_segments_random(
         }
       }
 
-      KeyT* d_keys_input      = thrust::raw_pointer_cast(keys_input.data());
-      KeyT* d_keys_output     = thrust::raw_pointer_cast(keys_output.data());
-      ValueT* d_values_input  = thrust::raw_pointer_cast(values_input.data());
-      ValueT* d_values_output = thrust::raw_pointer_cast(values_output.data());
+      KeyT* d_keys_input      = cuda::std::to_address(keys_input.data());
+      KeyT* d_keys_output     = cuda::std::to_address(keys_output.data());
+      ValueT* d_values_input  = cuda::std::to_address(values_input.data());
+      ValueT* d_values_output = cuda::std::to_address(values_output.data());
 
       call_cub_segmented_sort_api(
         sort_descending,
@@ -1478,8 +1478,8 @@ void test_segments_random(c2h::seed_t seed, const c2h::device_vector<int>& d_off
     seed, //
     num_items,
     num_segments,
-    thrust::raw_pointer_cast(d_offsets_vec.data()),
-    thrust::raw_pointer_cast(d_offsets_vec.data() + 1));
+    cuda::std::to_address(d_offsets_vec.data()),
+    cuda::std::to_address(d_offsets_vec.data() + 1));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1705,6 +1705,6 @@ void test_unspecified_segments_random(c2h::seed_t seed)
     seed,
     num_items,
     num_segments,
-    thrust::raw_pointer_cast(d_begin_offsets.data()),
-    thrust::raw_pointer_cast(d_end_offsets.data()));
+    cuda::std::to_address(d_begin_offsets.data()),
+    cuda::std::to_address(d_end_offsets.data()));
 }

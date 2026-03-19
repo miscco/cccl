@@ -98,13 +98,13 @@ void seg_sort(nvbench::state& state,
   thrust::device_vector<key_t> buffer_1 = generate(elements, entropy);
   thrust::device_vector<key_t> buffer_2(elements);
 
-  key_t* d_buffer_1 = thrust::raw_pointer_cast(buffer_1.data());
-  key_t* d_buffer_2 = thrust::raw_pointer_cast(buffer_2.data());
+  key_t* d_buffer_1 = cuda::std::to_address(buffer_1.data());
+  key_t* d_buffer_2 = cuda::std::to_address(buffer_2.data());
 
   cub::DoubleBuffer<key_t> d_keys(d_buffer_1, d_buffer_2);
   cub::DoubleBuffer<value_t> d_values;
 
-  begin_offset_it_t d_begin_offsets = thrust::raw_pointer_cast(offsets.data());
+  begin_offset_it_t d_begin_offsets = cuda::std::to_address(offsets.data());
   end_offset_it_t d_end_offsets     = d_begin_offsets + 1;
 
   state.add_element_count(elements);
@@ -132,7 +132,7 @@ void seg_sort(nvbench::state& state,
   );
 
   thrust::device_vector<nvbench::uint8_t> temp_storage(temp_storage_bytes, thrust::no_init);
-  d_temp_storage = thrust::raw_pointer_cast(temp_storage.data());
+  d_temp_storage = cuda::std::to_address(temp_storage.data());
 
   state.exec(nvbench::exec_tag::gpu | nvbench::exec_tag::no_batch | nvbench::exec_tag::sync,
              [&](nvbench::launch& launch) {

@@ -86,9 +86,9 @@ C2H_TEST("Device inclusive segmented scan works with non-commutative operator", 
   thrust::tabulate(input.begin(), input.end(), impl::populate_input<unsigned>{});
   c2h::device_vector<pair_t> output(input.size());
 
-  pair_t* d_input     = thrust::raw_pointer_cast(input.data());
-  pair_t* d_output    = thrust::raw_pointer_cast(output.data());
-  unsigned* d_offsets = thrust::raw_pointer_cast(offsets.data());
+  pair_t* d_input     = cuda::std::to_address(input.data());
+  pair_t* d_output    = cuda::std::to_address(output.data());
+  unsigned* d_offsets = cuda::std::to_address(offsets.data());
 
   size_t tmp_size{};
   cudaError_t status1 = cub::DeviceSegmentedScan::InclusiveSegmentedScan(
@@ -99,7 +99,7 @@ C2H_TEST("Device inclusive segmented scan works with non-commutative operator", 
   using cuda::std::byte;
 
   c2h::device_vector<byte> tmp(tmp_size, thrust::no_init);
-  byte* d_tmp = thrust::raw_pointer_cast(tmp.data());
+  byte* d_tmp = cuda::std::to_address(tmp.data());
 
   REQUIRE(d_tmp != nullptr);
 

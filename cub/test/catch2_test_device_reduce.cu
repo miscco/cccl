@@ -112,7 +112,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", f
     init_default_constant(default_constant);
     thrust::fill(c2h::device_policy, in_items.begin(), in_items.end(), default_constant);
   }
-  auto d_in_it = thrust::raw_pointer_cast(in_items.data());
+  auto d_in_it = cuda::std::to_address(in_items.data());
 
 #if TEST_TYPES != 4
   SECTION("reduce")
@@ -129,7 +129,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", f
 
     // Run test
     c2h::device_vector<output_t> out_result(num_segments);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     using init_t  = cub::detail::it_value_t<decltype(unwrap_it(d_out_it))>;
     device_reduce(unwrap_it(d_in_it), unwrap_it(d_out_it), num_items, reduction_op, init_t{});
 
@@ -151,7 +151,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", f
 
     // Run test
     c2h::device_vector<output_t> out_result(num_segments);
-    auto d_out_it = unwrap_it(thrust::raw_pointer_cast(out_result.data()));
+    auto d_out_it = unwrap_it(cuda::std::to_address(out_result.data()));
     device_sum(d_in_it, d_out_it, num_items);
 
     // Verify result
@@ -167,7 +167,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", f
 
     // Run test
     c2h::device_vector<output_t> out_result(num_segments);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     device_min(unwrap_it(d_in_it), unwrap_it(d_out_it), num_items);
 
     // Verify result
@@ -182,7 +182,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", f
 
     // Run test
     c2h::device_vector<output_t> out_result(num_segments);
-    auto d_out_it = thrust::raw_pointer_cast(out_result.data());
+    auto d_out_it = cuda::std::to_address(out_result.data());
     device_max(unwrap_it(d_in_it), unwrap_it(d_out_it), num_items);
 
     // Verify result
@@ -199,7 +199,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", f
     // Run test
     using result_t = cuda::std::pair<cuda::std::int32_t, unwrap_value_t<output_t>>;
     c2h::device_vector<result_t> out_result(num_segments);
-    auto d_result_ptr   = thrust::raw_pointer_cast(out_result.data());
+    auto d_result_ptr   = cuda::std::to_address(out_result.data());
     auto d_index_out    = &d_result_ptr->first;
     auto d_extremum_out = &d_result_ptr->second;
     device_arg_max(unwrap_it(d_in_it), d_extremum_out, d_index_out, num_items);
@@ -220,7 +220,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", f
     // Run test
     using result_t = cuda::std::pair<cuda::std::int32_t, unwrap_value_t<output_t>>;
     c2h::device_vector<result_t> out_result(num_segments);
-    auto d_result_ptr   = thrust::raw_pointer_cast(out_result.data());
+    auto d_result_ptr   = cuda::std::to_address(out_result.data());
     auto d_index_out    = &d_result_ptr->first;
     auto d_extremum_out = &d_result_ptr->second;
     device_arg_min(unwrap_it(d_in_it), d_extremum_out, d_index_out, num_items);
@@ -241,7 +241,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", f
     // Run test using the deprecated interface
     using result_t = cub::KeyValuePair<int, unwrap_value_t<output_t>>;
     c2h::device_vector<result_t> out_result(num_segments);
-    device_arg_max_old(unwrap_it(d_in_it), thrust::raw_pointer_cast(out_result.data()), num_items);
+    device_arg_max_old(unwrap_it(d_in_it), cuda::std::to_address(out_result.data()), num_items);
 
     // Verify result for the deprecated interface
     result_t gpu_result = out_result[0];
@@ -259,7 +259,7 @@ C2H_TEST("Device reduce works with all device interfaces", "[reduce][device]", f
     // Run test using the deprecated interface
     using result_t = cub::KeyValuePair<int, unwrap_value_t<output_t>>;
     c2h::device_vector<result_t> out_result(num_segments);
-    device_arg_min_old(unwrap_it(d_in_it), thrust::raw_pointer_cast(out_result.data()), num_items);
+    device_arg_min_old(unwrap_it(d_in_it), cuda::std::to_address(out_result.data()), num_items);
 
     // Verify result for the deprecated interface
     result_t gpu_result = out_result[0];

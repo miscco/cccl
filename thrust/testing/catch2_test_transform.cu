@@ -712,7 +712,7 @@ TEMPLATE_LIST_TEST_CASE("WithIndirection", "[transform]", integral_vector_list)
   Vector table{0, 1, 2, 0, 1, 2};
 
   thrust::transform(
-    input1.begin(), input1.end(), input2.begin(), output.begin(), plus_mod3<T>{thrust::raw_pointer_cast(&table[0])});
+    input1.begin(), input1.end(), input2.begin(), output.begin(), plus_mod3<T>{cuda::std::to_address(&table[0])});
 
   Vector ref{2, 0, 1, 1, 1, 1, 1};
   CHECK(output == ref);

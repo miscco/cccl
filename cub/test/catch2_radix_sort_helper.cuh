@@ -177,7 +177,7 @@ template <class KeyT>
 c2h::host_vector<KeyT> get_striped_keys(const c2h::host_vector<KeyT>& h_keys, int begin_bit, int end_bit)
 {
   c2h::host_vector<KeyT> h_striped_keys(h_keys);
-  KeyT* h_striped_keys_data = thrust::raw_pointer_cast(h_striped_keys.data());
+  KeyT* h_striped_keys_data = cuda::std::to_address(h_striped_keys.data());
 
   using traits_t      = cub::Traits<KeyT>;
   using bit_ordered_t = typename traits_t::UnsignedBits;
@@ -255,8 +255,7 @@ c2h::host_vector<std::size_t> get_permutation(
   using traits_t      = cub::Traits<KeyT>;
   using bit_ordered_t = typename traits_t::UnsignedBits;
 
-  auto bit_ordered_striped_keys =
-    reinterpret_cast<const bit_ordered_t*>(thrust::raw_pointer_cast(h_striped_keys.data()));
+  auto bit_ordered_striped_keys = reinterpret_cast<const bit_ordered_t*>(cuda::std::to_address(h_striped_keys.data()));
 
   indirect_binary_comparator_t<bit_ordered_t> comp{bit_ordered_striped_keys, is_descending};
 

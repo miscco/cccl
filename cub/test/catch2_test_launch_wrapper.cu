@@ -111,8 +111,8 @@ C2H_TEST("Launch wrapper works with predefined invocables", "[test][utils]")
   c2h::device_vector<int> in(n, 21);
   c2h::device_vector<int> out(n);
 
-  int* d_in  = thrust::raw_pointer_cast(in.data());
-  int* d_out = thrust::raw_pointer_cast(out.data());
+  int* d_in  = cuda::std::to_address(in.data());
+  int* d_out = cuda::std::to_address(out.data());
 
   {
     x2_0(d_in, d_out, n);
@@ -169,8 +169,8 @@ C2H_TEST("Launch wrapper works with custom invocables", "[test][utils]")
   c2h::device_vector<int> in(n, 21);
   c2h::device_vector<int> out(n);
 
-  int* d_in  = thrust::raw_pointer_cast(in.data());
-  int* d_out = thrust::raw_pointer_cast(out.data());
+  int* d_in  = cuda::std::to_address(in.data());
+  int* d_out = cuda::std::to_address(out.data());
 
   {
     launch(custom_x2_0_invocable{}, d_in, d_out, n);

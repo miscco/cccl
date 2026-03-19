@@ -58,20 +58,20 @@ C2H_TEST("DeviceRadixSort::SortPairs: Basic testing", "[pairs][radix][sort][devi
   if (is_descending)
   {
     sort_pairs_descending(
-      thrust::raw_pointer_cast(in_keys.data()),
-      thrust::raw_pointer_cast(out_keys.data()),
-      thrust::raw_pointer_cast(in_values.data()),
-      thrust::raw_pointer_cast(out_values.data()),
+      cuda::std::to_address(in_keys.data()),
+      cuda::std::to_address(out_keys.data()),
+      cuda::std::to_address(in_values.data()),
+      cuda::std::to_address(out_values.data()),
       num_items,
       begin_bit<key_t>(),
       end_bit<key_t>());
   }
   else
   {
-    sort_pairs(thrust::raw_pointer_cast(in_keys.data()),
-               thrust::raw_pointer_cast(out_keys.data()),
-               thrust::raw_pointer_cast(in_values.data()),
-               thrust::raw_pointer_cast(out_values.data()),
+    sort_pairs(cuda::std::to_address(in_keys.data()),
+               cuda::std::to_address(out_keys.data()),
+               cuda::std::to_address(in_values.data()),
+               cuda::std::to_address(out_values.data()),
                num_items,
                begin_bit<key_t>(),
                end_bit<key_t>());
@@ -106,10 +106,9 @@ C2H_TEST("DeviceRadixSort::SortPairs: DoubleBuffer API", "[pairs][radix][sort][d
 
   const bool is_descending = GENERATE(false, true);
 
-  cub::DoubleBuffer<key_t> key_buffer(
-    thrust::raw_pointer_cast(in_keys.data()), thrust::raw_pointer_cast(out_keys.data()));
+  cub::DoubleBuffer<key_t> key_buffer(cuda::std::to_address(in_keys.data()), cuda::std::to_address(out_keys.data()));
   cub::DoubleBuffer<value_t> value_buffer(
-    thrust::raw_pointer_cast(in_values.data()), thrust::raw_pointer_cast(out_values.data()));
+    cuda::std::to_address(in_values.data()), cuda::std::to_address(out_values.data()));
 
   double_buffer_sort_t action(is_descending);
   action.initialize();

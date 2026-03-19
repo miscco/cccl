@@ -74,7 +74,7 @@ int main()
   thrust::device_vector<probe_key_type> actual(probe.size(), thrust::no_init);
 
   auto const transform_key_fn =
-    masked_key_fn<primitive_row_hasher>{primitive_row_hasher{thrust::raw_pointer_cast(probe.data())}};
+    masked_key_fn<primitive_row_hasher>{primitive_row_hasher{cuda::std::to_address(probe.data())}};
 
   auto stream = cudaStream_t{};
   auto status = cudaStreamCreate(&stream);
@@ -86,7 +86,7 @@ int main()
 
   auto const input = thrust::make_transform_iterator(thrust::make_counting_iterator(size_type{0}), transform_key_fn);
   status           = cub::DeviceTransform::Transform(
-    input, thrust::raw_pointer_cast(actual.data()), static_cast<int>(probe.size()), cuda::std::identity{}, stream);
+    input, cuda::std::to_address(actual.data()), static_cast<int>(probe.size()), cuda::std::identity{}, stream);
   if (status != cudaSuccess)
   {
     std::fprintf(stderr, "DeviceTransform: %s\n", cudaGetErrorString(status));

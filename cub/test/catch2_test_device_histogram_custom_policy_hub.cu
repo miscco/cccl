@@ -50,7 +50,7 @@ C2H_TEST("DispatchHistogram::DispatchEven: custom policy hub", "[histogram][devi
   c2h::device_vector<sample_t> d_samples = h_samples;
   c2h::device_vector<counter_t> d_histogram(num_bins, 0);
 
-  cuda::std::array<counter_t*, num_active_channels> d_histograms{thrust::raw_pointer_cast(d_histogram.data())};
+  cuda::std::array<counter_t*, num_active_channels> d_histograms{cuda::std::to_address(d_histogram.data())};
   cuda::std::array<int, num_active_channels> num_levels{num_output_levels};
   cuda::std::array<level_t, num_active_channels> lower_level{0};
   cuda::std::array<level_t, num_active_channels> upper_level{num_bins};
@@ -63,7 +63,7 @@ C2H_TEST("DispatchHistogram::DispatchEven: custom policy hub", "[histogram][devi
   dispatch_t::DispatchEven(
     nullptr,
     temp_size,
-    thrust::raw_pointer_cast(d_samples.data()),
+    cuda::std::to_address(d_samples.data()),
     d_histograms,
     num_levels,
     lower_level,
@@ -75,9 +75,9 @@ C2H_TEST("DispatchHistogram::DispatchEven: custom policy hub", "[histogram][devi
     cuda::std::true_type{});
   c2h::device_vector<std::uint8_t> temp_storage(temp_size, thrust::no_init);
   dispatch_t::DispatchEven(
-    thrust::raw_pointer_cast(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_size,
-    thrust::raw_pointer_cast(d_samples.data()),
+    cuda::std::to_address(d_samples.data()),
     d_histograms,
     num_levels,
     lower_level,

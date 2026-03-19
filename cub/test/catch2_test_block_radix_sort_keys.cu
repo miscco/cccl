@@ -69,8 +69,8 @@ bool binary_equal(
   using traits_t      = cub::Traits<T>;
   using bit_ordered_t = typename traits_t::UnsignedBits;
 
-  auto d_output_ptr    = reinterpret_cast<const bit_ordered_t*>(thrust::raw_pointer_cast(d_output.data()));
-  auto d_reference_ptr = reinterpret_cast<const bit_ordered_t*>(thrust::raw_pointer_cast(d_tmp.data()));
+  auto d_output_ptr    = reinterpret_cast<const bit_ordered_t*>(cuda::std::to_address(d_output.data()));
+  auto d_reference_ptr = reinterpret_cast<const bit_ordered_t*>(cuda::std::to_address(d_tmp.data()));
 
   return thrust::equal(c2h::device_policy, d_output_ptr, d_output_ptr + d_output.size(), d_reference_ptr);
 }
@@ -107,8 +107,8 @@ C2H_TEST("Block radix sort can sort keys",
                    params::algorithm,
                    params::shmem_config>(
     sort_op_t{},
-    thrust::raw_pointer_cast(d_input.data()),
-    thrust::raw_pointer_cast(d_output.data()),
+    cuda::std::to_address(d_input.data()),
+    cuda::std::to_address(d_output.data()),
     begin_bit,
     end_bit,
     striped);
@@ -151,8 +151,8 @@ C2H_TEST("Block radix sort can sort keys in descending order",
                    params::algorithm,
                    params::shmem_config>(
     descending_sort_op_t{},
-    thrust::raw_pointer_cast(d_input.data()),
-    thrust::raw_pointer_cast(d_output.data()),
+    cuda::std::to_address(d_input.data()),
+    cuda::std::to_address(d_output.data()),
     begin_bit,
     end_bit,
     striped);

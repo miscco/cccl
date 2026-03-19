@@ -52,7 +52,7 @@ void TestAdjacentDifferenceWithBigIndexesHelper(int magnitude)
   thrust::device_ptr<bool> all_differences_correct = thrust::device_malloc<bool>(1);
   *all_differences_correct                         = true;
 
-  detect_wrong_difference out = {thrust::raw_pointer_cast(all_differences_correct)};
+  detect_wrong_difference out = {cuda::std::to_address(all_differences_correct)};
 
   thrust::adjacent_difference(thrust::device, begin, end, out);
 

@@ -70,12 +70,12 @@ C2H_TEST("Device segmented reduce works with dynamic max segment sizes",
   c2h::device_vector<offset_t> segment_offsets =
     c2h::gen_uniform_offsets<offset_t>(C2H_SEED(1), num_items, seg_size_min, seg_size_max);
   const offset_t num_segments = static_cast<offset_t>(segment_offsets.size() - 1);
-  auto d_offsets_it           = thrust::raw_pointer_cast(segment_offsets.data());
+  auto d_offsets_it           = cuda::std::to_address(segment_offsets.data());
 
   // Generate input data
   c2h::device_vector<input_t> in_items(num_items);
   c2h::gen(C2H_SEED(2), in_items);
-  auto d_in_it = thrust::raw_pointer_cast(in_items.data());
+  auto d_in_it = cuda::std::to_address(in_items.data());
 
   // Prepare verification data
   c2h::host_vector<output_t> expected_result(num_segments);
@@ -83,7 +83,7 @@ C2H_TEST("Device segmented reduce works with dynamic max segment sizes",
 
   // Run test
   c2h::device_vector<output_t> out_result(num_segments);
-  auto d_out_it = unwrap_it(thrust::raw_pointer_cast(out_result.data()));
+  auto d_out_it = unwrap_it(cuda::std::to_address(out_result.data()));
 
   // Allocate temporary storage
   std::size_t temp_size{};
@@ -103,7 +103,7 @@ C2H_TEST("Device segmented reduce works with dynamic max segment sizes",
     cub::detail::segmented_reduce::policy_selector_from_types<accum_t, offset_t, op_t>{});
 
   c2h::device_vector<::cuda::std::uint8_t> temp(temp_size, thrust::no_init);
-  auto* temp_storage = thrust::raw_pointer_cast(temp.data());
+  auto* temp_storage = cuda::std::to_address(temp.data());
 
   cub::detail::segmented_reduce::dispatch<accum_t>(
     temp_storage,
