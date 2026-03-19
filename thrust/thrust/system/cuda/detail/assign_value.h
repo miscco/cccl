@@ -74,7 +74,7 @@ _CCCL_HOST_DEVICE void assign_value(execution_policy<DerivedPolicy>& exec, Point
                // on host, perform device -> device memcpy
                (HostPath{exec, dst, src}();),
                // on device, simply assign
-               *thrust::raw_pointer_cast(dst) = *thrust::raw_pointer_cast(src););
+               *::cuda::std::to_address(dst) = *::cuda::std::to_address(src););
 }
 
 namespace detail
@@ -108,7 +108,7 @@ _CCCL_HOST_DEVICE void assign_value(cross_system<System1, System2>& systems, Poi
   NV_IF_TARGET(NV_IS_HOST,
                (detail::cross_system_assign_host_path{}(
                   thrust::detail::derived_cast(systems.sys1), thrust::detail::derived_cast(systems.sys2), dst, src);),
-               (*thrust::raw_pointer_cast(dst) = *thrust::raw_pointer_cast(src);));
+               (*::cuda::std::to_address(dst) = *::cuda::std::to_address(src);));
 }
 } // namespace cuda_cub
 

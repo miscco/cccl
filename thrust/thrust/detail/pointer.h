@@ -24,6 +24,8 @@
 #include <thrust/iterator/iterator_adaptor.h>
 #include <thrust/iterator/iterator_traversal_tags.h>
 
+#include <cuda/std/__iterator/iter_move.h>
+#include <cuda/std/__iterator/iter_swap.h>
 #include <cuda/std/__memory/addressof.h>
 #include <cuda/std/__memory/pointer_traits.h>
 #include <cuda/std/__type_traits/enable_if.h>
@@ -387,6 +389,22 @@ public:
     !detail::ptr_can_compare_less_than<pointer, pointer<OtherElement, OtherTag, OtherReference, OtherDerived>>,
     bool>
   operator<=(pointer const& lhs, pointer<OtherElement, OtherTag, OtherReference, OtherDerived> const& rhs) = delete;
+
+  template <bool IsMovable                           = ::cuda::std::__can_iter_rvalue_reference_t<Element*>,
+            ::cuda::std::enable_if_t<IsMovable, int> = 0>
+  [[nodiscard]] _CCCL_API friend decltype(auto)
+  iter_move(const pointer& ptr) noexcept(noexcept(::cuda::std::ranges::iter_move(::cuda::std::declval<Element*>())))
+  {
+    return ::cuda::std::ranges::iter_move(ptr.get());
+  }
+
+  template <bool IsSwappable                           = ::cuda::std::indirectly_swappable<Element*, Element*>,
+            ::cuda::std::enable_if_t<IsSwappable, int> = 0>
+  _CCCL_API friend constexpr void
+  iter_swap(const pointer& lhs, const pointer& rhs) noexcept(::cuda::std::__noexcept_swappable<Element*, Element*>)
+  {
+    return ::cuda::std::ranges::iter_swap(lhs.get(), rhs.get());
+  }
 };
 
 /*! \} // memory_management

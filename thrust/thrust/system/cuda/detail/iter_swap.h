@@ -62,7 +62,7 @@ inline _CCCL_HOST_DEVICE void iter_swap(thrust::cuda::execution_policy<DerivedPo
   NV_IF_TARGET(NV_IS_HOST,
                (host_path{}(exec, a, b);),
                (using ::cuda::std::swap; //
-                swap(*thrust::raw_pointer_cast(a), *thrust::raw_pointer_cast(b));));
+                swap(*::cuda::std::to_address(a), *::cuda::std::to_address(b));));
 
 } // end iter_swap()
 } // namespace cuda_cub

@@ -141,13 +141,13 @@ struct raw_reference<tuple_of_iterator_references<Ts...>>
 template <typename T>
 _CCCL_HOST_DEVICE typename detail::raw_reference<T>::type raw_reference_cast(T& ref)
 {
-  return *thrust::raw_pointer_cast(&ref);
+  return *::cuda::std::to_address(&ref);
 }
 
 template <typename T>
 _CCCL_HOST_DEVICE typename detail::raw_reference<const T>::type raw_reference_cast(const T& ref)
 {
-  return *thrust::raw_pointer_cast(&ref);
+  return *::cuda::std::to_address(&ref);
 }
 
 template <typename T, ::cuda::std::enable_if_t<detail::is_proxy_reference_v<::cuda::std::remove_cv_t<T>>, int> = 0>

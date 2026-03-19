@@ -655,7 +655,7 @@ THRUST_RUNTIME_FUNCTION void reduce_n_into_impl(
 
   // Run reduction.
 
-  void* tmp_ptr = thrust::raw_pointer_cast(tmp.data());
+  void* tmp_ptr = ::cuda::std::to_address(tmp.data());
   THRUST_INDEX_TYPE_DISPATCH(
     status,
     cub::DeviceReduce::Reduce,

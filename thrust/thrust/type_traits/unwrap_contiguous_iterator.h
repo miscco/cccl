@@ -19,7 +19,7 @@ _CCCL_HOST_DEVICE auto unwrap_contiguous_iterator(ContiguousIterator it)
 {
   static_assert(thrust::is_contiguous_iterator_v<ContiguousIterator>,
                 "unwrap_contiguous_iterator called with non-contiguous iterator.");
-  return thrust::raw_pointer_cast(&*it);
+  return ::cuda::std::to_address(&*it);
 }
 
 //! Converts a contiguous iterator type to its underlying raw pointer type.

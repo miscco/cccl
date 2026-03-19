@@ -43,7 +43,7 @@ malloc(const thrust::detail::execution_policy_base<DerivedPolicy>& exec, std::si
 
   // XXX should use a hypothetical thrust::static_pointer_cast here
   void* raw_ptr = static_cast<void*>(
-    thrust::raw_pointer_cast(malloc(thrust::detail::derived_cast(thrust::detail::strip_const(exec)), n)));
+    ::cuda::std::to_address(malloc(thrust::detail::derived_cast(thrust::detail::strip_const(exec)), n)));
 
   return pointer<void, DerivedPolicy>(raw_ptr);
 }
@@ -56,7 +56,7 @@ malloc(const thrust::detail::execution_policy_base<DerivedPolicy>& exec, std::si
   using thrust::system::detail::generic::malloc;
 
   T* raw_ptr = static_cast<T*>(
-    thrust::raw_pointer_cast(malloc<T>(thrust::detail::derived_cast(thrust::detail::strip_const(exec)), n)));
+    ::cuda::std::to_address(malloc<T>(thrust::detail::derived_cast(thrust::detail::strip_const(exec)), n)));
 
   return pointer<T, DerivedPolicy>(raw_ptr);
 }

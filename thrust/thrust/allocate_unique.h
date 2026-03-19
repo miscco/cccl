@@ -71,7 +71,7 @@ struct allocator_delete final
     {
       if constexpr (!Uninitialized)
       {
-        traits::destroy(alloc_T, thrust::raw_pointer_cast(p));
+        traits::destroy(alloc_T, ::cuda::std::to_address(p));
       }
       traits::deallocate(alloc_T, p, 1);
     }
@@ -217,7 +217,7 @@ allocate_unique(Allocator const& alloc, Args&&... args)
   using hold_t      = std::unique_ptr<T, decltype(hold_deleter)>;
   auto hold         = hold_t(traits::allocate(alloc_T, 1), hold_deleter);
 
-  traits::construct(alloc_T, thrust::raw_pointer_cast(hold.get()), THRUST_FWD(args)...);
+  traits::construct(alloc_T, ::cuda::std::to_address(hold.get()), THRUST_FWD(args)...);
   auto deleter = allocator_delete<T, typename traits::allocator_type>(alloc);
   return std::unique_ptr<T, decltype(deleter)>(hold.release(), ::cuda::std::move(deleter));
 }

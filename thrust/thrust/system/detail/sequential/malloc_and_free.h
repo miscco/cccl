@@ -29,7 +29,7 @@ inline _CCCL_HOST_DEVICE void* malloc(execution_policy<DerivedPolicy>&, std::siz
 template <typename DerivedPolicy, typename Pointer>
 inline _CCCL_HOST_DEVICE void free(sequential::execution_policy<DerivedPolicy>&, Pointer ptr)
 {
-  ::cuda::std::free(thrust::raw_pointer_cast(ptr));
+  ::cuda::std::free(::cuda::std::to_address(ptr));
 }
 } // namespace system::detail::sequential
 THRUST_NAMESPACE_END

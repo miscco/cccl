@@ -44,7 +44,7 @@ _CCCL_HOST_DEVICE thrust::detail::it_value_t<Pointer> get_value(execution_policy
       return result;
     }
   };
-  NV_IF_TARGET(NV_IS_DEVICE, return *thrust::raw_pointer_cast(ptr);, (return HostPath{}(exec, ptr);))
+  NV_IF_TARGET(NV_IS_DEVICE, return *::cuda::std::to_address(ptr);, (return HostPath{}(exec, ptr);))
 }
 } // namespace cuda_cub
 THRUST_NAMESPACE_END

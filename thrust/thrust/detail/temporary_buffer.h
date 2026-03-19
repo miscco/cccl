@@ -44,7 +44,7 @@ down_cast_pair(Pair p)
 {
   // XXX should use a hypothetical thrust::static_pointer_cast here
   thrust::pointer<T, DerivedPolicy> ptr =
-    thrust::pointer<T, DerivedPolicy>(static_cast<T*>(thrust::raw_pointer_cast(p.first)));
+    thrust::pointer<T, DerivedPolicy>(static_cast<T*>(::cuda::std::to_address(p.first)));
 
   using result_type =
     ::cuda::std::pair<thrust::pointer<T, DerivedPolicy>, typename thrust::pointer<T, DerivedPolicy>::difference_type>;

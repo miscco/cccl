@@ -338,8 +338,8 @@ THRUST_RUNTIME_FUNCTION void smart_sort(
 
     __radix_sort::radix_sort<SORT_ITEMS>(
       policy,
-      thrust::raw_pointer_cast(&*keys.begin()),
-      thrust::raw_pointer_cast(&*values.begin()),
+      ::cuda::std::to_address(&*keys.begin()),
+      ::cuda::std::to_address(&*values.begin()),
       keys_last - keys_first,
       compare_op);
 
@@ -352,8 +352,8 @@ THRUST_RUNTIME_FUNCTION void smart_sort(
   {
     __radix_sort::radix_sort<SORT_ITEMS>(
       policy,
-      thrust::raw_pointer_cast(&*keys.begin()),
-      thrust::raw_pointer_cast(&*keys.begin()),
+      ::cuda::std::to_address(&*keys.begin()),
+      ::cuda::std::to_address(&*keys.begin()),
       keys_last - keys_first,
       compare_op);
   }
