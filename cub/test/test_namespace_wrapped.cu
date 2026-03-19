@@ -46,8 +46,8 @@ int main(int argc, char** argv)
   auto error = ::wrap_cub::cub::DeviceRadixSort::SortKeys(
     nullptr,
     temp_storage_bytes,
-    ::wrap_thrust::cuda::std::to_address(d_input.data()),
-    ::wrap_thrust::cuda::std::to_address(d_output.data()),
+    cuda::std::to_address(d_input.data()),
+    cuda::std::to_address(d_output.data()),
     static_cast<std::size_t>(n));
 
   CubDebugExit(error);
@@ -56,10 +56,10 @@ int main(int argc, char** argv)
 
   // Test the CUB qualifier macro:
   error = CUB_NS_QUALIFIER::DeviceRadixSort::SortKeys(
-    ::wrap_thrust::cuda::std::to_address(temp_storage.data()),
+    cuda::std::to_address(temp_storage.data()),
     temp_storage_bytes,
-    ::wrap_thrust::cuda::std::to_address(d_input.data()),
-    ::wrap_thrust::cuda::std::to_address(d_output.data()),
+    cuda::std::to_address(d_input.data()),
+    cuda::std::to_address(d_output.data()),
     static_cast<std::size_t>(n));
 
   CubDebugExit(error);
