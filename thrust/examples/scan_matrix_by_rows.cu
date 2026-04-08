@@ -1,5 +1,4 @@
 #include <thrust/device_vector.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/scan.h>
 #include <thrust/sequence.h>
 
@@ -48,11 +47,11 @@ __host__ void scan_matrix_by_rows1(thrust::device_vector<int>& u, int n, int m)
   // This `cuda::counting_iterator` represents the index of the element.
   cuda::counting_iterator<int> c_first(0);
 
-  // We construct a `thrust::transform_iterator` which applies the `which_row`
+  // We construct a `cuda::transform_iterator` which applies the `which_row`
   // function object to the index of each element.
-  thrust::transform_iterator<which_row, cuda::counting_iterator<int>> t_first(c_first, which_row(m));
+  cuda::transform_iterator<which_row, cuda::counting_iterator<int>> t_first(c_first, which_row(m));
 
-  // Finally, we use our `thrust::transform_iterator` as the key sequence to
+  // Finally, we use our `cuda::transform_iterator` as the key sequence to
   // `thrust::inclusive_scan_by_key`.
   thrust::inclusive_scan_by_key(t_first, t_first + n * m, u.begin(), u.begin());
 }

@@ -27,8 +27,6 @@
 #include <cub/iterator/arg_index_input_iterator.cuh>
 #include <cub/util_type.cuh>
 
-#include <thrust/iterator/transform_iterator.h>
-
 #include <cuda/__execution/determinism.h>
 #include <cuda/__execution/require.h>
 #include <cuda/__execution/tune.h>
@@ -39,6 +37,7 @@
 #include <cuda/__memory_resource/get_memory_resource.h>
 #include <cuda/__stream/get_stream.h>
 #include <cuda/__stream/stream_ref.h>
+#include <cuda/iterator>
 #include <cuda/std/__execution/env.h>
 #include <cuda/std/__functional/operations.h>
 #include <cuda/std/__iterator/iterator_traits.h>

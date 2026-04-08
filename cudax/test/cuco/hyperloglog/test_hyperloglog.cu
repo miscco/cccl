@@ -173,7 +173,7 @@ C2H_TEST("HyperLogLog Spark parity deterministic", "[hyperloglog]")
   REQUIRE(estimator_type::sketch_bytes(sd) == expected_sketch_bytes);
   REQUIRE(estimator_type::sketch_bytes(sd) == estimator_type::sketch_bytes(sb));
 
-  auto items_begin = thrust::make_transform_iterator(
+  auto items_begin = cuda::make_transform_iterator(
     cuda::make_counting_iterator<std::size_t>(0), cuda::proclaim_return_type<T>([repeats] __device__(auto i) {
       return static_cast<T>(i / repeats);
     }));

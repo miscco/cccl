@@ -1,7 +1,8 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/logical.h>
+
+#include <cuda/iterator>
 
 #include <unittest/unittest.h>
 

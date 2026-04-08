@@ -409,7 +409,7 @@ void TestUniqueWithMagnitude(int magnitude)
   unique_out.resize(expected_num_unique);
 
   // Ensure selected items are correct
-  auto expected_out_it     = thrust::make_transform_iterator(begin, multiply_n<offset_t>{run_length_of_equal_items});
+  auto expected_out_it     = cuda::make_transform_iterator(begin, multiply_n<offset_t>{run_length_of_equal_items});
   bool all_results_correct = thrust::equal(unique_out.begin(), unique_out.end(), expected_out_it);
   ASSERT_EQUAL(all_results_correct, true);
 }

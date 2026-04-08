@@ -1,6 +1,5 @@
 #include <thrust/functional.h>
 #include <thrust/iterator/permutation_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/sort.h>
 
 #include <cuda/iterator>
@@ -28,7 +27,7 @@ public:
   };
 
   using CountingIterator    = typename cuda::counting_iterator<difference_type>;
-  using TransformIterator   = typename thrust::transform_iterator<stride_functor, CountingIterator>;
+  using TransformIterator   = typename cuda::transform_iterator<stride_functor, CountingIterator>;
   using PermutationIterator = typename thrust::permutation_iterator<Iterator, TransformIterator>;
 
   // type of the strided_range iterator

@@ -14,11 +14,11 @@
 #endif // no system header
 
 #if _CCCL_CUDA_COMPILATION()
-#  include <thrust/iterator/transform_iterator.h>
 #  include <thrust/iterator/zip_iterator.h>
 #  include <thrust/system/cuda/detail/reduce.h>
 #  include <thrust/zip_function.h>
 
+#  include <cuda/__iterator/transform_iterator.h>
 #  include <cuda/std/__functional/operations.h>
 #  include <cuda/std/__iterator/distance.h>
 
@@ -38,7 +38,7 @@ T _CCCL_HOST_DEVICE inner_product(
 {
   const auto n = ::cuda::std::distance(first1, last1);
   const auto first =
-    thrust::make_transform_iterator(thrust::make_zip_iterator(first1, first2), thrust::make_zip_function(product_op));
+    ::cuda::make_transform_iterator(thrust::make_zip_iterator(first1, first2), thrust::make_zip_function(product_op));
   return cuda_cub::reduce_n(policy, first, n, init, reduce_op);
 }
 

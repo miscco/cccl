@@ -69,7 +69,7 @@ THRUST_NAMESPACE_BEGIN
 //!   thrust::device_vector<int> data{1, 2, 3, 4};
 //!
 //!   thrust::device_vector<ptrdiff> offsets{1}; // offset is only available on device
-//!   auto offset = thrust::make_transform_iterator(offsets.begin(), _1 * 2);
+//!   auto offset = cuda::make_transform_iterator(offsets.begin(), _1 * 2);
 //!   thrust::offset_iterator iter(data.begin(), offset); // load and transform offset upon access
 //!   // iter is at position 2 (= 1 * 2) in data, and would return 3 in device code
 //!

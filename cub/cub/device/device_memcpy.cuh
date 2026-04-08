@@ -79,16 +79,16 @@ struct DeviceMemcpy
   //!    d_gather_index);
   //!
   //!    // Returns pointers to the input buffer for each string
-  //!    auto str_ptrs_in = thrust::make_transform_iterator(gather_iterator,
+  //!    auto str_ptrs_in = cuda::make_transform_iterator(gather_iterator,
   //!                                                       GetPtrToStringItem{d_string_data_in,
   //!    d_string_offsets_old});
   //!
   //!    // Returns the string size of the i-th string
-  //!    auto str_sizes = thrust::make_transform_iterator(gather_iterator,
+  //!    auto str_sizes = cuda::make_transform_iterator(gather_iterator,
   //!    GetStringItemSize{d_string_offsets_old});
   //!
   //!    // Returns pointers to the output buffer for each string
-  //!    auto str_ptrs_out = thrust::make_transform_iterator(cuda::make_counting_iterator(0),
+  //!    auto str_ptrs_out = cuda::make_transform_iterator(cuda::make_counting_iterator(0),
   //!                                                        GetPtrToStringItem{d_string_data_out,
   //!    d_string_offsets_new});
   //!

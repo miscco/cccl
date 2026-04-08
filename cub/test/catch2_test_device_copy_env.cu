@@ -10,7 +10,6 @@ struct stream_registry_factory_t;
 #include <cub/device/device_copy.cuh>
 
 #include <thrust/device_vector.h>
-#include <thrust/iterator/transform_iterator.h>
 
 #include <cuda/iterator>
 
@@ -58,11 +57,11 @@ TEST_CASE("DeviceCopy::Batched works with default environment", "[copy][device]"
   int num_ranges = 3;
 
   cuda::counting_iterator<int> iota(0);
-  auto input_it = thrust::make_transform_iterator(
+  auto input_it = cuda::make_transform_iterator(
     iota, index_to_ptr<const int>{thrust::raw_pointer_cast(d_src.data()), thrust::raw_pointer_cast(d_offsets.data())});
-  auto output_it = thrust::make_transform_iterator(
+  auto output_it = cuda::make_transform_iterator(
     iota, index_to_ptr<int>{thrust::raw_pointer_cast(d_dst.data()), thrust::raw_pointer_cast(d_offsets.data())});
-  auto sizes = thrust::make_transform_iterator(iota, get_size{thrust::raw_pointer_cast(d_offsets.data())});
+  auto sizes = cuda::make_transform_iterator(iota, get_size{thrust::raw_pointer_cast(d_offsets.data())});
 
   REQUIRE(cudaSuccess == cub::DeviceCopy::Batched(input_it, output_it, sizes, num_ranges));
 
@@ -81,11 +80,11 @@ C2H_TEST("DeviceCopy::Batched uses environment", "[copy][device]")
   int num_ranges = 3;
 
   cuda::counting_iterator<int> iota(0);
-  auto input_it = thrust::make_transform_iterator(
+  auto input_it = cuda::make_transform_iterator(
     iota, index_to_ptr<const int>{thrust::raw_pointer_cast(d_src.data()), thrust::raw_pointer_cast(d_offsets.data())});
-  auto output_it = thrust::make_transform_iterator(
+  auto output_it = cuda::make_transform_iterator(
     iota, index_to_ptr<int>{thrust::raw_pointer_cast(d_dst.data()), thrust::raw_pointer_cast(d_offsets.data())});
-  auto sizes = thrust::make_transform_iterator(iota, get_size{thrust::raw_pointer_cast(d_offsets.data())});
+  auto sizes = cuda::make_transform_iterator(iota, get_size{thrust::raw_pointer_cast(d_offsets.data())});
 
   size_t expected_bytes_allocated{};
   REQUIRE(
@@ -108,11 +107,11 @@ TEST_CASE("DeviceCopy::Batched uses custom stream", "[copy][device]")
   int num_ranges = 3;
 
   cuda::counting_iterator<int> iota(0);
-  auto input_it = thrust::make_transform_iterator(
+  auto input_it = cuda::make_transform_iterator(
     iota, index_to_ptr<const int>{thrust::raw_pointer_cast(d_src.data()), thrust::raw_pointer_cast(d_offsets.data())});
-  auto output_it = thrust::make_transform_iterator(
+  auto output_it = cuda::make_transform_iterator(
     iota, index_to_ptr<int>{thrust::raw_pointer_cast(d_dst.data()), thrust::raw_pointer_cast(d_offsets.data())});
-  auto sizes = thrust::make_transform_iterator(iota, get_size{thrust::raw_pointer_cast(d_offsets.data())});
+  auto sizes = cuda::make_transform_iterator(iota, get_size{thrust::raw_pointer_cast(d_offsets.data())});
 
   cudaStream_t custom_stream;
   REQUIRE(cudaSuccess == cudaStreamCreate(&custom_stream));

@@ -161,8 +161,8 @@ public:
 //!   thrust::device_vector<float> v{1.0f, 2.0f, 3.0f, 4.0f};
 //!
 //!   float sum_of_squares =
-//!    thrust::reduce(thrust::make_transform_iterator(v.begin(), square()),
-//!                   thrust::make_transform_iterator(v.end(),   square()));
+//!    thrust::reduce(cuda::make_transform_iterator(v.begin(), square()),
+//!                   cuda::make_transform_iterator(v.end(),   square()));
 //!
 //!   std::cout << "sum of squares: " << sum_of_squares << std::endl;
 //!   return 0;

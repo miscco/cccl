@@ -186,17 +186,16 @@ int main()
   thrust::device_vector<float> Y(y, y + 4);
   thrust::device_vector<float> Z(z, z + 4);
 
-  saxpy(
-    2.0,
+  saxpy(2.0,
 
-    // make a range view of a pair of transform_iterators
-    make_range_view(thrust::make_transform_iterator(X.cbegin(), f1()), thrust::make_transform_iterator(X.cend(), f1())),
+        // make a range view of a pair of transform_iterators
+        make_range_view(cuda::make_transform_iterator(X.cbegin(), f1()), cuda::make_transform_iterator(X.cend(), f1())),
 
-    // range view of normal_iterators
-    make_range_view(Y.begin(), cuda::std::distance(Y.begin(), Y.end())),
+        // range view of normal_iterators
+        make_range_view(Y.begin(), cuda::std::distance(Y.begin(), Y.end())),
 
-    // range view of naked pointers
-    make_range_view(Z.data().get(), 4));
+        // range view of naked pointers
+        make_range_view(Z.data().get(), 4));
 
   // print values from original device_vector<float> Z
   // to ensure that range view was mapped to this vector

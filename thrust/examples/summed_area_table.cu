@@ -2,7 +2,6 @@
 #include <thrust/functional.h>
 #include <thrust/gather.h>
 #include <thrust/host_vector.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/scan.h>
 
 #include <cuda/iterator>
@@ -53,8 +52,8 @@ void transpose(size_t m, size_t n, thrust::device_vector<T>& src, thrust::device
 {
   cuda::counting_iterator<size_t> indices(0);
 
-  thrust::gather(thrust::make_transform_iterator(indices, transpose_index(n, m)),
-                 thrust::make_transform_iterator(indices, transpose_index(n, m)) + dst.size(),
+  thrust::gather(cuda::make_transform_iterator(indices, transpose_index(n, m)),
+                 cuda::make_transform_iterator(indices, transpose_index(n, m)) + dst.size(),
                  src.begin(),
                  dst.begin());
 }
@@ -66,8 +65,8 @@ void scan_horizontally(size_t n, thrust::device_vector<T>& d_data)
   cuda::counting_iterator<size_t> indices(0);
 
   thrust::inclusive_scan_by_key(
-    thrust::make_transform_iterator(indices, row_index(n)),
-    thrust::make_transform_iterator(indices, row_index(n)) + d_data.size(),
+    cuda::make_transform_iterator(indices, row_index(n)),
+    cuda::make_transform_iterator(indices, row_index(n)) + d_data.size(),
     d_data.begin(),
     d_data.begin());
 }

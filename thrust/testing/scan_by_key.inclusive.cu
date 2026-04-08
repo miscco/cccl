@@ -1,9 +1,10 @@
 #include <thrust/functional.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/retag.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/random.h>
 #include <thrust/scan.h>
+
+#include <cuda/iterator>
 
 #include <unittest/unittest.h>
 
@@ -114,7 +115,7 @@ void TestInclusiveScanByKeyTransformIterator()
   Vector output(7, 0);
 
   thrust::inclusive_scan_by_key(
-    keys.begin(), keys.end(), thrust::make_transform_iterator(vals.begin(), ::cuda::std::negate<T>()), output.begin());
+    keys.begin(), keys.end(), cuda::make_transform_iterator(vals.begin(), ::cuda::std::negate<T>()), output.begin());
 
   Vector ref{-1, -2, -5, -9, -5, -6, -13};
   ASSERT_EQUAL(output, ref);

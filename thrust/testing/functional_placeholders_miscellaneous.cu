@@ -63,8 +63,8 @@ struct TestFunctionalPlaceholdersTransformIterator
 
     using namespace thrust::placeholders;
     thrust::transform(
-      thrust::make_transform_iterator(x.begin(), a * _1),
-      thrust::make_transform_iterator(x.end(), a * _1),
+      cuda::make_transform_iterator(x.begin(), a * _1),
+      cuda::make_transform_iterator(x.end(), a * _1),
       y.begin(),
       result.begin(),
       _1 + _2);

@@ -15,11 +15,11 @@
 
 #include <thrust/detail/internal_functional.h>
 #include <thrust/find.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 
 #include <cuda/__iterator/counting_iterator.h>
+#include <cuda/__iterator/transform_iterator.h>
 #include <cuda/std/__algorithm/min.h>
 #include <cuda/std/tuple>
 
@@ -81,7 +81,7 @@ find_if(thrust::execution_policy<DerivedPolicy>& exec, InputIterator first, Inpu
   const difference_type interval_size      = (::cuda::std::min) (interval_threshold, n);
 
   // force transform_iterator output to bool
-  using XfrmIterator  = thrust::transform_iterator<Predicate, InputIterator, bool>;
+  using XfrmIterator  = ::cuda::transform_iterator<Predicate, InputIterator>;
   using IteratorTuple = ::cuda::std::tuple<XfrmIterator, ::cuda::counting_iterator<difference_type>>;
   using ZipIterator   = thrust::zip_iterator<IteratorTuple>;
 

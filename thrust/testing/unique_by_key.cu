@@ -407,7 +407,7 @@ struct TestUniqueCopyByKeyLargeInput
     thrust::host_vector<type> reference_keys{static_cast<type>(0), static_cast<type>(1), static_cast<type>(0)};
     thrust::host_vector<index_type> reference_values{0, 4300000000ULL, 4300000001ULL};
 
-    auto keys_in   = thrust::make_transform_iterator(cuda::make_counting_iterator(0ULL), index_to_value_t<type>{});
+    auto keys_in   = cuda::make_transform_iterator(cuda::make_counting_iterator(0ULL), index_to_value_t<type>{});
     auto values_in = cuda::make_counting_iterator(0ULL);
     thrust::device_vector<type> keys_out(reference_keys.size());
     thrust::device_vector<index_type> values_out(reference_values.size());

@@ -1,7 +1,6 @@
 #include <thrust/execution_policy.h>
 #include <thrust/for_each.h>
 #include <thrust/iterator/discard_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/random.h>
 #include <thrust/reduce.h>
 #include <thrust/tabulate.h>
@@ -36,14 +35,14 @@ int main()
   });
 
   // Create a range to the column index of each element.
-  auto col_idx_begin = thrust::make_transform_iterator(flat_idx, [=] __host__ __device__(int flat) {
+  auto col_idx_begin = cuda::make_transform_iterator(flat_idx, [=] __host__ __device__(int flat) {
     return flat / rows;
   });
   auto col_idx_end   = col_idx_begin + M.size();
 
   // Create a transposed view of the multidimensional array.
   auto M_transposed = thrust::make_permutation_iterator(
-    M.data_handle(), thrust::make_transform_iterator(cuda::counting_iterator(0), [=] __host__ __device__(int flat) {
+    M.data_handle(), cuda::make_transform_iterator(cuda::counting_iterator(0), [=] __host__ __device__(int flat) {
       int i = flat / cols;
       int j = flat % cols;
       return i + j * rows;

@@ -16,11 +16,11 @@
 #if _CCCL_CUDA_COMPILATION()
 #  include <thrust/system/cuda/config.h>
 
-#  include <thrust/iterator/transform_iterator.h>
 #  include <thrust/system/cuda/detail/reduce.h>
 #  include <thrust/system/cuda/detail/util.h>
 
 #  include <cuda/__functional/equal_to_value.h>
+#  include <cuda/__iterator/transform_iterator.h>
 #  include <cuda/std/__functional/operations.h>
 #  include <cuda/std/__iterator/distance.h>
 
@@ -32,7 +32,7 @@ thrust::detail::it_difference_t<InputIt> _CCCL_HOST_DEVICE
 count_if(execution_policy<Derived>& policy, InputIt first, InputIt last, UnaryPred unary_pred)
 {
   using size_type       = thrust::detail::it_difference_t<InputIt>;
-  using flag_iterator_t = transform_iterator<UnaryPred, InputIt, size_type, size_type>;
+  using flag_iterator_t = ::cuda::transform_iterator<UnaryPred, InputIt>;
 
   return cuda_cub::reduce_n(
     policy,

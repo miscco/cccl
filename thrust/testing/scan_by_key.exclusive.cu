@@ -1,9 +1,10 @@
 #include <thrust/functional.h>
 #include <thrust/iterator/discard_iterator.h>
 #include <thrust/iterator/retag.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/random.h>
 #include <thrust/scan.h>
+
+#include <cuda/iterator>
 
 #include <unittest/unittest.h>
 

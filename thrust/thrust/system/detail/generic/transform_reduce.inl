@@ -12,9 +12,10 @@
 #elif defined(_CCCL_IMPLICIT_SYSTEM_HEADER_MSVC)
 #  pragma system_header
 #endif // no system header
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/system/detail/generic/transform_reduce.h>
+
+#include <cuda/__iterator/transform_iterator.h>
 
 THRUST_NAMESPACE_BEGIN
 namespace system::detail::generic
@@ -32,8 +33,8 @@ _CCCL_HOST_DEVICE OutputType transform_reduce(
   OutputType init,
   BinaryFunction binary_op)
 {
-  thrust::transform_iterator<UnaryFunction, InputIterator, OutputType> xfrm_first(first, unary_op);
-  thrust::transform_iterator<UnaryFunction, InputIterator, OutputType> xfrm_last(last, unary_op);
+  ::cuda::transform_iterator<UnaryFunction, InputIterator> xfrm_first(first, unary_op);
+  ::cuda::transform_iterator<UnaryFunction, InputIterator> xfrm_last(last, unary_op);
 
   return thrust::reduce(exec, xfrm_first, xfrm_last, init, binary_op);
 } // end transform_reduce()

@@ -85,7 +85,7 @@ void fixed_size_segmented_reduce(nvbench::state& state, nvbench::type_list<T>)
   state.add_global_memory_reads<T>(elements, "Size");
   state.add_global_memory_writes<output_t>(num_segments);
 
-  [[maybe_unused]] auto d_indexed_in = thrust::make_transform_iterator(
+  [[maybe_unused]] auto d_indexed_in = cuda::make_transform_iterator(
     cuda::counting_iterator<cuda::std::int64_t>{0},
     cub::detail::reduce::generate_idx_value<input_it_t, T>(d_in, segment_size));
   using arg_index_input_iterator_t = decltype(d_indexed_in);

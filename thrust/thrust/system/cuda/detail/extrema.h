@@ -21,11 +21,11 @@
 
 #  include <thrust/detail/temporary_array.h>
 #  include <thrust/extrema.h>
-#  include <thrust/iterator/transform_iterator.h>
 #  include <thrust/system/cuda/detail/cdp_dispatch.h>
 #  include <thrust/system/cuda/detail/reduce.h>
 
 #  include <cuda/__iterator/counting_iterator.h>
+#  include <cuda/__iterator/transform_iterator.h>
 #  include <cuda/std/__functional/operations.h>
 #  include <cuda/std/__iterator/distance.h>
 #  include <cuda/std/__utility/pair.h>
@@ -428,7 +428,7 @@ minmax_element(execution_policy<Derived>& policy, ItemsIt first, ItemsIt last, B
      using arg_minmax_t   = __extrema::arg_minmax_f<InputType, IndexType, BinaryPred>;
      using two_pairs_type = typename arg_minmax_t::two_pairs_type;
      using duplicate_t    = typename arg_minmax_t::duplicate_tuple;
-     using transform_t    = thrust::transform_iterator<duplicate_t, zip_iterator, two_pairs_type, two_pairs_type>;
+     using transform_t    = ::cuda::transform_iterator<duplicate_t, zip_iterator>;
 
      zip_iterator begin    = thrust::make_zip_iterator(iter_tuple);
      two_pairs_type result = __extrema::extrema(

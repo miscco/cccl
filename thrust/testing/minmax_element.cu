@@ -24,12 +24,12 @@ void TestMinMaxElementWithTransform()
 
   Vector data{3, 5, 1, 2, 5, 1};
 
-  ASSERT_EQUAL(*thrust::minmax_element(thrust::make_transform_iterator(data.begin(), ::cuda::std::negate<T>()),
-                                       thrust::make_transform_iterator(data.end(), ::cuda::std::negate<T>()))
+  ASSERT_EQUAL(*thrust::minmax_element(cuda::make_transform_iterator(data.begin(), ::cuda::std::negate<T>()),
+                                       cuda::make_transform_iterator(data.end(), ::cuda::std::negate<T>()))
                   .first,
                -5);
-  ASSERT_EQUAL(*thrust::minmax_element(thrust::make_transform_iterator(data.begin(), ::cuda::std::negate<T>()),
-                                       thrust::make_transform_iterator(data.end(), ::cuda::std::negate<T>()))
+  ASSERT_EQUAL(*thrust::minmax_element(cuda::make_transform_iterator(data.begin(), ::cuda::std::negate<T>()),
+                                       cuda::make_transform_iterator(data.end(), ::cuda::std::negate<T>()))
                   .second,
                -1);
 }

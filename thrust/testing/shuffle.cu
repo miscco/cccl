@@ -150,7 +150,7 @@ void TestFunctionIsBijectionBase(size_t m)
   }
   ASSERT_LEQUAL(total_length, (std::max) (m * 2, size_t(256))); // Check the rounded up size is at most double the input
 
-  auto device_result_it = thrust::make_transform_iterator(cuda::make_counting_iterator(T(0)), device_f);
+  auto device_result_it = cuda::make_transform_iterator(cuda::make_counting_iterator(T(0)), device_f);
 
   thrust::device_vector<T> unpermuted(total_length, T(0));
 

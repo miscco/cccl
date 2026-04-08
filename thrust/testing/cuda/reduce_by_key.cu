@@ -1,7 +1,6 @@
 #include <thrust/device_vector.h>
 #include <thrust/equal.h>
 #include <thrust/execution_policy.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/reduce.h>
 
 #include <cuda/iterator>
@@ -439,8 +438,8 @@ void TestReduceByKeyWithBigIndexesHelper(int magnitude)
   const std::int64_t key_size = num_items / num_unique_keys;
 
   using counting_it      = cuda::counting_iterator<std::int64_t>;
-  using transform_key_it = thrust::transform_iterator<div_op, counting_it>;
-  using transform_val_it = thrust::transform_iterator<mod_op, counting_it>;
+  using transform_key_it = cuda::transform_iterator<div_op, counting_it>;
+  using transform_val_it = cuda::transform_iterator<mod_op, counting_it>;
 
   counting_it count_begin(0ll);
   counting_it count_end = count_begin + num_items;

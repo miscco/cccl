@@ -30,7 +30,7 @@ struct TestTransformOutputIteratorReduceByKey
       thrust::host,
       h_keys.begin(),
       h_keys.end(),
-      thrust::make_transform_iterator(h_values.begin(), ::cuda::std::negate<T>()),
+      cuda::make_transform_iterator(h_values.begin(), ::cuda::std::negate<T>()),
       thrust::discard_iterator<T>{},
       h_result.begin());
     // run on device

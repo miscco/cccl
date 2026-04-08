@@ -2,7 +2,6 @@
 
 #include <thrust/device_vector.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 
 #include <cuda/iterator>
@@ -89,7 +88,7 @@ struct thrust_make_transform_iterator
   template <typename... Args>
   auto operator()(Args&&... args) const
   {
-    return thrust::make_transform_iterator(cuda::std::forward<Args>(args)...);
+    return cuda::make_transform_iterator(cuda::std::forward<Args>(args)...);
   }
 };
 

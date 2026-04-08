@@ -1,6 +1,5 @@
 #include <thrust/copy.h>
 #include <thrust/execution_policy.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/sequence.h>
 
 #include <cuda/iterator>
@@ -313,7 +312,7 @@ void TestCopyIfWithMagnitude(int magnitude)
   copied_out.resize(expected_num_copied);
 
   // Ensure selected items are correct
-  auto expected_out_it     = thrust::make_transform_iterator(begin, multiply_n<offset_t>{match_every_nth});
+  auto expected_out_it     = cuda::make_transform_iterator(begin, multiply_n<offset_t>{match_every_nth});
   bool all_results_correct = thrust::equal(copied_out.begin(), copied_out.end(), expected_out_it);
   ASSERT_EQUAL(all_results_correct, true);
 }
@@ -350,7 +349,7 @@ void TestCopyIfStencilWithMagnitude(int magnitude)
   copied_out.resize(expected_num_copied);
 
   // Ensure selected items are correct
-  auto expected_out_it     = thrust::make_transform_iterator(begin, multiply_n<offset_t>{match_every_nth});
+  auto expected_out_it     = cuda::make_transform_iterator(begin, multiply_n<offset_t>{match_every_nth});
   bool all_results_correct = thrust::equal(copied_out.begin(), copied_out.end(), expected_out_it);
   ASSERT_EQUAL(all_results_correct, true);
 }

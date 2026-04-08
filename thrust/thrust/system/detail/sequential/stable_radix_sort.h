@@ -17,11 +17,11 @@
 #include <thrust/detail/temporary_array.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/scatter.h>
 #include <thrust/system/detail/sequential/execution_policy.h>
 
+#include <cuda/__iterator/transform_iterator.h>
 #include <cuda/std/__utility/declval.h>
 #include <cuda/std/cstdint>
 #include <cuda/std/limits>
@@ -182,7 +182,7 @@ inline _CCCL_HOST_DEVICE void radix_shuffle_n(
     exec,
     first,
     first + n,
-    thrust::make_transform_iterator(first, bucket_functor<RadixBits, KeyType>(bit_shift, histogram)),
+    ::cuda::make_transform_iterator(first, bucket_functor<RadixBits, KeyType>(bit_shift, histogram)),
     result);
 }
 
@@ -210,7 +210,7 @@ _CCCL_HOST_DEVICE void radix_shuffle_n(
     exec,
     thrust::make_zip_iterator(keys_first, values_first),
     thrust::make_zip_iterator(keys_first + n, values_first + n),
-    thrust::make_transform_iterator(keys_first, bucket_functor<RadixBits, KeyType>(bit_shift, histogram)),
+    ::cuda::make_transform_iterator(keys_first, bucket_functor<RadixBits, KeyType>(bit_shift, histogram)),
     thrust::make_zip_iterator(keys_result, values_result));
 }
 

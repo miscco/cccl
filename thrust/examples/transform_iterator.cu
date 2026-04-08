@@ -1,6 +1,5 @@
 #include <thrust/device_vector.h>
 #include <thrust/functional.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/reduce.h>
 
 #include <cuda/iterator>
@@ -81,10 +80,10 @@ int main()
   print_range("values         ", values.begin(), values.end());
 
   // define some more types
-  using ClampedVectorIterator = thrust::transform_iterator<clamp<int>, VectorIterator>;
+  using ClampedVectorIterator = cuda::transform_iterator<clamp<int>, VectorIterator>;
 
   // create a transform_iterator that applies clamp() to the values array
-  ClampedVectorIterator cv_begin = thrust::make_transform_iterator(values.begin(), clamp<int>(lo, hi));
+  ClampedVectorIterator cv_begin = cuda::make_transform_iterator(values.begin(), clamp<int>(lo, hi));
   ClampedVectorIterator cv_end   = cv_begin + values.size();
 
   // now [clamped_begin, clamped_end) defines a sequence of clamped values
@@ -97,30 +96,30 @@ int main()
   ////
   // combine transform_iterator with other fancy iterators like counting_iterator
   using CountingIterator        = cuda::counting_iterator<int>;
-  using ClampedCountingIterator = thrust::transform_iterator<clamp<int>, CountingIterator>;
+  using ClampedCountingIterator = cuda::transform_iterator<clamp<int>, CountingIterator>;
 
   CountingIterator count_begin(0);
   CountingIterator count_end(10);
 
   print_range("sequence         ", count_begin, count_end);
 
-  ClampedCountingIterator cs_begin = thrust::make_transform_iterator(count_begin, clamp<int>(lo, hi));
-  ClampedCountingIterator cs_end   = thrust::make_transform_iterator(count_end, clamp<int>(lo, hi));
+  ClampedCountingIterator cs_begin = cuda::make_transform_iterator(count_begin, clamp<int>(lo, hi));
+  ClampedCountingIterator cs_end   = cuda::make_transform_iterator(count_end, clamp<int>(lo, hi));
 
   print_range("clamped sequence ", cs_begin, cs_end);
 
   ////
   // combine transform_iterator with another transform_iterator
-  using NegatedClampedCountingIterator = thrust::transform_iterator<cuda::std::negate<int>, ClampedCountingIterator>;
+  using NegatedClampedCountingIterator = cuda::transform_iterator<cuda::std::negate<int>, ClampedCountingIterator>;
 
-  NegatedClampedCountingIterator ncs_begin = thrust::make_transform_iterator(cs_begin, cuda::std::negate<int>());
-  NegatedClampedCountingIterator ncs_end   = thrust::make_transform_iterator(cs_end, cuda::std::negate<int>());
+  NegatedClampedCountingIterator ncs_begin = cuda::make_transform_iterator(cs_begin, cuda::std::negate<int>());
+  NegatedClampedCountingIterator ncs_end   = cuda::make_transform_iterator(cs_end, cuda::std::negate<int>());
 
   print_range("negated sequence ", ncs_begin, ncs_end);
 
   ////
   // when a functor does not define result_type, a third template argument must be provided
-  using NegatedVectorIterator = thrust::transform_iterator<simple_negate<int>, VectorIterator, int>;
+  using NegatedVectorIterator = cuda::transform_iterator<simple_negate<int>, VectorIterator, int>;
 
   NegatedVectorIterator nv_begin(values.begin(), simple_negate<int>());
   NegatedVectorIterator nv_end(values.end(), simple_negate<int>());

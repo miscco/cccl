@@ -1,7 +1,6 @@
 #include <thrust/extrema.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/retag.h>
-#include <thrust/iterator/transform_iterator.h>
 
 #include <cuda/iterator>
 
@@ -29,11 +28,11 @@ void TestMaxElementWithTransform()
 
   Vector data{3, 5, 1, 2, 5, 1};
 
-  ASSERT_EQUAL(*thrust::max_element(thrust::make_transform_iterator(data.begin(), ::cuda::std::negate<T>()),
-                                    thrust::make_transform_iterator(data.end(), ::cuda::std::negate<T>())),
+  ASSERT_EQUAL(*thrust::max_element(cuda::make_transform_iterator(data.begin(), ::cuda::std::negate<T>()),
+                                    cuda::make_transform_iterator(data.end(), ::cuda::std::negate<T>())),
                -1);
-  ASSERT_EQUAL(*thrust::max_element(thrust::make_transform_iterator(data.begin(), ::cuda::std::negate<T>()),
-                                    thrust::make_transform_iterator(data.end(), ::cuda::std::negate<T>()),
+  ASSERT_EQUAL(*thrust::max_element(cuda::make_transform_iterator(data.begin(), ::cuda::std::negate<T>()),
+                                    cuda::make_transform_iterator(data.end(), ::cuda::std::negate<T>()),
                                     ::cuda::std::greater<T>()),
                -5);
 }

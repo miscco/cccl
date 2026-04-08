@@ -4,7 +4,6 @@
 #include <cub/device/device_copy.cuh>
 
 #include <thrust/for_each.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/tabulate.h>
 
 #include <cuda/iterator>
@@ -168,9 +167,8 @@ struct offset_to_iterator_t
   char* base_it;
   std::size_t element_size;
 
-  __host__
-    __device__ __forceinline__ thrust::transform_iterator<spaced_out_it_op<T>, cuda::counting_iterator<std::size_t>>
-    operator()(std::size_t offset) const
+  __host__ __device__ __forceinline__ cuda::transform_iterator<spaced_out_it_op<T>, cuda::counting_iterator<std::size_t>>
+  operator()(std::size_t offset) const
   {
     // The pointer to the beginning of this "buffer" (aka a series of same "keys")
     auto base_ptr = base_it + (element_size * offset);
@@ -179,7 +177,7 @@ struct offset_to_iterator_t
     // `element_size`
     auto counting_it = cuda::make_counting_iterator(std::size_t{0});
     spaced_out_it_op<T> space_out_op{base_ptr, element_size};
-    return thrust::make_transform_iterator(counting_it, space_out_op);
+    return cuda::make_transform_iterator(counting_it, space_out_op);
   }
 };
 
@@ -228,9 +226,9 @@ void init_key_segments(::cuda::std::span<const OffsetT> segment_offsets, KeyT* d
   cuda::counting_iterator<int> iota(0);
   offset_to_iterator_t<KeyT> dst_transform_op{reinterpret_cast<char*>(d_out), element_size};
 
-  auto d_range_srcs  = thrust::make_transform_iterator(iota, repeat_index_t<KeyT>{});
-  auto d_range_dsts  = thrust::make_transform_iterator(d_offsets, dst_transform_op);
-  auto d_range_sizes = thrust::make_transform_iterator(iota, offset_to_size_t<OffsetT>{d_offsets});
+  auto d_range_srcs  = cuda::make_transform_iterator(iota, repeat_index_t<KeyT>{});
+  auto d_range_dsts  = cuda::make_transform_iterator(d_offsets, dst_transform_op);
+  auto d_range_sizes = cuda::make_transform_iterator(iota, offset_to_size_t<OffsetT>{d_offsets});
 
 #if THRUST_DEVICE_SYSTEM == THRUST_DEVICE_SYSTEM_CUDA
   std::uint8_t* d_temp_storage   = nullptr;

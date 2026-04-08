@@ -214,7 +214,7 @@ void TestOffsetIteratorIndirectValueFancyIterator()
 
   Vector v{0, 1, 2, 3, 4, 5, 6, 7, 8};
   thrust::device_vector<typename Vector::difference_type> offsets{2};
-  auto it = thrust::make_transform_iterator(offsets.begin(), _1 * 3);
+  auto it = cuda::make_transform_iterator(offsets.begin(), _1 * 3);
   thrust::offset_iterator iter(v.begin(), it);
   ASSERT_EQUAL(*iter, 6);
 }

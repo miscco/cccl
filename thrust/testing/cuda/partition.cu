@@ -645,7 +645,7 @@ void TestPartitionIfWithMagnitude(int magnitude)
     partitioned_out.resize(expected_num_written);
 
     // Ensure selected items are correct
-    auto expected_out_it     = thrust::make_transform_iterator(begin, multiply_n<offset_t>{match_every_nth});
+    auto expected_out_it     = cuda::make_transform_iterator(begin, multiply_n<offset_t>{match_every_nth});
     bool all_results_correct = thrust::equal(partitioned_out.begin(), partitioned_out.end(), expected_out_it);
     ASSERT_EQUAL(all_results_correct, true);
   }
@@ -669,7 +669,7 @@ void TestPartitionIfWithMagnitude(int magnitude)
     partitioned_out.resize(expected_num_written);
 
     // Ensure rejected items are correct
-    auto expected_out_it     = thrust::make_transform_iterator(begin, multiply_n<offset_t>{match_every_nth});
+    auto expected_out_it     = cuda::make_transform_iterator(begin, multiply_n<offset_t>{match_every_nth});
     bool all_results_correct = thrust::equal(partitioned_out.begin(), partitioned_out.end(), expected_out_it);
     ASSERT_EQUAL(all_results_correct, true);
   }

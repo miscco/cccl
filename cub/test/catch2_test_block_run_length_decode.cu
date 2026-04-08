@@ -7,8 +7,6 @@
 #include <cub/device/device_scan.cuh>
 #include <cub/util_allocator.cuh>
 
-#include <thrust/iterator/transform_iterator.h>
-
 #include <cuda/iterator>
 #include <cuda/std/type_traits>
 

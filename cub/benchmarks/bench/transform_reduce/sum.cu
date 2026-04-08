@@ -43,7 +43,7 @@ struct square_t
 template <typename T, typename OffsetT>
 void reduce(nvbench::state& state, nvbench::type_list<T, OffsetT>)
 {
-  using input_it_t     = thrust::transform_iterator<square_t<T>, typename thrust::device_vector<T>::iterator>;
+  using input_it_t     = cuda::transform_iterator<square_t<T>, typename thrust::device_vector<T>::iterator>;
   using output_it_t    = T*;
   using offset_t       = cub::detail::choose_offset_t<OffsetT>;
   using init_t         = T;
@@ -54,7 +54,7 @@ void reduce(nvbench::state& state, nvbench::type_list<T, OffsetT>)
   thrust::device_vector<T> in = generate(elements);
   thrust::device_vector<T> out(1);
 
-  input_it_t d_in   = thrust::make_transform_iterator(in.begin(), square_t<T>{});
+  input_it_t d_in   = cuda::make_transform_iterator(in.begin(), square_t<T>{});
   output_it_t d_out = thrust::raw_pointer_cast(out.data());
 
   // Enable throughput calculations and add "Size" column to results.

@@ -17,12 +17,12 @@
 #include <thrust/detail/internal_functional.h>
 #include <thrust/detail/temporary_array.h>
 #include <thrust/iterator/iterator_traits.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/partition.h>
 #include <thrust/remove.h>
 #include <thrust/sort.h>
 #include <thrust/system/detail/generic/partition.h>
 
+#include <cuda/__iterator/transform_iterator.h>
 #include <cuda/std/__functional/not_fn.h>
 #include <cuda/std/__iterator/advance.h>
 #include <cuda/std/__utility/pair.h>
@@ -188,8 +188,8 @@ _CCCL_HOST_DEVICE bool
 is_partitioned(thrust::execution_policy<DerivedPolicy>& exec, InputIterator first, InputIterator last, Predicate pred)
 {
   return thrust::is_sorted(exec,
-                           thrust::make_transform_iterator(first, ::cuda::std::not_fn(pred)),
-                           thrust::make_transform_iterator(last, ::cuda::std::not_fn(pred)));
+                           ::cuda::make_transform_iterator(first, ::cuda::std::not_fn(pred)),
+                           ::cuda::make_transform_iterator(last, ::cuda::std::not_fn(pred)));
 } // end is_partitioned()
 } // namespace system::detail::generic
 THRUST_NAMESPACE_END

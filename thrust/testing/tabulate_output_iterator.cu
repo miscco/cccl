@@ -6,7 +6,6 @@
 #include <thrust/gather.h>
 #include <thrust/host_vector.h>
 #include <thrust/iterator/tabulate_output_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/reduce.h>
 #include <thrust/sequence.h>
@@ -151,7 +150,7 @@ void TestTabulateOutputIterator()
   Vector expected_output(num_items, T{42});
   const std::size_t expected_num_selected = (num_items + select_every_nth - 1) / select_every_nth;
   auto gather_index_it =
-    thrust::make_transform_iterator(cuda::make_counting_iterator(0), index_to_gather_index_op{select_every_nth});
+    cuda::make_transform_iterator(cuda::make_counting_iterator(0), index_to_gather_index_op{select_every_nth});
   thrust::gather(gather_index_it, gather_index_it + expected_num_selected, input.cbegin(), expected_output.begin());
 
   ASSERT_EQUAL(expected_num_selected, num_selected);

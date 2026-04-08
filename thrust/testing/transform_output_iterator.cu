@@ -95,8 +95,8 @@ struct TestTransformOutputIteratorScan
     thrust::device_vector<T> d_result(n);
 
     // run on host
-    thrust::inclusive_scan(thrust::make_transform_iterator(h_data.begin(), ::cuda::std::negate<T>()),
-                           thrust::make_transform_iterator(h_data.end(), ::cuda::std::negate<T>()),
+    thrust::inclusive_scan(cuda::make_transform_iterator(h_data.begin(), ::cuda::std::negate<T>()),
+                           cuda::make_transform_iterator(h_data.end(), ::cuda::std::negate<T>()),
                            h_result.begin());
     // run on device
     thrust::inclusive_scan(

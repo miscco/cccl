@@ -292,7 +292,7 @@ C2H_TEST("DeviceRunLengthEncode::Encode works with non-default constructible ite
 
   constexpr int64_t num_items = 1000;
   auto counting_it            = cuda::make_counting_iterator(0);
-  auto custom_it              = thrust::make_transform_iterator(counting_it, non_default_constructible_iterator_op{42});
+  auto custom_it              = cuda::make_transform_iterator(counting_it, non_default_constructible_iterator_op{42});
 
   c2h::device_vector<type> out_unique(num_items);
   c2h::device_vector<int> out_counts(num_items);

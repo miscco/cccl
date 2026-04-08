@@ -614,9 +614,9 @@ void gen_key_segments(executor exec, seed_t, cuda::std::span<T> keys, cuda::std:
 
   const std::size_t total_segments = segment_offsets.size() - 1;
 
-  auto d_range_srcs  = thrust::make_transform_iterator(iota, repeat_index_t<T>{});
-  auto d_range_dsts  = thrust::make_transform_iterator(segment_offsets.data(), dst_transform_op);
-  auto d_range_sizes = thrust::make_transform_iterator(iota, offset_to_size_t{segment_offsets.data()});
+  auto d_range_srcs  = cuda::make_transform_iterator(iota, repeat_index_t<T>{});
+  auto d_range_dsts  = cuda::make_transform_iterator(segment_offsets.data(), dst_transform_op);
+  auto d_range_sizes = cuda::make_transform_iterator(iota, offset_to_size_t{segment_offsets.data()});
 
   if (exec == executor::device)
   {

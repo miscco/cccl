@@ -1,8 +1,8 @@
 #include <thrust/distance.h>
 #include <thrust/functional.h>
 #include <thrust/iterator/offset_iterator.h>
-#include <thrust/iterator/transform_iterator.h>
 
+#include <cuda/iterator>
 #include <cuda/std/iterator>
 
 #include <unittest/unittest.h>
