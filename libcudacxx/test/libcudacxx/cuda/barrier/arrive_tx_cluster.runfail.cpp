@@ -13,6 +13,9 @@
 
 // UNSUPPORTED: no_execute
 
+// XFAIL: enable-tile
+// error: asm statement is unsupported in tile code
+
 // <cuda/barrier>
 
 #include <cuda/barrier>

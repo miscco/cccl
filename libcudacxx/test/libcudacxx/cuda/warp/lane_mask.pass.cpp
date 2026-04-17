@@ -7,6 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// XFAIL: enable-tile
+// error: asm statement is unsupported in tile code
+
 #include <cuda/std/cassert>
 #include <cuda/std/cstdint>
 #include <cuda/std/limits>

@@ -8,6 +8,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// XFAIL: enable-tile
+// error: asm statement is unsupported in tile code
+
 #include "utils.h"
 #define ARR_SZ 128
 

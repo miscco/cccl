@@ -8,6 +8,9 @@
 //===----------------------------------------------------------------------===//
 // UNSUPPORTED: pre-sm-70
 
+// XFAIL: enable-tile
+// error: asm statement is unsupported in tile code
+
 #include <cuda/std/array>
 #include <cuda/std/cassert>
 #include <cuda/std/cstdint>
