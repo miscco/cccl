@@ -7,6 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// XFAIL: enable-tile
+// error: function-to-pointer decay is unsupported in tile code
+
 // <functional>
 
 // reference_wrapper

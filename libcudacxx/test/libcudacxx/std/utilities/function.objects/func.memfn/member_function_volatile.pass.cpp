@@ -6,6 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// XFAIL: enable-tile
+// error: taking address or reference of a function is unsupported in tile mode!
+
 // <cuda/std/functional>
 
 // template<Returnable R, class T, CopyConstructible... Args>

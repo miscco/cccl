@@ -7,6 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// XFAIL: enable-tile
+// error: taking address or reference of a function is unsupported in tile mode!
+
 // template<class T> struct is_execution_policy;
 // template<class T> constexpr bool is_execution_policy_v = is_execution_policy<T>::value;
 

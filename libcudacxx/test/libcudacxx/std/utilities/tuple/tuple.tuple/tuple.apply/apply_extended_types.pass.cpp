@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 // UNSUPPORTED: gcc-6
+// XFAIL: enable-tile
+// In tile mode taking address of functions is unsupported
 
 // <cuda/std/tuple>
 

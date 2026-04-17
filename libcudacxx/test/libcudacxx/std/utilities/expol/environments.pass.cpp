@@ -9,6 +9,9 @@
 
 // UNSUPPORTED: nvrtc
 
+// XFAIL: enable-tile
+// error: taking address or reference of a function is unsupported in tile mode!
+
 #include <cuda/std/execution>
 #include <cuda/std/type_traits>
 #include <cuda/stream>

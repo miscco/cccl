@@ -9,6 +9,8 @@
 // UNSUPPORTED: gcc-6
 // UNSUPPORTED: windows
 // We run out of heap space with windows
+// XFAIL: enable-tile
+// In tile mode taking address of functions is unsupported
 
 // <cuda/std/tuple>
 

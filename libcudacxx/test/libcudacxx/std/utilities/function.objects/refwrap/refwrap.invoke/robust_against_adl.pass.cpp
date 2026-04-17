@@ -7,6 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// XFAIL: enable-tile
+// error: taking address or reference of a function is unsupported in tile mode!
+
 // <functional>
 
 // #include <cuda/std/functional>

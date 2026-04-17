@@ -9,6 +9,9 @@
 // UNSUPPORTED: nvrtc
 // UNSUPPORTED: gcc-6
 
+// XFAIL: enable-tile
+// In tile mode taking address of functions is unsupported
+
 // <cuda/std/tuple>
 
 // template <class F, class T> constexpr decltype(auto) apply(F &&, T &&)
