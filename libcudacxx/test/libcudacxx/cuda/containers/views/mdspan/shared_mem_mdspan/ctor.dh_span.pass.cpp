@@ -54,7 +54,7 @@ TEST_DEVICE_FUNC constexpr auto array_from_extents(const Extents& exts, cuda::st
 }
 
 template <class MDS>
-TEST_DEVICE_FUNC void check_implicit_construction(MDS);
+_CCCL_DEVICE _CCCL_TILE cuda::std::true_type check_implicit_construction(MDS);
 
 template <class MDS, class Exts>
 _CCCL_NVRTC_CONCEPT_DECORATOR()
@@ -73,10 +73,7 @@ test_mdspan_ctor_span(const H& handle, const M& map, const A&, cuda::std::span<c
 {
   using MDS =
     cuda::shared_memory_mdspan<typename A::element_type, typename M::extents_type, typename M::layout_type, A>;
-  if (!cuda::std::__cccl_default_is_constant_evaluated())
-  {
-    move_counted_handle<typename MDS::element_type>::move_counter() = 0;
-  }
+  move_counted_handle<typename MDS::element_type>::reset();
   MDS m(handle, exts);
   test_move_counter<MDS, H>();
 
