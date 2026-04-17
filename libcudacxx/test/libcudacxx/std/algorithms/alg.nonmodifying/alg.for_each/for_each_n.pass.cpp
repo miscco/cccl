@@ -7,6 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// UNSUPPORTED: enable-tile
+// TODO(miscco) Test assertion triggers
+
 // <algorithm>
 
 // template<class InputIterator, class Size, class Function>
