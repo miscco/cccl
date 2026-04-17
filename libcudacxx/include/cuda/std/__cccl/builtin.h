@@ -117,6 +117,10 @@
 #  define _CCCL_BUILTIN_EXPECT(_EXPR, _VAL) (_EXPR)
 #endif // ^^^ no __builtin_expect ^^^
 
+#if _CCCL_TILE_COMPILATION() // TODO(miscco):  __builtin_expect is unsupported in tile mode
+#  define _CCCL_BUILTIN_EXPECT(_EXPR, _VAL) (_EXPR)
+#endif // _CCCL_TILE_COMPILATION()
+
 #if _CCCL_CHECK_BUILTIN(builtin_huge_valf) || _CCCL_COMPILER(MSVC) || _CCCL_COMPILER(GCC, <, 10)
 #  define _CCCL_BUILTIN_HUGE_VALF() __builtin_huge_valf()
 #endif // _CCCL_CHECK_BUILTIN(builtin_huge_valf)
@@ -145,6 +149,10 @@
 #if _CCCL_CHECK_BUILTIN(builtin_is_constant_evaluated) || _CCCL_COMPILER(GCC, >=, 9) || _CCCL_COMPILER(MSVC, >, 19, 24)
 #  define _CCCL_BUILTIN_IS_CONSTANT_EVALUATED(...) __builtin_is_constant_evaluated(__VA_ARGS__)
 #endif // _CCCL_CHECK_BUILTIN(builtin_is_constant_evaluated)
+
+#if _CCCL_TILE_COMPILATION() // TODO(miscco): __builtin_is_constant_evaluated is unsupported in tile mode
+#  undef _CCCL_BUILTIN_IS_CONSTANT_EVALUATED
+#endif // _CCCL_TILE_COMPILATION()
 
 #if _CCCL_CHECK_BUILTIN(builtin_is_corresponding_member)
 #  define _CCCL_BUILTIN_IS_CORRESPONDING_MEMBER(_C1, _C2, _MPtr1, _MPtr2) \
