@@ -475,21 +475,15 @@ void test_exceptions_different_alternatives()
 
 template <class Var>
 TEST_FUNC constexpr auto has_swap_member_imp(int)
-  -> decltype(cuda::std::declval<Var&>().swap(cuda::std::declval<Var&>()), true)
-{
-  return true;
-}
+  -> decltype(cuda::std::declval<Var&>().swap(cuda::std::declval<Var&>()), cuda::std::true_type);
 
 template <class Var>
-TEST_FUNC constexpr auto has_swap_member_imp(long) -> bool
-{
-  return false;
-}
+TEST_FUNC constexpr auto has_swap_member_imp(long) -> cuda::std::false_type;
 
 template <class Var>
 TEST_FUNC constexpr bool has_swap_member()
 {
-  return has_swap_member_imp<Var>(0);
+  return decltype(has_swap_member_imp<Var>(0))::value;
 }
 
 TEST_FUNC void test_swap_sfinae()

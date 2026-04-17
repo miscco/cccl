@@ -58,22 +58,14 @@ TEST_DEVICE_FUNC void check_implicit_construction(MDS);
 
 template <class MDS, class Exts>
 _CCCL_NVRTC_CONCEPT_DECORATOR()
-constexpr bool check_implicit_construction_impl(...)
-{
-  return false;
-}
+constexpr auto check_implicit_construction_impl(...) -> cuda::std::false_type;
 template <class MDS, class Exts>
 _CCCL_NVRTC_CONCEPT_DECORATOR()
-constexpr auto check_implicit_construction_impl(int)
-  -> decltype(check_implicit_construction<MDS>({cuda::std::declval<typename MDS::data_handle_type>(),
-                                                cuda::std::declval<const Exts&>()}),
-              true)
-{
-  return true;
-}
+constexpr auto check_implicit_construction_impl(int) -> decltype(check_implicit_construction<MDS>(
+  {cuda::std::declval<typename MDS::data_handle_type>(), cuda::std::declval<const Exts&>()}));
 
 template <class MDS, class Exts>
-_CCCL_CONCEPT check_mdspan_ctor_implicit = check_implicit_construction_impl<MDS, Exts>(0);
+_CCCL_CONCEPT check_mdspan_ctor_implicit = decltype(check_implicit_construction_impl<MDS, Exts>(0))::value;
 
 template <class H, class M, class A, size_t N>
 TEST_DEVICE_FUNC constexpr void

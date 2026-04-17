@@ -30,21 +30,15 @@
 
 template <class Var, class T, class... Args>
 TEST_FUNC constexpr auto test_emplace_exists_imp(int)
-  -> decltype(cuda::std::declval<Var>().template emplace<T>(cuda::std::declval<Args>()...), true)
-{
-  return true;
-}
+  -> decltype(cuda::std::declval<Var>().template emplace<T>(cuda::std::declval<Args>()...), cuda::std::true_type);
 
 template <class, class, class...>
-TEST_FUNC constexpr auto test_emplace_exists_imp(long) -> bool
-{
-  return false;
-}
+TEST_FUNC constexpr auto test_emplace_exists_imp(long) -> cuda::std::false_type;
 
 template <class... Args>
 TEST_FUNC constexpr bool emplace_exists()
 {
-  return test_emplace_exists_imp<Args...>(0);
+  return decltype(test_emplace_exists_imp<Args...>(0))::value;
 }
 
 TEST_FUNC void test_emplace_sfinae()

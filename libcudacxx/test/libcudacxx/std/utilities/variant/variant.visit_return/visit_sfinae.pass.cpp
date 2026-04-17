@@ -37,16 +37,13 @@ struct any_visitor
 
 template <typename T,
           typename = decltype(cuda::std::visit<bool>(cuda::std::declval<any_visitor&>(), cuda::std::declval<T>()))>
-TEST_FUNC constexpr bool has_visit(int)
-{
-  return true;
-}
+TEST_FUNC constexpr bool has_visit_impl(int) -> cuda::std::true_type;
 
 template <typename T>
-TEST_FUNC constexpr bool has_visit(...)
-{
-  return false;
-}
+TEST_FUNC constexpr bool has_visit_impl(...) -> cuda::std::false_type;
+
+template <typename T>
+inline constexpr bool has_visit = decltype(has_visit_impl<T>(0))::value;
 
 TEST_FUNC void test_sfinae()
 {
@@ -55,9 +52,9 @@ TEST_FUNC void test_sfinae()
       , cuda::std::variant<long, float>
   {};
 
-  static_assert(has_visit<cuda::std::variant<int>>(int()));
+  static_assert(has_visit<cuda::std::variant<int>>);
 #if !TEST_COMPILER(MSVC) // MSVC cannot deal with that even with std::variant
-  static_assert(!has_visit<BadVariant>(int()));
+  static_assert(!has_visit<BadVariant>);
 #endif // !TEST_COMPILER(MSVC)
 }
 
