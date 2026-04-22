@@ -23,7 +23,7 @@
 #endif // no system header
 
 #if _CCCL_TILE_COMPILATION()
-#  include <cassert>
+#  include <cuda/std/cassert>
 #endif // !_CCCL_TILE_COMPILATION()
 
 #if !_CCCL_COMPILER(NVRTC)
