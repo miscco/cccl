@@ -170,12 +170,7 @@ struct __pstl_dispatch<__pstl_algorithm::__sort, __execution_backend::__cuda>
     {
       try
       {
-        using value_type = iter_value_t<_InputIterator>;
-
-        if constexpr (
-          __is_extended_arithmetic_v<value_type>
-          && __is_one_of_v<remove_cvref_t<_BinaryPredicate>, less<>, less<value_type>, greater<>, greater<value_type>>
-          && __can_to_address<_InputIterator>)
+        if constexpr (CUB_NS_QUALIFIER::__can_use_radix_sort<_InputIterator, _BinaryPredicate>)
         {
           __radix_sort_impl(
             __policy, ::cuda::std::to_address(__first), ::cuda::std::to_address(__last), ::cuda::std::move(__pred));
