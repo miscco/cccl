@@ -26,6 +26,7 @@
 _CCCL_DIAG_PUSH
 _CCCL_DIAG_SUPPRESS_CLANG("-Wshadow")
 _CCCL_DIAG_SUPPRESS_CLANG("-Wunused-local-typedef")
+_CCCL_DIAG_SUPPRESS_CLANG("-Wignored-attributes")
 _CCCL_DIAG_SUPPRESS_GCC("-Wattributes")
 _CCCL_DIAG_SUPPRESS_NVHPC(attribute_requires_external_linkage)
 
@@ -82,8 +83,7 @@ struct __pstl_dispatch<__pstl_algorithm::__sort, __execution_backend::__cuda>
   }
 
   template <class _Policy, class _Tp, class _BinaryPredicate>
-  _CCCL_HOST_API static void
-  __radix_sort_impl(const _Policy& __policy, _Tp* __first, _Tp* __last, _BinaryPredicate __pred)
+  _CCCL_HOST_API static void __radix_sort_impl(const _Policy& __policy, _Tp* __first, _Tp* __last, _BinaryPredicate)
   {
     const auto __count = static_cast<size_t>(::cuda::std::distance(__first, __last));
     auto __stream      = ::cuda::__call_or(::cuda::get_stream, ::cuda::stream_ref{cudaStreamPerThread}, __policy);
