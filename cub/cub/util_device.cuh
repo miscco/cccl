@@ -146,7 +146,8 @@ CUB_RUNTIME_FUNCTION inline int DeviceCount()
   return result;
 }
 
-#  ifndef _CCCL_DOXYGEN_INVOKED // Do not document
+#  if _CCCL_HOSTED()
+#    ifndef _CCCL_DOXYGEN_INVOKED // Do not document
 /**
  * \brief Per-device cache for a CUDA attribute value; the attribute is queried
  *        and stored for each device upon construction.
@@ -261,7 +262,8 @@ public:
     return entry.payload;
   }
 };
-#  endif // _CCCL_DOXYGEN_INVOKED
+#    endif // _CCCL_DOXYGEN_INVOKED
+#  endif // _CCCL_HOSTED()
 
 /**
  * \brief Retrieves the PTX version that will be used on the current device (major * 100 + minor * 10).
@@ -294,18 +296,21 @@ _CCCL_HOST cudaError_t PtxVersionUncached(int& ptx_version, int device)
   return PtxVersionUncached<T>(ptx_version);
 }
 
+#  if _CCCL_HOSTED()
 template <typename Tag>
 _CCCL_HOST inline PerDeviceAttributeCache& GetPerDeviceAttributeCache()
 {
   static PerDeviceAttributeCache cache;
   return cache;
 }
+#  endif // _CCCL_HOSTED()
 
 struct PtxVersionCacheTag
 {};
 struct SmVersionCacheTag
 {};
 
+#  if _CCCL_HOSTED()
 /**
  * \brief Retrieves the PTX virtual architecture that will be used on \p device (major * 100 + minor * 10). If
  * __CUDA_ARCH_LIST__ is defined, this value is one of __CUDA_ARCH_LIST__.
@@ -332,6 +337,7 @@ _CCCL_HOST cudaError_t PtxVersion(int& ptx_version, int device)
 
   return payload.error;
 }
+#  endif // _CCCL_HOSTED()
 
 /**
  * \brief Retrieves the PTX virtual architecture that will be used on the current device (major * 100 + minor * 10).
@@ -345,9 +351,13 @@ CUB_RUNTIME_FUNCTION cudaError_t PtxVersion(int& ptx_version)
   // Note: the ChainedPolicy pruning (i.e., invoke_static) requites that there's an exact match between one of the
   // architectures in __CUDA_ARCH__ and the runtime queried ptx version.
   cudaError_t result = cudaErrorUnknown;
+#  if _CCCL_HOSTED()
   NV_IF_ELSE_TARGET(NV_IS_HOST,
                     (result = PtxVersion<T>(ptx_version, CurrentDevice());),
                     (result = PtxVersionUncached<T>(ptx_version);));
+#  else // ^^^ _CCCL_HOSTED() ^^^ / vvv !_CCCL_HOSTED() vvv
+  result = PtxVersionUncached<T>(ptx_version);
+#  endif // !_CCCL_HOSTED()
   return result;
 }
 
@@ -415,7 +425,7 @@ CUB_RUNTIME_FUNCTION inline cudaError_t SmVersionUncached(int& sm_version, int d
 CUB_RUNTIME_FUNCTION inline cudaError_t SmVersion(int& sm_version, int device = CurrentDevice())
 {
   cudaError_t result = cudaErrorUnknown;
-
+#  if _CCCL_HOSTED()
   NV_IF_ELSE_TARGET(NV_IS_HOST,
                     ({
                       auto const payload = GetPerDeviceAttributeCache<SmVersionCacheTag>()(
@@ -434,6 +444,9 @@ CUB_RUNTIME_FUNCTION inline cudaError_t SmVersion(int& sm_version, int device = 
                       result = payload.error;
                     }),
                     (result = SmVersionUncached(sm_version, device);));
+#  else // ^^^ _CCCL_HOSTED() ^^^ / vvv !_CCCL_HOSTED() vvv
+  result = SmVersionUncached(sm_version, device);
+#  endif // !_CCCL_HOSTED()
 
   return result;
 }
