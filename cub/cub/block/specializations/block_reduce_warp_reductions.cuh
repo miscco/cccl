@@ -24,9 +24,9 @@
 #include <cub/util_ptx.cuh>
 #include <cub/warp/warp_reduce.cuh>
 
+#include <cuda/__atomic/cuda_atomic_relaxed.h>
 #include <cuda/__cmath/ceil_div.h>
 #include <cuda/__ptx/instructions/get_sreg.h>
-#include <cuda/atomic>
 #include <cuda/std/__algorithm/min.h>
 
 CUB_NAMESPACE_BEGIN
@@ -121,14 +121,8 @@ struct BlockReduceWarpReductions
     // Warp 0 already contributed its aggregate above since its also linear_tid == 0
     if (lane_id == 0 && warp_id != 0)
     {
-      // TODO: replace this with other atomic operations when specified
-      NV_IF_ELSE_TARGET(
-        NV_PROVIDES_SM_60,
-        ({
-          ::cuda::atomic_ref<T, ::cuda::thread_scope_block> atomic_target(temp_storage.warp_aggregates[0]);
-          atomic_target.fetch_add(warp_aggregate, ::cuda::memory_order_relaxed);
-        }),
-        (atomicAdd(&temp_storage.warp_aggregates[0], warp_aggregate);));
+      ::cuda::__cccl_cuda_atomic_fetch_add_relaxed<::cuda::std::thread_scope_block>(
+        temp_storage.warp_aggregates, warp_aggregate);
     }
 
     __syncthreads();

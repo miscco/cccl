@@ -18,8 +18,8 @@
 #include <cub/grid/grid_even_share.cuh>
 #include <cub/util_arch.cuh>
 
+#include <cuda/__atomic/cuda_atomic_relaxed.h>
 #include <cuda/__device/arch_id.h>
-#include <cuda/atomic>
 
 CUB_NAMESPACE_BEGIN
 
@@ -341,14 +341,8 @@ _CCCL_KERNEL_ATTRIBUTES __launch_bounds__(int(
   // only thread 0 has valid value in block aggregate
   if (threadIdx.x == 0)
   {
-    // TODO: replace this with other atomic operations when specified
-    NV_IF_ELSE_TARGET(NV_PROVIDES_SM_60,
-                      ({
-                        ::cuda::atomic_ref<AccumT, ::cuda::thread_scope_device> atomic_target(d_out[0]);
-                        atomic_target.fetch_add(blockIdx.x == 0 ? reduction_op(init, block_aggregate) : block_aggregate,
-                                                ::cuda::memory_order_relaxed);
-                      }),
-                      (atomicAdd(&d_out[0], blockIdx.x == 0 ? reduction_op(init, block_aggregate) : block_aggregate);));
+    ::cuda::__cccl_cuda_atomic_fetch_add_relaxed<::cuda::std::thread_scope_device>(
+      d_out, blockIdx.x == 0 ? reduction_op(init, block_aggregate) : block_aggregate);
   }
 }
 } // namespace detail::reduce
