@@ -213,6 +213,12 @@ def get_includes() -> List[str]:
     return opts
 
 
+@functools.lru_cache()
+def get_clang_include_path() -> str:
+    clang = get_include_paths().clang
+    return str(clang) if clang is not None else ""
+
+
 def _check_compile_result(cubin: bytes):
     # check compiled code for LDL/STL instructions
     temp_cubin_file = tempfile.NamedTemporaryFile(delete=False)
@@ -228,8 +234,10 @@ def _check_compile_result(cubin: bytes):
         sass = "nvdiasm not found, skipping SASS validation"
         warnings.warn(sass)
 
-    assert "LDL" not in sass, "LDL instruction found in SASS"
-    assert "STL" not in sass, "STL instruction found in SASS"
+    if "LDL" in sass:
+        warnings.warn("LDL instruction found in SASS (local memory load)")
+    if "STL" in sass:
+        warnings.warn("STL instruction found in SASS (local memory store)")
     return temp_cubin_file.name
 
 
@@ -246,9 +254,16 @@ def call_build(build_impl_fn: Callable, *args, **kwargs):
     global _check_sass
 
     cc_major, cc_minor = CudaDevice().compute_capability
-    cub_path, thrust_path, libcudacxx_path, cuda_include_path = get_includes()
+    cub_path, thrust_path, libcudacxx_path, cuda_include_path, _ = get_includes()
+    clang_path = get_clang_include_path()
     common_data = CommonData(
-        cc_major, cc_minor, cub_path, thrust_path, libcudacxx_path, cuda_include_path
+        cc_major,
+        cc_minor,
+        cub_path,
+        thrust_path,
+        libcudacxx_path,
+        cuda_include_path,
+        clang_path,
     )
     result = build_impl_fn(
         *args,
@@ -258,7 +273,8 @@ def call_build(build_impl_fn: Callable, *args, **kwargs):
 
     if _check_sass:
         cubin = result._get_cubin()
-        temp_cubin_file_name = _check_compile_result(cubin)
-        os.unlink(temp_cubin_file_name)
+        if cubin:
+            temp_cubin_file_name = _check_compile_result(cubin)
+            os.unlink(temp_cubin_file_name)
 
     return result

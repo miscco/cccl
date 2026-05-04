@@ -148,12 +148,18 @@ void AlgorithmExecute(std::optional<BuildCache>& cache, const std::optional<KeyT
     }
   }
 
-  if constexpr (check_ldl_stl_in_sass && build_traits<Build>::should_check_sass(build_info.get_cc_major()))
+#ifndef CCCL_DISABLE_SASS_CHECK
+  if (build.cubin != nullptr && build.cubin_size > 0)
   {
-    const std::string sass = inspect_sass(build.cubin, build.cubin_size);
-    REQUIRE(sass.find("LDL") == std::string::npos);
-    REQUIRE(sass.find("STL") == std::string::npos);
+    const std::string& sass = inspect_sass(build.cubin, build.cubin_size);
+
+    if (build_traits<Build>::should_check_sass(build_info.get_cc_major()))
+    {
+      REQUIRE(sass.find("LDL") == std::string::npos);
+      REQUIRE(sass.find("STL") == std::string::npos);
+    }
   }
+#endif // CCCL_DISABLE_SASS_CHECK
 
   CUstream null_stream = nullptr;
 

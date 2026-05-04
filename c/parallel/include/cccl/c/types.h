@@ -91,7 +91,8 @@ typedef enum cccl_op_kind_t
 typedef enum cccl_op_code_type
 {
   CCCL_OP_LTOIR      = 0, // Pre-compiled LTO-IR (default for backward compatibility)
-  CCCL_OP_CPP_SOURCE = 1 // C++ source code
+  CCCL_OP_CPP_SOURCE = 1, // C++ source code
+  CCCL_OP_LLVM_IR    = 2 // LLVM bitcode (compiled by Clang)
 } cccl_op_code_type;
 
 typedef struct cccl_op_t
@@ -115,6 +116,7 @@ typedef struct cccl_build_config
   size_t num_extra_compile_flags;
   const char** extra_include_dirs; // e.g., {"/path/to/my/headers"}
   size_t num_extra_include_dirs;
+  int enable_pch; // Cache precompiled headers on disk to speed up repeated builds
 } cccl_build_config;
 
 typedef enum cccl_iterator_kind_t

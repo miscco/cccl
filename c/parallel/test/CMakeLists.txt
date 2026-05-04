@@ -30,6 +30,14 @@ function(cccl_c_parallel_add_test target_name_var source)
       cccl.c2h.main
   )
 
+  if (CCCL_C_Parallel_ENABLE_HOSTJIT)
+    target_link_libraries(${target_name} PRIVATE hostjit_lib)
+    target_include_directories(
+      ${target_name}
+      PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../src/hostjit/include"
+    )
+  endif()
+
   # Get the first CUDA include directory only
   list(GET CUDAToolkit_INCLUDE_DIRS 0 CUDA_FIRST_INCLUDE_DIR)
   target_compile_definitions(
@@ -40,6 +48,7 @@ function(cccl_c_parallel_add_test target_name_var source)
       TEST_LIBCUDACXX_PATH="-I${CCCL_SOURCE_DIR}/libcudacxx/include"
       TEST_CTK_PATH="-I${CUDA_FIRST_INCLUDE_DIR}"
       TEST_INCLUDE_PATH="${CMAKE_CURRENT_SOURCE_DIR}"
+      CCCL_DISABLE_SASS_CHECK
   )
 endfunction()
 

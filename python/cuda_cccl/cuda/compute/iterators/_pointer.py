@@ -11,7 +11,7 @@ import sys
 from textwrap import dedent
 
 from .._bindings import Op, OpKind
-from .._cpp_compile import compile_cpp_to_ltoir, cpp_type_from_descriptor
+from .._cpp_compile import compile_cpp_as_source, cpp_type_from_descriptor
 from .._utils.protocols import get_data_pointer, get_dtype
 from ..types import from_numpy_dtype
 from ._base import IteratorBase
@@ -85,11 +85,12 @@ class PointerIterator(IteratorBase):
                 }}
             """).strip()
 
-        ltoir = compile_cpp_to_ltoir(source)
+        code = compile_cpp_as_source(source)
         return Op(
             operator_type=OpKind.STATELESS,
             name=symbol,
-            ltoir=ltoir,
+            ltoir=code,
+            code_type="cpp_source",
             extra_ltoirs=[],
         )
 
@@ -117,11 +118,12 @@ class PointerIterator(IteratorBase):
                 }}
             """).strip()
 
-        ltoir = compile_cpp_to_ltoir(source)
+        code = compile_cpp_as_source(source)
         return Op(
             operator_type=OpKind.STATELESS,
             name=symbol,
-            ltoir=ltoir,
+            ltoir=code,
+            code_type="cpp_source",
             extra_ltoirs=[],
         )
 
@@ -149,11 +151,12 @@ class PointerIterator(IteratorBase):
                 }}
             """).strip()
 
-        ltoir = compile_cpp_to_ltoir(source)
+        code = compile_cpp_as_source(source)
         return Op(
             operator_type=OpKind.STATELESS,
             name=symbol,
-            ltoir=ltoir,
+            ltoir=code,
+            code_type="cpp_source",
             extra_ltoirs=[],
         )
 

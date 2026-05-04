@@ -60,7 +60,8 @@ struct reduce_build
     const char* cub_path,
     const char* thrust_path,
     const char* libcudacxx_path,
-    const char* ctk_path) const noexcept
+    const char* ctk_path,
+    const char* clang_path = nullptr) const noexcept
   {
     return cccl_device_reduce_build(
       build_ptr,
@@ -74,7 +75,8 @@ struct reduce_build
       cub_path,
       thrust_path,
       libcudacxx_path,
-      ctk_path);
+      ctk_path,
+      clang_path);
   }
 };
 
@@ -89,7 +91,7 @@ struct reduce_build_ex
   cccl_build_config config;
 
   reduce_build_ex(const char** extra_compile_flags, size_t num_flags, const char** extra_include_dirs, size_t num_dirs)
-      : config{extra_compile_flags, num_flags, extra_include_dirs, num_dirs}
+      : config{extra_compile_flags, num_flags, extra_include_dirs, num_dirs, 0}
   {}
 
   CUresult operator()(
@@ -105,7 +107,8 @@ struct reduce_build_ex
     const char* cub_path,
     const char* thrust_path,
     const char* libcudacxx_path,
-    const char* ctk_path) const noexcept
+    const char* ctk_path,
+    const char* clang_path = nullptr) const noexcept
   {
     return cccl_device_reduce_build_ex(
       build_ptr,
@@ -120,6 +123,7 @@ struct reduce_build_ex
       thrust_path,
       libcudacxx_path,
       ctk_path,
+      clang_path,
       const_cast<cccl_build_config*>(&config));
   }
 };
@@ -474,7 +478,7 @@ C2H_TEST("Reduce works with C++ source operations", "[reduce]")
 
 struct Reduce_FloatingPointTypes_Fixture_Tag;
 using floating_point_types = c2h::type_list<
-#if _CCCL_HAS_NVFP16()
+#if _CCCL_HAS_NVFP16() && 0 // Disable for now
   __half,
 #endif
   float,

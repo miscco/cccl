@@ -69,7 +69,18 @@ endif()
 # --------------------------------------------------------------------------
 # hostjit library
 # --------------------------------------------------------------------------
-add_library(hostjit_lib compiler.cpp config.cpp loader.cpp jit_compiler.cpp)
+add_library(
+  hostjit_lib
+  compiler.cpp
+  config.cpp
+  loader.cpp
+  jit_compiler.cpp
+  codegen/types.cpp
+  codegen/iterators.cpp
+  codegen/operators.cpp
+  codegen/bitcode.cpp
+  codegen/cub_call.cpp
+)
 
 # CCCL_SOURCE_DIR points to the cccl repo root
 # From c/parallel/src/hostjit -> c/parallel/src -> c/parallel -> c -> cccl
@@ -201,11 +212,122 @@ set_target_properties(
   PROPERTIES CXX_STANDARD 20 POSITION_INDEPENDENT_CODE ON
 )
 
+# --------------------------------------------------------------------------
+# Install clang headers into wheel (for self-sufficient packaging)
+# --------------------------------------------------------------------------
+# Clang CUDA headers we still use from the LLVM source tree.
+# We DON'T install device_functions, math, or libdevice_declares — our local
+# copies in cuda_minimal/ replace them.
+set(
+  _clang_cuda_headers_needed
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/__clang_cuda_math_forward_declares.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/__clang_cuda_builtin_vars.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/__clang_cuda_cmath.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/__clang_cuda_intrinsics.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/__clang_cuda_complex_builtins.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/__clang_cuda_texture_intrinsics.h"
+)
+install(
+  FILES ${_clang_cuda_headers_needed}
+  DESTINATION "cuda/cccl/headers/clang"
+)
+
+# Clang builtin C headers needed by our stubs and CUDA toolkit headers.
+file(
+  GLOB _clang_stddef_headers
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/__stddef_*.h"
+)
+set(
+  _clang_c_headers
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/limits.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/stddef.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/stdint.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/__stddef_header_macro.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/float.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/__float_header_macro.h"
+  "${llvm_project_SOURCE_DIR}/clang/lib/Headers/inttypes.h"
+  ${_clang_stddef_headers}
+)
+install(FILES ${_clang_c_headers} DESTINATION "cuda/cccl/headers/clang")
+
+# HostJit's minimal CUDA runtime headers (replacements for upstream clang headers)
+set(
+  _hostjit_cuda_minimal_dir
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/hostjit/cuda_minimal"
+)
+file(GLOB _hostjit_cuda_minimal_headers "${_hostjit_cuda_minimal_dir}/*.h")
+install(
+  FILES ${_hostjit_cuda_minimal_headers}
+  DESTINATION "cuda/cccl/headers/hostjit/cuda_minimal"
+)
+
+# HostJit's stub headers (minimal C++ standard library stubs for device compilation)
+file(GLOB _hostjit_cuda_minimal_stubs "${_hostjit_cuda_minimal_dir}/stubs/*")
+install(
+  FILES ${_hostjit_cuda_minimal_stubs}
+  DESTINATION "cuda/cccl/headers/hostjit/cuda_minimal/stubs"
+)
+
+# --------------------------------------------------------------------------
+# Examples
+# --------------------------------------------------------------------------
+add_executable(
+  example_cub_reduce
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../examples/cub_reduce.cpp
+)
+target_link_libraries(
+  example_cub_reduce
+  cccl.c.parallel
+  CUDA::cuda_driver
+  CUDA::cudart
+)
+set_target_properties(example_cub_reduce PROPERTIES CXX_STANDARD 20)
+
+add_executable(
+  example_cub_reduce_deterministic
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../examples/cub_reduce_deterministic.cpp
+)
+target_link_libraries(example_cub_reduce_deterministic hostjit_lib)
+if (NOT MSVC)
+  target_compile_options(example_cub_reduce_deterministic PRIVATE -fno-rtti)
+endif()
+set_target_properties(
+  example_cub_reduce_deterministic
+  PROPERTIES CXX_STANDARD 20
+)
+
+add_executable(
+  example_cub_reduce_custom_op
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../examples/cub_reduce_custom_op.cpp
+)
+target_link_libraries(example_cub_reduce_custom_op hostjit_lib)
+if (NOT MSVC)
+  target_compile_options(example_cub_reduce_custom_op PRIVATE -fno-rtti)
+endif()
+set_target_properties(example_cub_reduce_custom_op PROPERTIES CXX_STANDARD 20)
+
+add_executable(
+  example_cub_adjacent_difference
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../examples/cub_adjacent_difference.cpp
+)
+target_link_libraries(example_cub_adjacent_difference hostjit_lib)
+if (NOT MSVC)
+  target_compile_options(example_cub_adjacent_difference PRIVATE -fno-rtti)
+endif()
+set_target_properties(
+  example_cub_adjacent_difference
+  PROPERTIES CXX_STANDARD 20
+)
+
 # On Windows with multi-config generators (Visual Studio), exclude hostjit
 # targets from Debug builds — the LLVM Debug build causes stack overflows.
 if (MSVC)
   set_target_properties(
     hostjit_lib
+    example_cub_reduce
+    example_cub_reduce_deterministic
+    example_cub_reduce_custom_op
+    example_cub_adjacent_difference
     PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_DEBUG TRUE
   )
 endif()

@@ -25,6 +25,8 @@
 #include <cuda/__cmath/ceil_div.h>
 #include <cuda/__device/compute_capability.h>
 #include <cuda/std/__algorithm/clamp.h>
+#include <cuda/std/__algorithm/max.h>
+#include <cuda/std/__algorithm/min.h>
 #include <cuda/std/__host_stdlib/ostream>
 #include <cuda/std/__type_traits/is_trivially_copyable.h>
 #include <cuda/std/concepts>

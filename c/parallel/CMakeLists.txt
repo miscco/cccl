@@ -97,6 +97,12 @@ target_include_directories(
   PUBLIC "include"
   PRIVATE "src"
 )
+if (CCCL_C_Parallel_ENABLE_HOSTJIT)
+  target_include_directories(cccl.c.parallel PRIVATE "src/hostjit/include")
+  target_link_libraries(cccl.c.parallel PRIVATE hostjit_lib)
+endif()
+
+target_link_libraries(cccl.c.parallel PRIVATE hostjit_lib)
 
 if (CCCL_C_Parallel_ENABLE_TESTING)
   add_subdirectory(test)
