@@ -80,7 +80,7 @@ struct _IterOps<_ClassicAlgPolicy>
   using __value_type = typename iterator_traits<_Iter>::value_type;
 
   template <class _Iter>
-  using __iterator_category = typename iterator_traits<_Iter>::iterator_category;
+  using __iterator_category = __iterator_traits_category_or_concept_t<_Iter>;
 
   template <class _Iter>
   using __difference_type = typename iterator_traits<_Iter>::difference_type;
