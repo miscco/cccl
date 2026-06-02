@@ -29,7 +29,7 @@
 #include "test_macros.h"
 #include "test_pstl.h"
 
-inline constexpr int size = 1000;
+inline constexpr int size = 256; // bfloat16 cannot represent larger numbers
 
 template <class Policy, class T>
 void test_min_element(const Policy& policy, c2h::device_vector<T>& input)

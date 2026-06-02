@@ -9,7 +9,9 @@
 //===----------------------------------------------------------------------===//
 
 // template<class ExecutionPolicy, class ForwardIterator>
-// ForwardIterator max_element(ExecutionPolicy&& exec, ForwardIterator first, ForwardIterator last);
+// pair<ForwardIterator, ForwardIterator> minminmax_element(ExecutionPolicy&& exec,
+//                                                       ForwardIterator first,
+//                                                       ForwardIterator last);
 
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
@@ -32,53 +34,60 @@
 inline constexpr int size = 256; // bfloat16 cannot represent larger numbers
 
 template <class Policy, class T>
-void test_max_element(const Policy& policy, c2h::device_vector<T>& input)
+void test_minmax_element(const Policy& policy, c2h::device_vector<T>& input)
 {
   { // empty should not access anything
-    auto res = cuda::std::max_element(policy, static_cast<T*>(nullptr), static_cast<T*>(nullptr));
-    static_assert(cuda::std::is_same_v<decltype(res), T*>);
-    CHECK(res == nullptr);
+    auto res = cuda::std::minmax_element(policy, static_cast<T*>(nullptr), static_cast<T*>(nullptr));
+    static_assert(cuda::std::is_same_v<decltype(res), cuda::std::pair<T*, T*>>);
+    CHECK(res.first == nullptr);
+    CHECK(res.second == nullptr);
   }
 
   thrust::sequence(input.begin(), input.end(), 1);
-  { // first element is smallest, contiguous iterator
-    auto res = cuda::std::max_element(policy, input.begin(), input.end());
-    CHECK(res == --input.end());
+  { // first element is smallest, last is greatest, contiguous iterator
+    auto res = cuda::std::minmax_element(policy, input.begin(), input.end());
+    CHECK(res.first == input.begin());
+    CHECK(res.second == --input.end());
   }
 
   const T* raw_pointer = thrust::raw_pointer_cast(input.data());
-  { // first element is smallest, random access iterator
-    auto res =
-      cuda::std::max_element(policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size});
-    CHECK(res == random_access_iterator{raw_pointer + size - 1});
+  { // first element is smallest, last is greatest, contiguous iterator
+    auto res = cuda::std::minmax_element(
+      policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size});
+    CHECK(res.first == random_access_iterator{raw_pointer});
+    CHECK(res.second == random_access_iterator{raw_pointer + size - 1});
   }
 
   thrust::sequence(input.begin(), input.end(), size, -1);
-  { // last element is smallest, contiguous iterator
-    auto res = cuda::std::max_element(policy, input.begin(), input.end());
-    CHECK(res == input.begin());
+  { // last element is smallest, first is greatest, contiguous iterator
+    auto res = cuda::std::minmax_element(policy, input.begin(), input.end());
+    CHECK(res.first == --input.end());
+    CHECK(res.second == input.begin());
   }
 
-  { // last element is smallest, random access iterator
-    auto res =
-      cuda::std::max_element(policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size});
-    CHECK(res == random_access_iterator{raw_pointer});
+  { // last element is smallest, first is greatest, random access iterator
+    auto res = cuda::std::minmax_element(
+      policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size});
+    CHECK(res.first == random_access_iterator{raw_pointer + size - 1});
+    CHECK(res.second == random_access_iterator{raw_pointer});
   }
 
   cuda::std::fill(policy, input.begin(), input.end(), T{42});
   { // all elements equal, contiguous iterator
-    auto res = cuda::std::max_element(policy, input.begin(), input.end());
-    CHECK(res == input.begin());
+    auto res = cuda::std::minmax_element(policy, input.begin(), input.end());
+    CHECK(res.first == input.begin());
+    CHECK(res.second == input.begin());
   }
 
   { // all elements equal, random access iterator
-    auto res =
-      cuda::std::max_element(policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size});
-    CHECK(res == random_access_iterator{raw_pointer});
+    auto res = cuda::std::minmax_element(
+      policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size});
+    CHECK(res.first == random_access_iterator{raw_pointer});
+    CHECK(res.first == random_access_iterator{raw_pointer});
   }
 }
 
-C2H_TEST("cuda::std::max_element(Iter, Iter)", "[parallel algorithm]", all_types)
+C2H_TEST("cuda::std::minmax_element(Iter, Iter)", "[parallel algorithm]", all_types)
 {
   using T = typename c2h::get<0, TestType>;
   c2h::device_vector<T> input(size, thrust::no_init);
@@ -86,21 +95,21 @@ C2H_TEST("cuda::std::max_element(Iter, Iter)", "[parallel algorithm]", all_types
   SECTION("with default stream")
   {
     const auto policy = cuda::execution::gpu;
-    test_max_element(policy, input);
+    test_minmax_element(policy, input);
   }
 
   SECTION("with provided stream")
   {
     cuda::stream stream{cuda::device_ref{0}};
     const auto policy = cuda::execution::gpu.with(cuda::get_stream, stream);
-    test_max_element(policy, input);
+    test_minmax_element(policy, input);
   }
 
   SECTION("with provided memory_resource")
   {
     cuda::device_memory_pool_ref device_resource = cuda::device_default_memory_pool(cuda::device_ref{0});
     const auto policy = cuda::execution::gpu.with(cuda::mr::get_memory_resource, device_resource);
-    test_max_element(policy, input);
+    test_minmax_element(policy, input);
   }
 
   SECTION("with provided stream and memory_resource")
@@ -109,6 +118,6 @@ C2H_TEST("cuda::std::max_element(Iter, Iter)", "[parallel algorithm]", all_types
     cuda::device_memory_pool_ref device_resource = cuda::device_default_memory_pool(stream.device());
     const auto policy =
       cuda::execution::gpu.with(cuda::get_stream, stream).with(cuda::mr::get_memory_resource, device_resource);
-    test_max_element(policy, input);
+    test_minmax_element(policy, input);
   }
 }

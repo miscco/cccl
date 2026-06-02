@@ -8,8 +8,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-// template<class ExecutionPolicy, class ForwardIterator>
-// ForwardIterator max_element(ExecutionPolicy&& exec, ForwardIterator first, ForwardIterator last);
+// template<class ExecutionPolicy, class ForwardIterator, class BinaryPredicate>
+// ForwardIterator max_element(ExecutionPolicy&& exec,
+//                             ForwardIterator first,
+//                             ForwardIterator last,
+//                             BinaryPredicate comp);
 
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
@@ -35,50 +38,50 @@ template <class Policy, class T>
 void test_max_element(const Policy& policy, c2h::device_vector<T>& input)
 {
   { // empty should not access anything
-    auto res = cuda::std::max_element(policy, static_cast<T*>(nullptr), static_cast<T*>(nullptr));
+    auto res = cuda::std::max_element(policy, static_cast<T*>(nullptr), static_cast<T*>(nullptr), cuda::std::greater{});
     static_assert(cuda::std::is_same_v<decltype(res), T*>);
     CHECK(res == nullptr);
   }
 
   thrust::sequence(input.begin(), input.end(), 1);
   { // first element is smallest, contiguous iterator
-    auto res = cuda::std::max_element(policy, input.begin(), input.end());
-    CHECK(res == --input.end());
+    auto res = cuda::std::max_element(policy, input.begin(), input.end(), cuda::std::greater{});
+    CHECK(res == input.begin());
   }
 
   const T* raw_pointer = thrust::raw_pointer_cast(input.data());
   { // first element is smallest, random access iterator
-    auto res =
-      cuda::std::max_element(policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size});
-    CHECK(res == random_access_iterator{raw_pointer + size - 1});
+    auto res = cuda::std::max_element(
+      policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size}, cuda::std::greater{});
+    CHECK(res == random_access_iterator{raw_pointer});
   }
 
   thrust::sequence(input.begin(), input.end(), size, -1);
   { // last element is smallest, contiguous iterator
-    auto res = cuda::std::max_element(policy, input.begin(), input.end());
-    CHECK(res == input.begin());
+    auto res = cuda::std::max_element(policy, input.begin(), input.end(), cuda::std::greater{});
+    CHECK(res == --input.end());
   }
 
   { // last element is smallest, random access iterator
-    auto res =
-      cuda::std::max_element(policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size});
-    CHECK(res == random_access_iterator{raw_pointer});
+    auto res = cuda::std::max_element(
+      policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size}, cuda::std::greater{});
+    CHECK(res == random_access_iterator{raw_pointer + size - 1});
   }
 
   cuda::std::fill(policy, input.begin(), input.end(), T{42});
   { // all elements equal, contiguous iterator
-    auto res = cuda::std::max_element(policy, input.begin(), input.end());
+    auto res = cuda::std::max_element(policy, input.begin(), input.end(), cuda::std::greater{});
     CHECK(res == input.begin());
   }
 
   { // all elements equal, random access iterator
-    auto res =
-      cuda::std::max_element(policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size});
+    auto res = cuda::std::max_element(
+      policy, random_access_iterator{raw_pointer}, random_access_iterator{raw_pointer + size}, cuda::std::greater{});
     CHECK(res == random_access_iterator{raw_pointer});
   }
 }
 
-C2H_TEST("cuda::std::max_element(Iter, Iter)", "[parallel algorithm]", all_types)
+C2H_TEST("cuda::std::max_element(Iter, Iter, comp)", "[parallel algorithm]", all_types)
 {
   using T = typename c2h::get<0, TestType>;
   c2h::device_vector<T> input(size, thrust::no_init);
