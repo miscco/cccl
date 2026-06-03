@@ -210,18 +210,17 @@ public:
       : __base_(allocator_arg_t(), __a, __tuple_variadic_constructor_tag{}, ::cuda::std::forward<_UTypes>(__u)...)
   {}
 
-  template <class... _Up>
-  using __variadic_constraints_less_rank =
-    _If<!__expands_to_this_tuple<_Up...>::value,
-        typename __tuple_constraints<_Tp...>::template __variadic_constraints_less_rank<_Up...>,
-        __invalid_tuple_constraints>;
+  template <class... _UTypes>
+  using _VariadicConstraintsLessRank = integral_constant<
+    __select_constructor,
+    __tuple_select_variadic_constructible_less_rank_v<__tuple_types<_Tp...>, __tuple_types<_UTypes...>>>;
 
-  template <class... _Up,
-            class _Constraints                                       = __variadic_constraints_less_rank<_Up...>,
-            enable_if_t<sizeof...(_Up) < sizeof...(_Tp), int>        = 0,
-            enable_if_t<_Constraints::__implicit_constructible, int> = 0>
-  _CCCL_API constexpr explicit tuple(_Up&&... __u) noexcept(is_nothrow_constructible_v<_BaseT, _Up...>)
-      : __base_(__tuple_variadic_constructor_tag{}, ::cuda::std::forward<_Up>(__u)...)
+  template <class... _UTypes,
+            enable_if_t<(sizeof...(_UTypes) < sizeof...(_Tp)), int> = 0,
+            __select_constructor _Trait                             = _VariadicConstraintsLessRank<_UTypes...>::value,
+            enable_if_t<__select_explicit<_Trait>, int>             = 0>
+  _CCCL_API constexpr explicit tuple(_UTypes&&... __u)
+      : __base_(__tuple_variadic_constructor_tag{}, ::cuda::std::forward<_UTypes>(__u)...)
   {}
 
   template <class _Tuple>

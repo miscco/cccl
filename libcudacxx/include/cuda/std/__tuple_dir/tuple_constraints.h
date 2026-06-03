@@ -320,6 +320,39 @@ template <class _TupleTypes, class _TupleUTypes>
 inline constexpr __select_constructor __tuple_select_variadic_constructible_v =
   ::cuda::std::__tuple_select_variadic_constructible(_TupleTypes{}, _TupleUTypes{});
 
+template <class... _Types, class... _UTypes>
+[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL __select_constructor
+__tuple_select_variadic_constructible_less_rank(__tuple_types<_Types...>, __tuple_types<_UTypes...>) noexcept
+{
+  if constexpr (!(sizeof...(_UTypes) < sizeof...(_Types)))
+  {
+    return __select_constructor::__none;
+  }
+  else
+  {
+    using __arg_list       = __make_tuple_types_t<__tuple_types<_Types...>, sizeof...(_UTypes)>;
+    using __defaulted_list = __make_tuple_types_t<__tuple_types<_Types...>, sizeof...(_Types), sizeof...(_UTypes)>;
+    if constexpr (::cuda::std::__tuple_select_variadic_constructible(__arg_list{}, __tuple_types<_UTypes...>{})
+                  == __select_constructor::__none)
+    {
+      return __select_constructor::__none;
+    }
+    else if constexpr (::cuda::std::__tuple_select_default_constructible(__defaulted_list{})
+                       == __select_constructor::__none)
+    {
+      return __select_constructor::__none;
+    }
+    else
+    {
+      return __select_constructor::__explicit;
+    }
+  }
+}
+
+template <class _TupleTypes, class _TupleUTypes>
+inline constexpr __select_constructor __tuple_select_variadic_constructible_less_rank_v =
+  ::cuda::std::__tuple_select_variadic_constructible_less_rank(_TupleTypes{}, _TupleUTypes{});
+
 struct __invalid_tuple_constraints
 {
   static constexpr bool __implicit_constructible = false;
