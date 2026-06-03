@@ -82,31 +82,33 @@ public:
     return static_cast<const type&&>(static_cast<const __tuple_leaf<_Ip, type>&&>(__base_).get());
   }
 
-  template <class _Constraints                                               = __tuple_constraints<_Tp...>,
-            enable_if_t<_Constraints::__implicit_default_constructible, int> = 0>
-  _CCCL_API constexpr tuple() noexcept(_Constraints::__nothrow_default_constructible)
+  // Going through an inline variable forces instantiation of the default constructors of all _Tp fr old GCC
+  template <__select_constructor _Trait = ::cuda::std::__tuple_select_default_constructible(__tuple_types<_Tp...>{}),
+            enable_if_t<__select_implicit<_Trait>, int> = 0>
+  _CCCL_API constexpr tuple() noexcept((is_nothrow_default_constructible_v<_Tp> && ...))
   {}
 
-  template <class _Constraints                                               = __tuple_constraints<_Tp...>,
-            enable_if_t<_Constraints::__explicit_default_constructible, int> = 0>
-  _CCCL_API explicit constexpr tuple() noexcept(_Constraints::__nothrow_default_constructible)
+  template <__select_constructor _Trait = ::cuda::std::__tuple_select_default_constructible(__tuple_types<_Tp...>{}),
+            enable_if_t<__select_explicit<_Trait>, int> = 0>
+  _CCCL_API explicit constexpr tuple() noexcept((is_nothrow_default_constructible_v<_Tp> && ...))
   {}
 
   _CCCL_HIDE_FROM_ABI tuple(tuple const&) = default;
   _CCCL_HIDE_FROM_ABI tuple(tuple&&)      = default;
 
   template <class _Alloc,
-            class _Constraints                                               = __tuple_constraints<_Tp...>,
-            enable_if_t<_Constraints::__implicit_default_constructible, int> = 0>
-  _CCCL_API inline tuple(allocator_arg_t, _Alloc const& __a) noexcept(_Constraints::__nothrow_default_constructible)
+            __select_constructor _Trait = ::cuda::std::__tuple_select_default_constructible(__tuple_types<_Tp...>{}),
+            enable_if_t<__select_implicit<_Trait>, int> = 0>
+  _CCCL_API constexpr tuple(allocator_arg_t,
+                            _Alloc const& __a) noexcept((is_nothrow_default_constructible_v<_Tp> && ...))
       : __base_(allocator_arg_t(), __a)
   {}
 
   template <class _Alloc,
-            class _Constraints                                               = __tuple_constraints<_Tp...>,
-            enable_if_t<_Constraints::__explicit_default_constructible, int> = 0>
-  explicit
-    _CCCL_API inline tuple(allocator_arg_t, _Alloc const& __a) noexcept(_Constraints::__nothrow_default_constructible)
+            __select_constructor _Trait = ::cuda::std::__tuple_select_default_constructible(__tuple_types<_Tp...>{}),
+            enable_if_t<__select_explicit<_Trait>, int> = 0>
+  _CCCL_API explicit constexpr tuple(allocator_arg_t,
+                                     _Alloc const& __a) noexcept((is_nothrow_default_constructible_v<_Tp> && ...))
       : __base_(allocator_arg_t(), __a)
   {}
 

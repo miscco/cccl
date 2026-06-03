@@ -381,7 +381,7 @@ struct _CCCL_DECLSPEC_EMPTY_BASES __tuple_impl<__tuple_indices<_Indx...>, _Tp...
 {
   using _Constraints = __tuple_constraints<_Tp...>;
 
-  _CCCL_API constexpr __tuple_impl() noexcept(_Constraints::__nothrow_default_constructible)
+  _CCCL_API constexpr __tuple_impl() noexcept((is_nothrow_default_constructible_v<_Tp> && ...))
       : __tuple_leaf<_Indx, _Tp>()...
   {}
 

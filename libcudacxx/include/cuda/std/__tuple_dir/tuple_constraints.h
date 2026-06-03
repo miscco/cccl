@@ -160,6 +160,38 @@ template <class _Tuple, size_t _ExpectedSize>
 inline constexpr bool __tuple_like_with_size<_Tuple, _ExpectedSize, true> =
   _ExpectedSize == tuple_size<remove_cvref_t<_Tuple>>::value;
 
+enum class __select_constructor
+{
+  __none,
+  __implicit,
+  __explicit,
+};
+
+template <__select_constructor _Trait>
+inline constexpr bool __select_implicit = _Trait == __select_constructor::__implicit;
+template <__select_constructor _Trait>
+inline constexpr bool __select_explicit = _Trait == __select_constructor::__explicit;
+template <__select_constructor _Trait>
+inline constexpr bool __select_constructible = _Trait != __select_constructor::__none;
+
+template <class... _Types>
+[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL __select_constructor
+__tuple_select_default_constructible(__tuple_types<_Types...>) noexcept
+{
+  if constexpr (!(is_default_constructible_v<_Types> && ...))
+  {
+    return __select_constructor::__none;
+  }
+  else if constexpr ((__is_implicitly_default_constructible<_Types>::value && ...))
+  {
+    return __select_constructor::__implicit;
+  }
+  else
+  {
+    return __select_constructor::__explicit;
+  }
+}
+
 struct __invalid_tuple_constraints
 {
   static constexpr bool __implicit_constructible = false;
