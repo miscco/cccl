@@ -366,6 +366,8 @@ _CCCL_DIAG_POP
 
 struct __tuple_variadic_constructor_tag
 {};
+struct __tuple_like_constructor_tag
+{};
 
 // __tuple_impl
 
@@ -421,6 +423,8 @@ struct _CCCL_DECLSPEC_EMPTY_BASES __tuple_impl<__tuple_indices<_Indx...>, _Tp...
 
   // cannot use inline variable here
   template <class _Tuple, enable_if_t<__tuple_constructible_struct<_Tuple, __tuple_types<_Tp...>>::value, int> = 0>
+  _CCCL_API constexpr __tuple_impl(__tuple_like_constructor_tag,
+                                   _Tuple&& __t) noexcept(__tuple_nothrow_constructible<_Tuple, __tuple_types<_Tp...>>)
       : __tuple_leaf<_Indx, _Tp>(
           ::cuda::std::forward<__tuple_elem_at<_Tuple, _Indx>>(::cuda::std::__adl_get<_Indx>(__t)))...
   {}
@@ -429,6 +433,7 @@ struct _CCCL_DECLSPEC_EMPTY_BASES __tuple_impl<__tuple_indices<_Indx...>, _Tp...
   template <class _Alloc,
             class _Tuple,
             enable_if_t<__tuple_constructible_struct<_Tuple, __tuple_types<_Tp...>>::value, int> = 0>
+  _CCCL_API inline __tuple_impl(__tuple_like_constructor_tag, allocator_arg_t, const _Alloc& __a, _Tuple&& __t)
       : __tuple_leaf<_Indx, _Tp>(
           __uses_alloc_ctor<_Tp, _Alloc, __tuple_elem_at<_Tuple, _Indx>>(),
           __a,

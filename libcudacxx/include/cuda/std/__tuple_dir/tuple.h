@@ -238,7 +238,7 @@ public:
             enable_if_t<!is_lvalue_reference_v<_Tuple>, int>         = 0, // NOLINT(modernize-type-traits)
             enable_if_t<_Constraints::__implicit_constructible, int> = 0>
   _CCCL_API constexpr tuple(_Tuple&& __t) noexcept(is_nothrow_constructible_v<_BaseT, _Tuple>)
-      : __base_(::cuda::std::forward<_Tuple>(__t))
+      : __base_(__tuple_like_constructor_tag{}, ::cuda::std::forward<_Tuple>(__t))
   {}
 
   template <class _Tuple,
@@ -246,7 +246,7 @@ public:
             enable_if_t<!__expands_to_this_tuple<_Tuple>::value, int> = 0,
             enable_if_t<_Constraints::__implicit_constructible, int>  = 0>
   _CCCL_API constexpr tuple(const _Tuple& __t) noexcept(is_nothrow_constructible_v<_BaseT, const _Tuple&>)
-      : __base_(__t)
+      : __base_(__tuple_like_constructor_tag{}, __t)
   {}
 
   template <class _Tuple,
@@ -255,7 +255,7 @@ public:
             enable_if_t<!is_lvalue_reference_v<_Tuple>, int>          = 0,
             enable_if_t<_Constraints::__explicit_constructible, int>  = 0>
   _CCCL_API constexpr explicit tuple(_Tuple&& __t) noexcept(is_nothrow_constructible_v<_BaseT, _Tuple>)
-      : __base_(::cuda::std::forward<_Tuple>(__t))
+      : __base_(__tuple_like_constructor_tag{}, ::cuda::std::forward<_Tuple>(__t))
   {}
 
   template <class _Tuple,
@@ -263,7 +263,7 @@ public:
             enable_if_t<!__expands_to_this_tuple<_Tuple>::value, int> = 0,
             enable_if_t<_Constraints::__explicit_constructible, int>  = 0>
   _CCCL_API constexpr explicit tuple(const _Tuple& __t) noexcept(is_nothrow_constructible_v<_BaseT, const _Tuple&>)
-      : __base_(__t)
+      : __base_(__tuple_like_constructor_tag{}, __t)
   {}
 
   template <class _Alloc,
@@ -271,7 +271,7 @@ public:
             class _Constraints                                       = __tuple_like_constraints<_Tuple>,
             enable_if_t<_Constraints::__implicit_constructible, int> = 0>
   _CCCL_API inline tuple(allocator_arg_t, const _Alloc& __a, _Tuple&& __t)
-      : __base_(allocator_arg_t(), __a, ::cuda::std::forward<_Tuple>(__t))
+      : __base_(__tuple_like_constructor_tag{}, allocator_arg_t(), __a, ::cuda::std::forward<_Tuple>(__t))
   {}
 
   template <class _Alloc,
@@ -279,7 +279,7 @@ public:
             class _Constraints                                       = __tuple_like_constraints<_Tuple>,
             enable_if_t<_Constraints::__explicit_constructible, int> = 0>
   _CCCL_API inline explicit tuple(allocator_arg_t, const _Alloc& __a, _Tuple&& __t)
-      : __base_(allocator_arg_t(), __a, ::cuda::std::forward<_Tuple>(__t))
+      : __base_(__tuple_like_constructor_tag{}, allocator_arg_t(), __a, ::cuda::std::forward<_Tuple>(__t))
   {}
 
   _CCCL_HIDE_FROM_ABI tuple& operator=(const tuple& __t) = default;
