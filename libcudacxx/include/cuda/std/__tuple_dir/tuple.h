@@ -142,6 +142,22 @@ public:
       : __base_(allocator_arg_t(), __a, __tuple_variadic_constructor_tag{}, __t...)
   {}
 
+  template <class _Alloc,
+            __select_constructor _Trait = __tuple_select_variadic_copy_constructible_v<__tuple_types<_Tp...>>,
+            enable_if_t<__select_constructible<_Trait>, int> = 0>
+  _CCCL_API constexpr tuple(allocator_arg_t, const _Alloc& __a, const tuple& __t) noexcept(
+    __tuple_all_nothrow_copy_constructible_v<_Tp...>)
+      : __base_(__tuple_like_constructor_tag{}, allocator_arg_t(), __a, __t)
+  {}
+
+  template <class _Alloc,
+            __select_constructor _Trait = __tuple_select_variadic_move_constructible_v<__tuple_types<_Tp...>>,
+            enable_if_t<__select_constructible<_Trait>, int> = 0>
+  _CCCL_API constexpr tuple(allocator_arg_t, const _Alloc& __a, tuple&& __t) noexcept(
+    __tuple_all_nothrow_move_constructible_v<_Tp...>)
+      : __base_(__tuple_like_constructor_tag{}, allocator_arg_t(), __a, ::cuda::std::move(__t))
+  {}
+
   template <class... _Args>
   struct __expands_to_this_tuple : false_type
   {};
