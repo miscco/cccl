@@ -254,6 +254,29 @@ private:
   {}
 
 public:
+  template <class _UTuple>
+  using _TupleLikeConstraints = integral_constant<
+    __select_constructor,
+    __tuple_select_tuple_like_constructible_v<_UTuple, __tuple_types<_Tp...>, __make_tuple_indices_t<sizeof...(_Tp)>>>;
+
+  template <class _UTuple>
+  using _NothrowTupleLike = bool_constant<
+    __tuple_nothrow_tuple_like_constructible_v<_UTuple, __tuple_types<_Tp...>, __make_tuple_indices_t<sizeof...(_Tp)>>>;
+
+  template <class... _UTypes,
+            __select_constructor _Trait                 = _TupleLikeConstraints<tuple<_UTypes...>&>::value,
+            enable_if_t<__select_implicit<_Trait>, int> = 0>
+  _CCCL_API constexpr tuple(tuple<_UTypes...>& __t) noexcept(_NothrowTupleLike<tuple<_UTypes...>&>::value)
+      : __base_(__tuple_like_constructor_tag{}, __t)
+  {}
+
+  template <class... _UTypes,
+            __select_constructor _Trait                 = _TupleLikeConstraints<tuple<_UTypes...>&>::value,
+            enable_if_t<__select_explicit<_Trait>, int> = 0>
+  _CCCL_API explicit constexpr tuple(tuple<_UTypes...>& __t) noexcept(_NothrowTupleLike<tuple<_UTypes...>&>::value)
+      : __base_(__tuple_like_constructor_tag{}, __t)
+  {}
+
   template <class _Tuple,
             class _Constraints                                        = __tuple_like_constraints<_Tuple>,
             enable_if_t<!__expands_to_this_tuple<_Tuple>::value, int> = 0,
