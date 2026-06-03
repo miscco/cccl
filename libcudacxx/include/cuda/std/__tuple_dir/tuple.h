@@ -160,14 +160,6 @@ public:
       : __base_(__tuple_like_constructor_tag{}, allocator_arg_t(), __a, ::cuda::std::move(__t))
   {}
 
-  template <class... _Args>
-  struct __expands_to_this_tuple : false_type
-  {};
-
-  template <class _Arg>
-  struct __expands_to_this_tuple<_Arg> : is_same<remove_cvref_t<_Arg>, tuple>
-  {};
-
   // Old MSVC chokes about a static constexpr variable needing an initializer. Work around by using a type
   template <class... _UTypes>
   using _VariadicConstraints =
@@ -225,14 +217,6 @@ public:
       : __base_(__tuple_variadic_constructor_tag{}, ::cuda::std::forward<_UTypes>(__u)...)
   {}
 
-  template <class _Tuple>
-  using __tuple_like_constraints =
-    // clang-tidy has fallen off its rocker and claims we can use the non-existent
-    // __tuple_like_with_size_v here.
-    _If<__tuple_like_with_size<_Tuple, sizeof...(_Tp)>, // NOLINT(modernize-type-traits)
-        typename __tuple_constraints<_Tp...>::template __tuple_like_constraints<_Tuple>,
-        __invalid_tuple_constraints>;
-
   // Horrible hack to make tuple_of_iterator_references work
   template <class _TupleOfIteratorReferences,
             // clang-tidy has fallen off its rocker and claims we can use the non-existent
@@ -277,54 +261,87 @@ public:
       : __base_(__tuple_like_constructor_tag{}, __t)
   {}
 
+  template <class... _UTypes,
+            __select_constructor _Trait                 = _TupleLikeConstraints<const tuple<_UTypes...>&>::value,
+            enable_if_t<__select_implicit<_Trait>, int> = 0>
+  _CCCL_API constexpr tuple(const tuple<_UTypes...>& __t) noexcept(_NothrowTupleLike<const tuple<_UTypes...>&>::value)
+      : __base_(__tuple_like_constructor_tag{}, __t)
+  {}
+
+  template <class... _UTypes,
+            __select_constructor _Trait                 = _TupleLikeConstraints<const tuple<_UTypes...>&>::value,
+            enable_if_t<__select_explicit<_Trait>, int> = 0>
+  _CCCL_API explicit constexpr tuple(const tuple<_UTypes...>& __t) noexcept(
+    _NothrowTupleLike<const tuple<_UTypes...>&>::value)
+      : __base_(__tuple_like_constructor_tag{}, __t)
+  {}
+  template <class... _UTypes,
+            __select_constructor _Trait                 = _TupleLikeConstraints<tuple<_UTypes...>&&>::value,
+            enable_if_t<__select_implicit<_Trait>, int> = 0>
+  _CCCL_API constexpr tuple(tuple<_UTypes...>&& __t) noexcept(_NothrowTupleLike<tuple<_UTypes...>&&>::value)
+      : __base_(__tuple_like_constructor_tag{}, ::cuda::std::move(__t))
+  {}
+
+  template <class... _UTypes,
+            __select_constructor _Trait                 = _TupleLikeConstraints<tuple<_UTypes...>&&>::value,
+            enable_if_t<__select_explicit<_Trait>, int> = 0>
+  _CCCL_API explicit constexpr tuple(tuple<_UTypes...>&& __t) noexcept(_NothrowTupleLike<tuple<_UTypes...>&&>::value)
+      : __base_(__tuple_like_constructor_tag{}, ::cuda::std::move(__t))
+  {}
+
+  template <class... _UTypes,
+            __select_constructor _Trait                 = _TupleLikeConstraints<const tuple<_UTypes...>&&>::value,
+            enable_if_t<__select_implicit<_Trait>, int> = 0>
+  _CCCL_API constexpr tuple(const tuple<_UTypes...>&& __t) noexcept(_NothrowTupleLike<const tuple<_UTypes...>&&>::value)
+      : __base_(__tuple_like_constructor_tag{}, ::cuda::std::move(__t))
+  {}
+
+  template <class... _UTypes,
+            __select_constructor _Trait                 = _TupleLikeConstraints<const tuple<_UTypes...>&&>::value,
+            enable_if_t<__select_explicit<_Trait>, int> = 0>
+  _CCCL_API explicit constexpr tuple(const tuple<_UTypes...>&& __t) noexcept(
+    _NothrowTupleLike<const tuple<_UTypes...>&&>::value)
+      : __base_(__tuple_like_constructor_tag{}, ::cuda::std::move(__t))
+  {}
+
+  // We cannot instantiate _TupleLikeConstraints eagerly because the leads to recursive constraints
+  // We need to SFINAE the constructor away before instantiating the traits
+  template <class _Tuple>
+  using __disambiguate_tuple_like =
+    bool_constant<!is_same_v<remove_cvref_t<_Tuple>, tuple> && __tuple_like_with_size<_Tuple, sizeof...(_Tp)>>;
+
   template <class _Tuple,
-            class _Constraints                                        = __tuple_like_constraints<_Tuple>,
-            enable_if_t<!__expands_to_this_tuple<_Tuple>::value, int> = 0,
-            // clang-tidy is confused. We are already using _v here
-            enable_if_t<!is_lvalue_reference_v<_Tuple>, int>         = 0, // NOLINT(modernize-type-traits)
-            enable_if_t<_Constraints::__implicit_constructible, int> = 0>
-  _CCCL_API constexpr tuple(_Tuple&& __t) noexcept(is_nothrow_constructible_v<_BaseT, _Tuple>)
+            enable_if_t<__disambiguate_tuple_like<_Tuple>::value, int> = 0,
+            __select_constructor _Trait                                = _TupleLikeConstraints<_Tuple>::value,
+            enable_if_t<__select_implicit<_Trait>, int>                = 0>
+  _CCCL_API constexpr tuple(_Tuple&& __t) noexcept(_NothrowTupleLike<_Tuple>::value)
       : __base_(__tuple_like_constructor_tag{}, ::cuda::std::forward<_Tuple>(__t))
   {}
 
   template <class _Tuple,
-            class _Constraints                                        = __tuple_like_constraints<const _Tuple&>,
-            enable_if_t<!__expands_to_this_tuple<_Tuple>::value, int> = 0,
-            enable_if_t<_Constraints::__implicit_constructible, int>  = 0>
-  _CCCL_API constexpr tuple(const _Tuple& __t) noexcept(is_nothrow_constructible_v<_BaseT, const _Tuple&>)
-      : __base_(__tuple_like_constructor_tag{}, __t)
-  {}
-
-  template <class _Tuple,
-            class _Constraints                                        = __tuple_like_constraints<_Tuple>,
-            enable_if_t<!__expands_to_this_tuple<_Tuple>::value, int> = 0,
-            enable_if_t<!is_lvalue_reference_v<_Tuple>, int>          = 0,
-            enable_if_t<_Constraints::__explicit_constructible, int>  = 0>
-  _CCCL_API constexpr explicit tuple(_Tuple&& __t) noexcept(is_nothrow_constructible_v<_BaseT, _Tuple>)
+            enable_if_t<__disambiguate_tuple_like<_Tuple>::value, int> = 0,
+            __select_constructor _Trait                                = _TupleLikeConstraints<_Tuple>::value,
+            enable_if_t<__select_explicit<_Trait>, int>                = 0>
+  _CCCL_API explicit constexpr tuple(_Tuple&& __t) noexcept(_NothrowTupleLike<_Tuple>::value)
       : __base_(__tuple_like_constructor_tag{}, ::cuda::std::forward<_Tuple>(__t))
-  {}
-
-  template <class _Tuple,
-            class _Constraints                                        = __tuple_like_constraints<const _Tuple&>,
-            enable_if_t<!__expands_to_this_tuple<_Tuple>::value, int> = 0,
-            enable_if_t<_Constraints::__explicit_constructible, int>  = 0>
-  _CCCL_API constexpr explicit tuple(const _Tuple& __t) noexcept(is_nothrow_constructible_v<_BaseT, const _Tuple&>)
-      : __base_(__tuple_like_constructor_tag{}, __t)
   {}
 
   template <class _Alloc,
             class _Tuple,
-            class _Constraints                                       = __tuple_like_constraints<_Tuple>,
-            enable_if_t<_Constraints::__implicit_constructible, int> = 0>
-  _CCCL_API inline tuple(allocator_arg_t, const _Alloc& __a, _Tuple&& __t)
+            enable_if_t<__disambiguate_tuple_like<_Tuple>::value, int> = 0, // Help Clang disambiguate for CTAD
+            __select_constructor _Trait                                = _TupleLikeConstraints<_Tuple>::value,
+            enable_if_t<__select_implicit<_Trait>, int>                = 0>
+  _CCCL_API constexpr tuple(allocator_arg_t, const _Alloc& __a, _Tuple&& __t) noexcept(_NothrowTupleLike<_Tuple>::value)
       : __base_(__tuple_like_constructor_tag{}, allocator_arg_t(), __a, ::cuda::std::forward<_Tuple>(__t))
   {}
 
   template <class _Alloc,
             class _Tuple,
-            class _Constraints                                       = __tuple_like_constraints<_Tuple>,
-            enable_if_t<_Constraints::__explicit_constructible, int> = 0>
-  _CCCL_API inline explicit tuple(allocator_arg_t, const _Alloc& __a, _Tuple&& __t)
+            enable_if_t<__disambiguate_tuple_like<_Tuple>::value, int> = 0, // Help Clang disambiguate for CTAD
+            __select_constructor _Trait                                = _TupleLikeConstraints<_Tuple>::value,
+            enable_if_t<__select_explicit<_Trait>, int>                = 0>
+  _CCCL_API explicit constexpr tuple(allocator_arg_t, const _Alloc& __a, _Tuple&& __t) noexcept(
+    _NothrowTupleLike<_Tuple>::value)
       : __base_(__tuple_like_constructor_tag{}, allocator_arg_t(), __a, ::cuda::std::forward<_Tuple>(__t))
   {}
 
@@ -349,54 +366,57 @@ public:
     __t.swap(__u);
   }
 
-  template <class... _Up>
-  using __comparison_constraints =
-    _If<(sizeof...(_Tp) == sizeof...(_Up)),
-        typename __tuple_constraints<_Tp...>::template __comparison<_Up...>,
-        __invalid_tuple_constraints>;
+  template <class... _UTypes>
+  using _ComparisonConstraints =
+    decltype(::cuda::std::__tuple_is_comparable(__tuple_types<_Tp...>{}, __tuple_types<_UTypes...>{}));
 
   _CCCL_EXEC_CHECK_DISABLE
-  template <class... _Up, size_t... _Indices, class _Constraints = __comparison_constraints<_Up...>>
-  [[nodiscard]] _CCCL_API constexpr bool __equal(const tuple<_Up...>& __other, __tuple_indices<_Indices...>) const
+  template <class... _UTypes, size_t... _Indices, class _Constraints = _ComparisonConstraints<_UTypes...>>
+  [[nodiscard]] _CCCL_API constexpr bool __equal(const tuple<_UTypes...>& __other, __tuple_indices<_Indices...>) const
     noexcept(_Constraints::__nothrow_equality_comparable)
   {
-    return ((::cuda::std::get<_Indices>(*this) == ::cuda::std::get<_Indices>(__other)) && ...);
+    using ::cuda::std::get;
+    return ((get<_Indices>(*this) == get<_Indices>(__other)) && ...);
   }
 
   // Not a friend function because MSVC has issues with nested namespaces and thrust::tuple
-  _CCCL_TEMPLATE(class... _Up, class _Constraints = __comparison_constraints<_Up...>)
+  _CCCL_TEMPLATE(class... _UTypes, class _Constraints = _ComparisonConstraints<_UTypes...>)
   _CCCL_REQUIRES(_Constraints::__equality_comparable)
-  [[nodiscard]] _CCCL_API constexpr bool operator==(const tuple<_Up...>& __rhs) const
+  [[nodiscard]] _CCCL_API constexpr bool operator==(const tuple<_UTypes...>& __rhs) const
     noexcept(_Constraints::__nothrow_equality_comparable)
   {
     return __equal(__rhs, __make_tuple_indices_t<sizeof...(_Tp)>{});
   }
 
-  _CCCL_TEMPLATE(class... _Up, class _Constraints = __comparison_constraints<_Up...>)
+  _CCCL_TEMPLATE(class... _UTypes, class _Constraints = _ComparisonConstraints<_UTypes...>)
   _CCCL_REQUIRES(_Constraints::__equality_comparable)
-  [[nodiscard]] _CCCL_API constexpr bool operator!=(const tuple<_Up...>& __rhs) const
+  [[nodiscard]] _CCCL_API constexpr bool operator!=(const tuple<_UTypes...>& __rhs) const
     noexcept(_Constraints::__nothrow_equality_comparable)
   {
     return !__equal(__rhs, __make_tuple_indices_t<sizeof...(_Tp)>{});
   }
 
   _CCCL_EXEC_CHECK_DISABLE
-  template <class... _Up, size_t _CurrentIndex, size_t... _Indices, class _Constraints = __comparison_constraints<_Up...>>
+  template <class... _UTypes,
+            size_t _CurrentIndex,
+            size_t... _Indices,
+            class _Constraints = _ComparisonConstraints<_UTypes...>>
   [[nodiscard]] _CCCL_API constexpr bool
-  __tuple_less_than(const tuple<_Up...>& __other, __tuple_indices<_CurrentIndex, _Indices...>) const
+  __tuple_less_than(const tuple<_UTypes...>& __other, __tuple_indices<_CurrentIndex, _Indices...>) const
     noexcept(_Constraints::__nothrow_less_than_comparable)
   {
+    using ::cuda::std::get;
     if constexpr (sizeof...(_Indices) == 0)
     {
-      return ::cuda::std::get<_CurrentIndex>(*this) < ::cuda::std::get<_CurrentIndex>(__other);
+      return get<_CurrentIndex>(*this) < get<_CurrentIndex>(__other);
     }
     else
     {
-      if (::cuda::std::get<_CurrentIndex>(*this) < ::cuda::std::get<_CurrentIndex>(__other))
+      if (get<_CurrentIndex>(*this) < get<_CurrentIndex>(__other))
       {
         return true;
       }
-      if (::cuda::std::get<_CurrentIndex>(__other) < ::cuda::std::get<_CurrentIndex>(*this))
+      if (get<_CurrentIndex>(__other) < get<_CurrentIndex>(*this))
       {
         return false;
       }
@@ -404,33 +424,33 @@ public:
     }
   }
 
-  _CCCL_TEMPLATE(class... _Up, class _Constraints = __comparison_constraints<_Up...>)
+  _CCCL_TEMPLATE(class... _UTypes, class _Constraints = _ComparisonConstraints<_UTypes...>)
   _CCCL_REQUIRES(_Constraints::__less_than_comparable)
-  [[nodiscard]] _CCCL_API constexpr bool operator<(const tuple<_Up...>& __rhs) const
+  [[nodiscard]] _CCCL_API constexpr bool operator<(const tuple<_UTypes...>& __rhs) const
     noexcept(_Constraints::__nothrow_less_than_comparable)
   {
     return __tuple_less_than(__rhs, __make_tuple_indices_t<sizeof...(_Tp)>{});
   }
 
-  _CCCL_TEMPLATE(class... _Up, class _Constraints = __comparison_constraints<_Up...>)
+  _CCCL_TEMPLATE(class... _UTypes, class _Constraints = _ComparisonConstraints<_UTypes...>)
   _CCCL_REQUIRES(_Constraints::__less_than_comparable)
-  [[nodiscard]] _CCCL_API constexpr bool operator>(const tuple<_Up...>& __rhs) const
+  [[nodiscard]] _CCCL_API constexpr bool operator>(const tuple<_UTypes...>& __rhs) const
     noexcept(_Constraints::__nothrow_less_than_comparable)
   {
     return __rhs.__tuple_less_than(*this, __make_tuple_indices_t<sizeof...(_Tp)>{});
   }
 
-  _CCCL_TEMPLATE(class... _Up, class _Constraints = __comparison_constraints<_Up...>)
+  _CCCL_TEMPLATE(class... _UTypes, class _Constraints = _ComparisonConstraints<_UTypes...>)
   _CCCL_REQUIRES(_Constraints::__less_than_comparable)
-  [[nodiscard]] _CCCL_API constexpr bool operator>=(const tuple<_Up...>& __rhs) const
+  [[nodiscard]] _CCCL_API constexpr bool operator>=(const tuple<_UTypes...>& __rhs) const
     noexcept(_Constraints::__nothrow_less_than_comparable)
   {
     return !__tuple_less_than(__rhs, __make_tuple_indices_t<sizeof...(_Tp)>{});
   }
 
-  _CCCL_TEMPLATE(class... _Up, class _Constraints = __comparison_constraints<_Up...>)
+  _CCCL_TEMPLATE(class... _UTypes, class _Constraints = _ComparisonConstraints<_UTypes...>)
   _CCCL_REQUIRES(_Constraints::__less_than_comparable)
-  [[nodiscard]] _CCCL_API constexpr bool operator<=(const tuple<_Up...>& __rhs) const
+  [[nodiscard]] _CCCL_API constexpr bool operator<=(const tuple<_UTypes...>& __rhs) const
     noexcept(_Constraints::__nothrow_less_than_comparable)
   {
     return !__rhs.__tuple_less_than(*this, __make_tuple_indices_t<sizeof...(_Tp)>{});
