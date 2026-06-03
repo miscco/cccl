@@ -23,7 +23,7 @@
 #include <cuda/std/__fwd/tuple.h>
 #include <cuda/std/__tuple_dir/make_tuple_types.h>
 #include <cuda/std/__tuple_dir/tuple_element.h>
-#include <cuda/std/__tuple_dir/tuple_like_ext.h>
+#include <cuda/std/__tuple_dir/tuple_like.h>
 #include <cuda/std/__tuple_dir/tuple_size.h>
 #include <cuda/std/__tuple_dir/tuple_types.h>
 #include <cuda/std/__type_traits/conditional.h>
@@ -153,7 +153,7 @@ inline constexpr bool __tuple_nothrow_assignable<_From, _To, true> =
   __tuple_types_assignable<__make_tuple_types_t<_From>, __make_tuple_types_t<_To&>>;
 
 // __tuple_like_with_size
-template <class _Tuple, size_t _ExpectedSize, bool = __tuple_like_ext<remove_cvref_t<_Tuple>>>
+template <class _Tuple, size_t _ExpectedSize, bool = __tuple_like<_Tuple>>
 inline constexpr bool __tuple_like_with_size = false;
 
 template <class _Tuple, size_t _ExpectedSize>
