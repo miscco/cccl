@@ -389,32 +389,30 @@ struct _CCCL_DECLSPEC_EMPTY_BASES __tuple_impl<__tuple_indices<_Indx...>, _Tp...
 
   // Handle non-allocator, full initialization
   // Old MSVC cannot handle the noexept specifier outside of template arguments
-  template <class... _Up,
-            class _Constraints = typename _Constraints::template __variadic_constraints<_Up...>,
-            enable_if_t<sizeof...(_Up) == sizeof...(_Tp), int> = 0>
-  _CCCL_API constexpr explicit __tuple_impl(__tuple_variadic_constructor_tag,
-                                            _Up&&... __u) noexcept(_Constraints::__nothrow_constructible)
+  template <class... _Up, enable_if_t<sizeof...(_Up) == sizeof...(_Tp), int> = 0>
+  _CCCL_API explicit constexpr __tuple_impl(__tuple_variadic_constructor_tag,
+                                            _Up&&... __u) noexcept((is_nothrow_constructible_v<_Tp, _Up> && ...))
       : __tuple_leaf<_Indx, _Tp>(::cuda::std::forward<_Up>(__u))...
   {}
 
   // Handle non-allocator, partial default initialization
   // Recursively delegate until we have full rank
   template <class... _Up, enable_if_t<sizeof...(_Up) < sizeof...(_Tp), int> = 0>
-  _CCCL_API constexpr explicit __tuple_impl(__tuple_variadic_constructor_tag __tag, _Up&&... __u) noexcept(
+  _CCCL_API explicit constexpr __tuple_impl(__tuple_variadic_constructor_tag __tag, _Up&&... __u) noexcept(
     noexcept(__tuple_impl(__tag, ::cuda::std::forward<_Up>(__u)..., __tuple_leaf_default_constructor_tag{})))
       : __tuple_impl(__tag, ::cuda::std::forward<_Up>(__u)..., __tuple_leaf_default_constructor_tag{})
   {}
 
   // Handle allocator aware, full initialization
   template <class _Alloc, class... _Up, enable_if_t<sizeof...(_Up) == sizeof...(_Tp), int> = 0>
-  _CCCL_API inline explicit __tuple_impl(
+  _CCCL_API explicit constexpr __tuple_impl(
     allocator_arg_t, const _Alloc& __a, __tuple_variadic_constructor_tag, _Up&&... __u)
       : __tuple_leaf<_Indx, _Tp>(__uses_alloc_ctor<_Tp, _Alloc, _Up>(), __a, ::cuda::std::forward<_Up>(__u))...
   {}
 
   // Handle allocator aware, full default initialization
   template <class _Alloc>
-  _CCCL_API inline explicit __tuple_impl(allocator_arg_t, const _Alloc& __a)
+  _CCCL_API explicit constexpr __tuple_impl(allocator_arg_t, const _Alloc& __a)
       : __tuple_leaf<_Indx, _Tp>(__uses_alloc_ctor<_Tp, _Alloc>(), __a)...
   {}
 
