@@ -34,6 +34,7 @@
 #include <cuda/std/__type_traits/is_constructible.h>
 #include <cuda/std/__type_traits/is_convertible.h>
 #include <cuda/std/__type_traits/is_copy_assignable.h>
+#include <cuda/std/__type_traits/is_copy_constructible.h>
 #include <cuda/std/__type_traits/is_default_constructible.h>
 #include <cuda/std/__type_traits/is_implicitly_default_constructible.h>
 #include <cuda/std/__type_traits/is_move_assignable.h>
@@ -49,6 +50,9 @@
 #include <cuda/std/__cccl/prologue.h>
 
 _CCCL_BEGIN_NAMESPACE_CUDA_STD
+
+template <class... _Types>
+inline constexpr bool __tuple_all_nothrow_copy_constructible_v = (is_nothrow_copy_constructible_v<_Types> && ...);
 
 template <class... _Types>
 inline constexpr bool __tuple_all_copy_assignable_v = (is_copy_assignable_v<_Types> && ...);
@@ -191,6 +195,28 @@ __tuple_select_default_constructible(__tuple_types<_Types...>) noexcept
     return __select_constructor::__explicit;
   }
 }
+
+template <class... _Types>
+[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL __select_constructor
+__tuple_select_variadic_copy_constructible(__tuple_types<_Types...>) noexcept
+{
+  if constexpr (!(is_copy_constructible_v<_Types> && ...))
+  {
+    return __select_constructor::__none;
+  }
+  else if constexpr ((is_convertible_v<const _Types&, _Types> && ...))
+  {
+    return __select_constructor::__implicit;
+  }
+  else
+  {
+    return __select_constructor::__explicit;
+  }
+}
+
+template <class _TupleTypes>
+inline constexpr __select_constructor __tuple_select_variadic_copy_constructible_v =
+  ::cuda::std::__tuple_select_variadic_copy_constructible(_TupleTypes{});
 
 struct __invalid_tuple_constraints
 {
