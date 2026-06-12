@@ -1072,18 +1072,16 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch_policy(
   return cudaSuccess;
 }
 
-template <
-  SelectImpl SelectionOpt,
-  typename InputIteratorT,
-  typename FlagsInputIteratorT,
-  typename SelectedOutputIteratorT,
-  typename NumSelectedIteratorT,
-  typename SelectOpT,
-  typename EqualityOpT,
-  typename OffsetT,
-  typename PolicySelector =
-    policy_selector_from_types<InputIteratorT, FlagsInputIteratorT, SelectedOutputIteratorT, OffsetT, SelectionOpt>,
-  typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY>
+template <SelectImpl SelectionOpt,
+          typename InputIteratorT,
+          typename FlagsInputIteratorT,
+          typename SelectedOutputIteratorT,
+          typename NumSelectedIteratorT,
+          typename SelectOpT,
+          typename EqualityOpT,
+          typename OffsetT,
+          typename TuningEnvT            = ::cuda::std::execution::env<>,
+          typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY>
 #if _CCCL_HAS_CONCEPTS()
   requires select_if_policy_selector<PolicySelector>
 #endif // _CCCL_HAS_CONCEPTS()
@@ -1098,9 +1096,14 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
   EqualityOpT equality_op,
   OffsetT num_items,
   cudaStream_t stream,
-  PolicySelector policy_selector         = {},
+  TuningEnvT                             = {},
   KernelLauncherFactory launcher_factory = {})
 {
+  using default_policy_selector_t =
+    policy_selector_from_types<InputIteratorT, FlagsInputIteratorT, SelectedOutputIteratorT, OffsetT, SelectionOpt>;
+  using policy_selector_t =
+    ::cuda::std::execution::__query_result_or_t<TuningEnvT, select_if_policy, default_policy_selector_t>;
+
   ::cuda::compute_capability cc{};
   if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
   {
@@ -1118,7 +1121,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
                }))
 #endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
 
-  return dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) {
+  return dispatch_compute_cap(policy_selector_t{}, cc, [&](auto policy_getter) {
     return dispatch_policy<SelectionOpt, decltype(policy_getter)>(
       policy_getter,
       d_temp_storage,
@@ -1131,7 +1134,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
       equality_op,
       num_items,
       stream,
-      policy_selector,
+      policy_selector_t{},
       launcher_factory);
   });
 }
