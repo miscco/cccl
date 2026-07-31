@@ -6,8 +6,6 @@
 // SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES.
 //
 //===----------------------------------------------------------------------===//
-// error: function-to-pointer decay is unsupported in tile code
-// error: taking address of a function is unsupported in tile code
 
 // UNSUPPORTED: msvc-19.16
 // UNSUPPORTED: nvrtc
