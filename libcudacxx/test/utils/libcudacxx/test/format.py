@@ -34,12 +34,21 @@ class LibcxxTestFormat(object):
       FOO.sh.cpp   - A test that uses LIT's ShTest format.
     """
 
-    def __init__(self, cxx, use_verify_for_fail, execute_external, executor, exec_env):
+    def __init__(
+        self,
+        cxx,
+        use_verify_for_fail,
+        execute_external,
+        executor,
+        exec_env,
+        keep_artifacts=False,
+    ):
         self.cxx = copy.deepcopy(cxx)
         self.use_verify_for_fail = use_verify_for_fail
         self.execute_external = execute_external
         self.executor = executor
         self.exec_env = dict(exec_env)
+        self.keep_artifacts = keep_artifacts
 
     @staticmethod
     def _make_custom_parsers():
@@ -241,8 +250,9 @@ class LibcxxTestFormat(object):
             # No other test type is supported
             assert False
 
-    def _clean(self, exec_path):  # pylint: disable=no-self-use
-        libcudacxx.util.cleanFile(exec_path)
+    def _clean(self, exec_path):
+        if not self.keep_artifacts:
+            libcudacxx.util.cleanFile(exec_path)
 
     def _evaluate_pass_test(
         self, test, tmpBase, lit_config, test_cxx, parsers, run_should_pass=True
@@ -254,15 +264,20 @@ class LibcxxTestFormat(object):
         # Create the output directory if it does not already exist.
         libcudacxx.util.mkdir_p(os.path.dirname(tmpBase))
         try:
-            # Compile the test
-            cmd, out, err, rc = test_cxx.compileLinkTwoSteps(
-                source_path, out=exec_path, object_file=object_path, cwd=execDir
-            )
-            compile_cmd = cmd
-            if rc != 0:
-                report = libcudacxx.util.makeReport(cmd, out, err, rc)
-                report += "Compilation failed unexpectedly!"
-                return lit.Test.Result(lit.Test.FAIL, report)
+            # When keep_artifacts is enabled and a previous run left an
+            # executable behind, reuse it instead of rebuilding.
+            reuse_artifact = self.keep_artifacts and os.path.isfile(exec_path)
+            if reuse_artifact:
+                compile_cmd = ["<reused existing artifact>", exec_path]
+            else:
+                cmd, out, err, rc = test_cxx.compileLinkTwoSteps(
+                    source_path, out=exec_path, object_file=object_path, cwd=execDir
+                )
+                compile_cmd = cmd
+                if rc != 0:
+                    report = libcudacxx.util.makeReport(cmd, out, err, rc)
+                    report += "Compilation failed unexpectedly!"
+                    return lit.Test.Result(lit.Test.FAIL, report)
             # Run the test
             local_cwd = os.path.dirname(source_path)
             env = None

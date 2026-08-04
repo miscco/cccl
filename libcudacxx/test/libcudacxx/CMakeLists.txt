@@ -225,6 +225,20 @@ else()
   set(LIBCUDACXX_ENABLE_PEDANTIC_WARNINGS False)
 endif()
 
+# Keep lit test executables so a build phase can be followed by an execute
+# phase without rebuilding. Written into lit.site.cfg as config.keep_artifacts.
+# Defaults to OFF (build-only). test_libcudacxx enables it at configure time.
+option(
+  LIBCUDACXX_KEEP_TEST_ARTIFACTS
+  "Keep lit test executables after running so build/execute can be split"
+  OFF
+)
+if (LIBCUDACXX_KEEP_TEST_ARTIFACTS)
+  set(LIBCUDACXX_KEEP_TEST_ARTIFACTS True)
+else()
+  set(LIBCUDACXX_KEEP_TEST_ARTIFACTS False)
+endif()
+
 set(lit_site_cfg_path "${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg")
 configure_lit_site_cfg(
   "${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.in"

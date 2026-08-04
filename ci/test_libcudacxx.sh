@@ -6,12 +6,7 @@ source "./build_common.sh"
 
 print_environment_details
 
-"./build_libcudacxx.sh" "$@"
-
-PRESET="libcudacxx"
-CMAKE_OPTIONS=("-DCMAKE_CXX_STANDARD=${CXX_STANDARD}" "-DCMAKE_CUDA_STANDARD=${CXX_STANDARD}")
-
-configure_preset libcudacxx "$PRESET" "${CMAKE_OPTIONS[@]}"
+"./build_libcudacxx.sh" "$@" -cmake-options "-DLIBCUDACXX_KEEP_TEST_ARTIFACTS=ON"
 
 test_preset "libcudacxx (CTest)" "libcudacxx-ctest"
 

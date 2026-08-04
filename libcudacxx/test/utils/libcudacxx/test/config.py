@@ -82,6 +82,7 @@ class Configuration(object):
         self.use_clang_verify = False
         self.long_tests = None
         self.execute_external = False
+        self.keep_artifacts = False
 
     def get_lit_conf(self, name, default=None):
         val = self.lit_config.params.get(name, None)
@@ -297,6 +298,7 @@ class Configuration(object):
             self.configure_substitutions()
             self.configure_features()
         self.configure_ccache()
+        self.keep_artifacts = self.get_lit_bool("keep_artifacts", False)
 
     def print_config_info(self):
         # Print the final compile and link flags.
@@ -330,6 +332,7 @@ class Configuration(object):
             self.execute_external,
             self.executor,
             exec_env=self.exec_env,
+            keep_artifacts=self.keep_artifacts,
         )
 
     def configure_executor(self):

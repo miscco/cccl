@@ -21,7 +21,7 @@ If($CURRENT_PATH -ne "ci") {
 }
 
 # Build first
-$buildCmd = "$PSScriptRoot/build_libcudacxx.ps1 -std $CXX_STANDARD -arch '$CUDA_ARCH' -cmake-options '$CMAKE_OPTIONS'"
+$buildCmd = "$PSScriptRoot/build_libcudacxx.ps1 -std $CXX_STANDARD -arch '$CUDA_ARCH' -cmake-options '$CMAKE_OPTIONS' -cmake-options '-DLIBCUDACXX_KEEP_TEST_ARTIFACTS=ON'"
 Write-Host "Running: $buildCmd"
 Invoke-Expression $buildCmd
 
