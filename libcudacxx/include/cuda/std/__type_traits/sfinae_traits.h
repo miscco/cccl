@@ -43,12 +43,6 @@ struct _ConstructorConstraint
   static constexpr bool __is_deleted = _Trait == __select_constructor::__deleted;
 };
 
-template <bool _Trait>
-struct _AssignmentConstraint
-{
-  static constexpr bool __can_assign = _Trait == true;
-};
-
 _CCCL_END_NAMESPACE_CUDA_STD
 
 #include <cuda/std/__cccl/epilogue.h>
