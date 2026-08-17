@@ -484,7 +484,7 @@ struct __tuple_constraints
   _CCCL_EXEC_CHECK_DISABLE
   template <bool _IsConst, class _UTuple, size_t... _Indices>
   [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool
-  __select_tuple_like_assignable(__tuple_indices<_Indices...> = __make_tuple_indices_t<sizeof...(_Types)>{}) noexcept
+  __select_tuple_like_assignable(__tuple_indices<_Indices...>) noexcept
   {
     using ::cuda::std::get;
     // NOLINTBEGIN(bugprone-branch-clone)
@@ -511,6 +511,9 @@ struct __tuple_constraints
     }
     // NOLINTEND(bugprone-branch-clone)
   }
+  template <bool _IsConst, class _UTuple>
+  static constexpr bool __tuple_like_assignable =
+    __select_tuple_like_assignable<_IsConst, _UTuple>(__make_tuple_indices_t<sizeof...(_Types)>{});
 
   _CCCL_EXEC_CHECK_DISABLE
   template <bool _IsConst, class _UTuple, size_t... _Indices>

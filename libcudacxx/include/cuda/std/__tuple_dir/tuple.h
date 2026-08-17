@@ -478,7 +478,7 @@ public:
 
   template <bool _IsConst, class _UTuple>
   static constexpr bool _TupleLikeAssignable =
-    __tuple_constraints<_Tp...>::template __select_tuple_like_assignable<_IsConst, _UTuple>();
+    __tuple_constraints<_Tp...>::template __tuple_like_assignable<_IsConst, _UTuple>;
 
   template <bool _IsConst, class _UTuple>
   static constexpr bool _NothrowTupleLikeAssignable =
