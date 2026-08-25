@@ -225,8 +225,8 @@ struct __cuda_atomic_bind_load {
 template <class _Type, class _Sco>
 static inline _CCCL_DEVICE void __atomic_load_cuda(const _Type* __ptr, _Type& __dst, int __memorder, _Sco)
 {
-  using __proxy_t        = typename __cuda_atomic_deduce_bitwise<_Type>::__type;
-  using __proxy_tag      = typename __cuda_atomic_deduce_bitwise<_Type>::__tag;
+  using __proxy_t        = __cuda_atomic_deduce_bitwise_proxy_t<_Type>;
+  using __proxy_tag      = __cuda_atomic_deduce_bitwise_tag_t<_Type>;
   const __proxy_t* __ptr_proxy = reinterpret_cast<const __proxy_t*>(__ptr);
   __proxy_t* __dst_proxy = reinterpret_cast<__proxy_t*>(&__dst);
   if (__cuda_atomic_load_weak_if_local(__ptr_proxy, __dst_proxy, sizeof(__proxy_t))) {{return;}}
@@ -236,8 +236,8 @@ static inline _CCCL_DEVICE void __atomic_load_cuda(const _Type* __ptr, _Type& __
 template <class _Type, class _Sco>
 static inline _CCCL_DEVICE void __atomic_load_cuda(const _Type volatile* __ptr, _Type& __dst, int __memorder, _Sco)
 {
-  using __proxy_t        = typename __cuda_atomic_deduce_bitwise<_Type>::__type;
-  using __proxy_tag      = typename __cuda_atomic_deduce_bitwise<_Type>::__tag;
+  using __proxy_t        = __cuda_atomic_deduce_bitwise_proxy_t<_Type>;
+  using __proxy_tag      = __cuda_atomic_deduce_bitwise_tag_t<_Type>;
   const __proxy_t* __ptr_proxy = reinterpret_cast<const __proxy_t*>(const_cast<_Type*>(__ptr));
   __proxy_t* __dst_proxy = reinterpret_cast<__proxy_t*>(&__dst);
   if (__cuda_atomic_load_weak_if_local(__ptr_proxy, __dst_proxy, sizeof(__proxy_t))) {{return;}}
@@ -429,8 +429,8 @@ struct __cuda_atomic_bind_store {
 template <class _Type, class _Sco>
 static inline _CCCL_DEVICE void __atomic_store_cuda(_Type* __ptr, _Type& __val, int __memorder, _Sco)
 {
-  using __proxy_t        = typename __cuda_atomic_deduce_bitwise<_Type>::__type;
-  using __proxy_tag      = typename __cuda_atomic_deduce_bitwise<_Type>::__tag;
+  using __proxy_t        = __cuda_atomic_deduce_bitwise_proxy_t<_Type>;
+  using __proxy_tag      = __cuda_atomic_deduce_bitwise_tag_t<_Type>;
   __proxy_t* __ptr_proxy = reinterpret_cast<__proxy_t*>(__ptr);
   __proxy_t* __val_proxy = reinterpret_cast<__proxy_t*>(&__val);
   if (__cuda_atomic_store_weak_if_local(__ptr_proxy, __val_proxy, sizeof(__proxy_t))) {{return;}}
@@ -440,8 +440,8 @@ static inline _CCCL_DEVICE void __atomic_store_cuda(_Type* __ptr, _Type& __val, 
 template <class _Type, class _Sco>
 static inline _CCCL_DEVICE void __atomic_store_cuda(volatile _Type* __ptr, _Type& __val, int __memorder, _Sco)
 {
-  using __proxy_t        = typename __cuda_atomic_deduce_bitwise<_Type>::__type;
-  using __proxy_tag      = typename __cuda_atomic_deduce_bitwise<_Type>::__tag;
+  using __proxy_t        = __cuda_atomic_deduce_bitwise_proxy_t<_Type>;
+  using __proxy_tag      = __cuda_atomic_deduce_bitwise_tag_t<_Type>;
   __proxy_t* __ptr_proxy = reinterpret_cast<__proxy_t*>(const_cast<_Type*>(__ptr));
   __proxy_t* __val_proxy = reinterpret_cast<__proxy_t*>(&__val);
   if (__cuda_atomic_store_weak_if_local(__ptr_proxy, __val_proxy, sizeof(__proxy_t))) {{return;}}

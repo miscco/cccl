@@ -170,8 +170,8 @@ struct __cuda_atomic_bind_exchange {
 template <class _Type, class _Sco>
 static inline _CCCL_DEVICE void __atomic_exchange_cuda(_Type* __ptr, _Type& __old, _Type __new, int __memorder, _Sco)
 {
-  using __proxy_t        = typename __cuda_atomic_deduce_bitwise<_Type>::__type;
-  using __proxy_tag      = typename __cuda_atomic_deduce_bitwise<_Type>::__tag;
+  using __proxy_t        = __cuda_atomic_deduce_bitwise_proxy_t<_Type>;
+  using __proxy_tag      = __cuda_atomic_deduce_bitwise_tag_t<_Type>;
   __proxy_t* __ptr_proxy = reinterpret_cast<__proxy_t*>(__ptr);
   __proxy_t* __old_proxy = reinterpret_cast<__proxy_t*>(&__old);
   __proxy_t* __new_proxy  = reinterpret_cast<__proxy_t*>(&__new);
@@ -182,8 +182,8 @@ static inline _CCCL_DEVICE void __atomic_exchange_cuda(_Type* __ptr, _Type& __ol
 template <class _Type, class _Sco>
 static inline _CCCL_DEVICE void __atomic_exchange_cuda(_Type volatile* __ptr, _Type& __old, _Type __new, int __memorder, _Sco)
 {
-  using __proxy_t        = typename __cuda_atomic_deduce_bitwise<_Type>::__type;
-  using __proxy_tag      = typename __cuda_atomic_deduce_bitwise<_Type>::__tag;
+  using __proxy_t        = __cuda_atomic_deduce_bitwise_proxy_t<_Type>;
+  using __proxy_tag      = __cuda_atomic_deduce_bitwise_tag_t<_Type>;
   __proxy_t* __ptr_proxy = reinterpret_cast<__proxy_t*>(const_cast<_Type*>(__ptr));
   __proxy_t* __old_proxy = reinterpret_cast<__proxy_t*>(&__old);
   __proxy_t* __new_proxy  = reinterpret_cast<__proxy_t*>(&__new);
