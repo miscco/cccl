@@ -136,49 +136,63 @@ struct __tuple_constraints
     }
   }
 
-  template <class... _UTypes, enable_if_t<sizeof...(_UTypes) != 1, int> = 0>
-  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor __select_variadic_constructible() noexcept
+  template <class... _UTypes>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __sfinae_variadic_constructible() noexcept
   {
     // NOLINTBEGIN(bugprone-branch-clone)
     if constexpr (sizeof...(_Types) != sizeof...(_UTypes))
     { // [tuple.cnstr]-13.1: sizeof...(Types) equals sizeof...(UTypes),
-      return __select_constructor::__invalid;
+      return false;
     }
     else if constexpr (sizeof...(_Types) == 0)
     { // [tuple.cnstr]-13.2: sizeof...(Types) >= 1,
-      return __select_constructor::__invalid;
+      return false;
     }
-    else if constexpr (sizeof...(_Types) == 2 || sizeof...(_Types) == 3)
-    { // [tuple.cnstr]-12.2: otherwise, if sizeof...(Types) is 2 or 3
-      using _U0 = __type_index_c<0, _UTypes...>;
-      using _T0 = __type_index_c<0, _Types...>;
-      if constexpr (!is_same_v<remove_cvref_t<_U0>, allocator_arg_t> || is_same_v<remove_cvref_t<_T0>, allocator_arg_t>)
-      { // [tuple.cnstr]-13.3: !is_same_v<remove_cvref_t<U0>, allocator_arg_t> || is_same_v<remove_cvref_t<T0>,
-        // allocator_arg_t>>
-        if constexpr (!(is_constructible_v<_Types, _UTypes> && ...))
-        { // [tuple.cnstr]-13.3: is_constructible<Types, UTypes>... is true
-          return __select_constructor::__invalid;
-        }
-#if defined(_CCCL_BUILTIN_REFERENCE_CONSTRUCTS_FROM_TEMPORARY)
-        else if constexpr ((reference_constructs_from_temporary_v<_Types, _UTypes&&> || ...))
-        { // [tuple.cnstr]-15: This constructor is defined as deleted if
-          // (reference_constructs_from_temporary_v<Types, UTypes&&> || ...) is true
-          return __select_constructor::__deleted;
-        }
-#endif // _CCCL_BUILTIN_REFERENCE_CONSTRUCTS_FROM_TEMPORARY
-        else if constexpr (!(is_convertible_v<_UTypes, _Types> && ...))
-        { // [tuple.cnstr]-15: !conjunction_v<is_convertible<UTypes, Types>...>
-          return __select_constructor::__explicit;
-        }
-        else
-        {
-          return __select_constructor::__implicit;
-        }
+    else if constexpr (sizeof...(_Types) == 1)
+    { // [tuple.cnstr]-13.2: sizeof...(Types) >= 1,
+      // Reject unpacking a tuple_of_iterator_references through the 1-arg variadic constructor so the
+      // dedicated constructor is used instead. Do allow it if the original type is a tuple_of_iterator_references
+      // though
+      using _Type  = __type_index_c<0, _Types...>;
+      using _UType = __type_index_c<0, _UTypes...>;
+      if constexpr (__is_tuple_of_iterator_references_v<remove_cvref_t<_UType>>
+                    && !__is_tuple_of_iterator_references_v<remove_cvref_t<_Type>>)
+      {
+        return false;
+      }
+      else if constexpr (is_same_v<remove_cvref_t<_UType>, tuple<_Type>>)
+      { // [tuple.cnstr]-12.1: negation<is_same<remove_cvref_t<U0>, tuple>> if sizeof...(Types) is 1
+        return false;
+      }
+      else if constexpr (is_same_v<_UType, const _Type&> || is_same_v<_UType, _Type&&>)
+      {
+        return false;
       }
       else
       {
-        return __select_constructor::__invalid;
+        return true;
       }
+    }
+    else if constexpr (sizeof...(_Types) == 2 || sizeof...(_Types) == 3)
+    { // [tuple.cnstr]-13.2: otherwise, if sizeof...(Types) is 2 or 3
+      // [tuple.cnstr]-13.3: !is_same_v<remove_cvref_t<U0>, allocator_arg_t> || is_same_v<remove_cvref_t<T0>,
+      // allocator_arg_t>>
+      using _U0 = __type_index_c<0, _UTypes...>;
+      using _T0 = __type_index_c<0, _Types...>;
+      return !is_same_v<remove_cvref_t<_U0>, allocator_arg_t> || is_same_v<remove_cvref_t<_T0>, allocator_arg_t>;
+    }
+    else
+    {
+      return true;
+    }
+  }
+
+  template <class... _UTypes>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor __select_variadic_constructible() noexcept
+  {
+    if constexpr (!__sfinae_variadic_constructible<_UTypes...>())
+    {
+      return __select_constructor::__invalid;
     }
     else if constexpr (!(is_constructible_v<_Types, _UTypes> && ...))
     { // [tuple.cnstr]-13.3: is_constructible<Types, UTypes>... is true
@@ -199,61 +213,6 @@ struct __tuple_constraints
     {
       return __select_constructor::__implicit;
     }
-    // NOLINTEND(bugprone-branch-clone)
-  }
-
-  template <class _UType>
-  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor __select_variadic_constructible() noexcept
-  {
-    // NOLINTBEGIN(bugprone-branch-clone)
-    if constexpr (sizeof...(_Types) != 1)
-    { // [tuple.cnstr]-13.1: sizeof...(Types) equals sizeof...(UTypes),
-      return __select_constructor::__invalid;
-    }
-    else if constexpr (sizeof...(_Types) == 0)
-    { // [tuple.cnstr]-13.2: sizeof...(Types) >= 1,
-      return __select_constructor::__invalid;
-    }
-    else
-    {
-      using _Type = __type_index_c<0, _Types...>;
-      // Reject unpacking a tuple_of_iterator_references through the 1-arg variadic constructor so the
-      // dedicated constructor is used instead. Do allow it if the original type is a tuple_of_iterator_references
-      // though
-      if constexpr (__is_tuple_of_iterator_references_v<remove_cvref_t<_UType>>
-                    && !__is_tuple_of_iterator_references_v<remove_cvref_t<_Type>>)
-      {
-        return __select_constructor::__invalid;
-      }
-      else if constexpr (is_same_v<remove_cvref_t<_UType>, tuple<_Type>>)
-      { // [tuple.cnstr]-12.1: negation<is_same<remove_cvref_t<U0>, tuple>> if sizeof...(Types) is 1
-        return __select_constructor::__invalid;
-      }
-      else if constexpr (is_same_v<_UType, const _Type&> || is_same_v<_UType, _Type&&>)
-      {
-        return __select_constructor::__invalid;
-      }
-      else if constexpr (!is_constructible_v<_Type, _UType>)
-      { // [tuple.cnstr]-13.3: is_constructible<Types, UTypes>... is true
-        return __select_constructor::__invalid;
-      }
-#if defined(_CCCL_BUILTIN_REFERENCE_CONSTRUCTS_FROM_TEMPORARY)
-      else if constexpr (reference_constructs_from_temporary_v<_Type, _UType&&>)
-      { // [tuple.cnstr]-15: This constructor is defined as deleted if
-        // (reference_constructs_from_temporary_v<Types, UTypes&&> || ...) is true
-        return __select_constructor::__deleted;
-      }
-#endif // _CCCL_BUILTIN_REFERENCE_CONSTRUCTS_FROM_TEMPORARY
-      else if constexpr (!is_convertible_v<_UType, _Type>)
-      { // [tuple.cnstr]-15: !conjunction_v<is_convertible<UTypes, Types>...>
-        return __select_constructor::__explicit;
-      }
-      else
-      {
-        return __select_constructor::__implicit;
-      }
-    }
-    // NOLINTEND(bugprone-branch-clone)
   }
 
   template <class... _UTypes>
