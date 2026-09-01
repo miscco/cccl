@@ -137,7 +137,7 @@ struct __tuple_constraints
   }
 
   template <class... _UTypes>
-  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __sfinae_variadic_constructible() noexcept
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __disambiguate_variadic_constructible() noexcept
   {
     // NOLINTBEGIN(bugprone-branch-clone)
     if constexpr (sizeof...(_Types) != sizeof...(_UTypes))
@@ -190,7 +190,7 @@ struct __tuple_constraints
   template <class... _UTypes>
   [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor __select_variadic_constructible() noexcept
   {
-    if constexpr (!__sfinae_variadic_constructible<_UTypes...>())
+    if constexpr (!__disambiguate_variadic_constructible<_UTypes...>())
     {
       return __select_constructor::__invalid;
     }
@@ -263,7 +263,7 @@ struct __tuple_constraints
 
   _CCCL_EXEC_CHECK_DISABLE
   template <class _UTuple>
-  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __tuple_like_sfinae() noexcept
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __disambiguate_tuple_like() noexcept
   {
     // NOLINTBEGIN(bugprone-branch-clone)
     if constexpr (is_same_v<_UTuple, const tuple<_Types...>&> || is_same_v<_UTuple, tuple<_Types...>&&>)
@@ -355,7 +355,7 @@ struct __tuple_constraints
   [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor
   __select_tuple_like_constructible() noexcept
   {
-    if constexpr (!__tuple_like_sfinae<_UTuple>())
+    if constexpr (!__disambiguate_tuple_like<_UTuple>())
     {
       return __select_constructor::__invalid;
     }
