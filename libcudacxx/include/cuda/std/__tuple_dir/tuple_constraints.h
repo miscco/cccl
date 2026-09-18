@@ -78,6 +78,8 @@ template <class... _Types, size_t... _Indices>
 [[nodiscard]] _CCCL_TRIVIAL_API _CCCL_CONSTEVAL auto __tuple_get_constraints(__tuple_indices<_Indices...>) noexcept
   -> __tuple_constraints<__type_at_c<_Indices, __type_list<_Types...>>...>;
 
+// The primary template handles tuples with no or more than one element, tuples with a single element are handled by
+// the __tuple_constraints<_Type> specialization below
 template <class... _Types>
 struct __tuple_constraints
 {
@@ -134,111 +136,32 @@ struct __tuple_constraints
     }
   }
 
+  // Single element tuples are handled by the __tuple_constraints<_Type> specialization, so sizeof...(_Types) is
+  // either 0 or at least 2 here. The packs are padded with void because the operands of && and || are still
+  // instantiated when the arities differ, which would index into an empty pack.
   template <class... _UTypes>
-  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __disambiguate_variadic_constructible() noexcept
-  {
-    // NOLINTBEGIN(bugprone-branch-clone)
-    if constexpr (sizeof...(_Types) == 0)
-    {
-      return false;
-    }
-    else if constexpr (sizeof...(_Types) != sizeof...(_UTypes))
-    {
-      return false;
-    }
-    else if constexpr (sizeof...(_Types) == 1)
-    { // [tuple.cnstr]-12.1: negation<is_same<remove_cvref_t<U0>, tuple>> if sizeof...(Types) is 1
-      using _U0 = __type_index_c<0, _UTypes...>;
-      using _T0 = __type_index_c<0, _Types...>;
-#if _CCCL_COMPILER(GCC, <, 8) // GCC7 fails due to recursive constraints
-      if constexpr (__is_tuple_of_iterator_references_v<remove_cvref_t<_U0>>
-                    && !__is_tuple_of_iterator_references_v<remove_cvref_t<_T0>>)
-      {
-        return false;
-      }
-      else
-#endif // _CCCL_COMPILER(GCC, <, 8)
-      {
-        return !is_same_v<remove_cvref_t<_U0>, tuple<_T0>>;
-      }
-    }
-    else if constexpr (sizeof...(_Types) == 2 || sizeof...(_Types) == 3)
-    { // [tuple.cnstr]-12.2: otherwise, if sizeof...(Types) is 2 or 3
-      // [tuple.cnstr]-13.3: !is_same_v<remove_cvref_t<U0>, allocator_arg_t> || is_same_v<remove_cvref_t<T0>,
-      // allocator_arg_t>>
-      using _U0 = __type_index_c<0, _UTypes...>;
-      using _T0 = __type_index_c<0, _Types...>;
-      return !is_same_v<remove_cvref_t<_U0>, allocator_arg_t> || is_same_v<remove_cvref_t<_T0>, allocator_arg_t>;
-    }
-    else
-    {
-      return true;
-    }
-    // NOLINTEND(bugprone-branch-clone)
-  }
+  static constexpr bool __disambiguate_variadic_constructible_v =
+    sizeof...(_Types) != 0
+    && sizeof...(_Types) == sizeof...(_UTypes)
+    // [tuple.cnstr]-12.2: otherwise, if sizeof...(Types) is 2 or 3
+    // [tuple.cnstr]-13.3: !is_same_v<remove_cvref_t<U0>, allocator_arg_t> || is_same_v<remove_cvref_t<T0>,
+    // allocator_arg_t>
+    && (sizeof...(_Types) > 3 || !is_same_v<remove_cvref_t<__type_index_c<0, _UTypes..., void>>, allocator_arg_t>
+        || is_same_v<remove_cvref_t<__type_index_c<0, _Types..., void>>, allocator_arg_t>);
 
   template <class _UTuple>
-  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __disambiguate_tuple_like() noexcept
-  {
-    // NOLINTBEGIN(bugprone-branch-clone)
-    if constexpr (sizeof...(_Types) == 0)
-    {
-      return false;
-    }
-    else if constexpr (__is_cuda_std_ranges_subrange_v<remove_cvref_t<_UTuple>>)
-    { // [tuple#cnstr]-29.2: remove_cvref_t<UTuple> is not a specialization of ranges::subrange,
-      return false;
-    }
-    else if constexpr (is_same_v<_UTuple, const tuple<_Types...>&> || is_same_v<_UTuple, tuple<_Types...>&&>)
-    { // Prefers the copy/move constructor
-      return false;
-    }
-    else if constexpr (!__tuple_like_with_size<_UTuple, sizeof...(_Types)>)
-    { // [tuple#cnstr]-21.1: sizeof...(Types) equals sizeof...(UTypes), and
-      // [tuple#cnstr]-25.1: sizeof...(Types) is 2, (pair constructor)
-      // [tuple#cnstr]-29.3: sizeof...(Types) equals sizeof...(UTypes), and
-      return false;
-    }
-    else if constexpr (sizeof...(_Types) == 1)
-    {
-      using _U0 = tuple_element_t<0, remove_cvref_t<_UTuple>>;
-      using _T0 = __type_index_c<0, _Types...>;
-      if constexpr (__is_cuda_std_tuple<remove_cvref_t<_UTuple>> && is_same_v<_T0, _U0>)
-      { // [tuple#cnstr]-21.3: either sizeof...(Types) is not 1
-        // [tuple#cnstr]-21.3: is_same_v<T, U> is false
-        return false;
-      }
-      else if constexpr (is_constructible_v<_T0, _UTuple>)
-      { // [tuple#cnstr]-21.3: either sizeof...(Types) is not 1, or is_constructible_v<T, _UTuple> are false
-        // [tuple#cnstr]-29.5: either sizeof...(Types) is not 1, or is_constructible_v<T, _UTuple> are false
-        return false;
-      }
-      else if constexpr (is_convertible_v<_UTuple, _T0>)
-      { // [tuple#cnstr]-21.3: either sizeof...(Types) is not 1, or is_convertible_v<_UTuple, T> are false
-        // [tuple#cnstr]-29.5: either sizeof...(Types) is not 1, or is_convertible_v<_UTuple, T> are false
-        return false;
-      }
-      else
-      {
-        return true;
-      }
-    }
-    else
-    {
-      return true;
-    }
-    // NOLINTEND(bugprone-branch-clone)
-  }
-
-#if _CCCL_COMPILER(MSVC)
-  // MSVC crashes when the disambiguation functions are called directly inside an enable_if while synthesizing
-  // the implicit deduction guides, so go through a variable template wrapped into a bool_constant
-  template <class... _UTypes>
-  static constexpr bool __disambiguate_variadic_v = __disambiguate_variadic_constructible<_UTypes...>();
-
-  template <class _UTuple>
-  static constexpr bool __disambiguate_tuple_like_v = __disambiguate_tuple_like<_UTuple>();
-#endif // _CCCL_COMPILER(MSVC)
+  static constexpr bool __disambiguate_tuple_like_v =
+    // An empty tuple is never constructible from a tuple-like
+    sizeof...(_Types) != 0
+    // [tuple#cnstr]-29.2: remove_cvref_t<UTuple> is not a specialization of ranges::subrange,
+    && !__is_cuda_std_ranges_subrange_v<remove_cvref_t<_UTuple>>
+    // Prefers the copy/move constructor
+    && !is_same_v<_UTuple, const tuple<_Types...>&>
+    && !is_same_v<_UTuple, tuple<_Types...>&&>
+    // [tuple#cnstr]-21.1: sizeof...(Types) equals sizeof...(UTypes), and
+    // [tuple#cnstr]-25.1: sizeof...(Types) is 2, (pair constructor)
+    // [tuple#cnstr]-29.3: sizeof...(Types) equals sizeof...(UTypes), and
+    && __tuple_like_with_size<_UTuple, sizeof...(_Types)>;
 
   template <class... _UTypes>
   [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor __select_variadic_constructible() noexcept
@@ -249,7 +172,7 @@ struct __tuple_constraints
       return __select_constructor::__invalid;
     }
 #if _CCCL_COMPILER(GCC, <, 8) // Old GCC eagerly instantiates __select_variadic_constructible
-    else if constexpr (!__disambiguate_variadic_constructible<_UTypes...>())
+    else if constexpr (!__disambiguate_variadic_constructible_v<_UTypes...>)
     {
       return __select_constructor::__invalid;
     }
@@ -297,7 +220,7 @@ struct __tuple_constraints
     { // MSVC has issues with constexpr variables here, so no constexpr variable
       using __arg_constraints =
         decltype(::cuda::std::__tuple_get_constraints<_Types...>(__make_tuple_indices_t<sizeof...(_UTypes)>{}));
-      if constexpr (!__arg_constraints::template __disambiguate_variadic_constructible<_UTypes...>())
+      if constexpr (!__arg_constraints::template __disambiguate_variadic_constructible_v<_UTypes...>)
       {
         return __select_constructor::__invalid;
       }
@@ -332,7 +255,7 @@ struct __tuple_constraints
   __select_tuple_like_constructible(__tuple_indices<_Indices...>) noexcept
   {
 #if _CCCL_COMPILER(GCC, <, 8) // Old GCC eagerly instantiates __select_tuple_like_constructible_impl
-    if constexpr (!__disambiguate_tuple_like<_UTuple>())
+    if constexpr (!__disambiguate_tuple_like_v<_UTuple>)
     {
       return __select_constructor::__invalid;
     }
@@ -494,6 +417,352 @@ struct __tuple_constraints
   template <class... _UTypes>
   static constexpr bool __is_nothrow_less_than_comparable_v =
     (__is_cpp17_nothrow_less_than_comparable_v<_Types, _UTypes> && ...);
+};
+
+// Specialization for tuples with a single element, which need to disambiguate against the constructors and
+// assignment operators of that element
+template <class _Type>
+struct __tuple_constraints<_Type>
+{
+  template <int = 0>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor __select_default_constructible() noexcept
+  {
+    if constexpr (!is_default_constructible_v<_Type>)
+    {
+      return __select_constructor::__invalid;
+    }
+    else if constexpr (__is_implicitly_default_constructible<_Type>::value)
+    {
+      return __select_constructor::__implicit;
+    }
+    else
+    {
+      return __select_constructor::__explicit;
+    }
+  }
+
+  template <int = 0>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor
+  __select_variadic_copy_constructible() noexcept
+  {
+    if constexpr (!is_copy_constructible_v<_Type>)
+    {
+      return __select_constructor::__invalid;
+    }
+    else if constexpr (is_convertible_v<const _Type&, _Type>)
+    {
+      return __select_constructor::__implicit;
+    }
+    else
+    {
+      return __select_constructor::__explicit;
+    }
+  }
+
+  template <int = 0>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor
+  __select_variadic_move_constructible() noexcept
+  {
+    if constexpr (!is_move_constructible_v<_Type>)
+    {
+      return __select_constructor::__invalid;
+    }
+    else if constexpr (is_convertible_v<_Type&&, _Type>)
+    {
+      return __select_constructor::__implicit;
+    }
+    else
+    {
+      return __select_constructor::__explicit;
+    }
+  }
+
+  template <class... _UTypes>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __disambiguate_variadic_constructible() noexcept
+  {
+    // NOLINTBEGIN(bugprone-branch-clone)
+    if constexpr (sizeof...(_UTypes) != 1)
+    {
+      return false;
+    }
+    else
+    { // [tuple.cnstr]-12.1: negation<is_same<remove_cvref_t<U0>, tuple>> if sizeof...(Types) is 1
+      using _U0 = __type_index_c<0, _UTypes...>;
+#if _CCCL_COMPILER(GCC, <, 8) // GCC7 fails due to recursive constraints
+      if constexpr (__is_tuple_of_iterator_references_v<remove_cvref_t<_U0>>
+                    && !__is_tuple_of_iterator_references_v<remove_cvref_t<_Type>>)
+      {
+        return false;
+      }
+      else
+#endif // _CCCL_COMPILER(GCC, <, 8)
+      {
+        return !is_same_v<remove_cvref_t<_U0>, tuple<_Type>>;
+      }
+    }
+    // NOLINTEND(bugprone-branch-clone)
+  }
+
+  // The checks below must be evaluated in order, because the element type of the tuple-like is only available after
+  // its size has been verified and querying the constructibility of the element from the whole tuple-like may be
+  // ill-formed for elements with an unconstrained constructor template
+  template <class _UTuple>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __disambiguate_tuple_like() noexcept
+  {
+    // NOLINTBEGIN(bugprone-branch-clone)
+    if constexpr (__is_cuda_std_ranges_subrange_v<remove_cvref_t<_UTuple>>)
+    { // [tuple#cnstr]-29.2: remove_cvref_t<UTuple> is not a specialization of ranges::subrange,
+      return false;
+    }
+    else if constexpr (is_same_v<_UTuple, const tuple<_Type>&> || is_same_v<_UTuple, tuple<_Type>&&>)
+    { // Prefers the copy/move constructor
+      return false;
+    }
+    else if constexpr (!__tuple_like_with_size<_UTuple, 1>)
+    { // [tuple#cnstr]-21.1: sizeof...(Types) equals sizeof...(UTypes), and
+      // [tuple#cnstr]-29.3: sizeof...(Types) equals sizeof...(UTypes), and
+      return false;
+    }
+    else if constexpr (__is_cuda_std_tuple<remove_cvref_t<_UTuple>>
+                       && is_same_v<_Type, tuple_element_t<0, remove_cvref_t<_UTuple>>>)
+    { // [tuple#cnstr]-21.3: is_same_v<T, U> is false
+      return false;
+    }
+    else if constexpr (is_constructible_v<_Type, _UTuple>)
+    { // [tuple#cnstr]-21.3: is_constructible_v<T, _UTuple> is false
+      // [tuple#cnstr]-29.5: is_constructible_v<T, _UTuple> is false
+      return false;
+    }
+    else if constexpr (is_convertible_v<_UTuple, _Type>)
+    { // [tuple#cnstr]-21.3: is_convertible_v<_UTuple, T> is false
+      // [tuple#cnstr]-29.5: is_convertible_v<_UTuple, T> is false
+      return false;
+    }
+    else
+    {
+      return true;
+    }
+    // NOLINTEND(bugprone-branch-clone)
+  }
+
+  template <class _UTuple>
+  static constexpr bool __disambiguate_tuple_like_v = __disambiguate_tuple_like<_UTuple>();
+
+  template <class... _UTypes>
+  static constexpr bool __disambiguate_variadic_constructible_v = __disambiguate_variadic_constructible<_UTypes...>();
+
+  template <class... _UTypes>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor __select_variadic_constructible() noexcept
+  {
+    // NOLINTBEGIN(bugprone-branch-clone)
+    if constexpr (sizeof...(_UTypes) != 1)
+    {
+      return __select_constructor::__invalid;
+    }
+#if _CCCL_COMPILER(GCC, <, 8) // Old GCC eagerly instantiates __select_variadic_constructible
+    else if constexpr (!__disambiguate_variadic_constructible_v<_UTypes...>)
+    {
+      return __select_constructor::__invalid;
+    }
+#endif // _CCCL_COMPILER(GCC, <, 8)
+    else if constexpr (!(is_constructible_v<_Type, _UTypes> && ...))
+    { // [tuple.cnstr]-13.3: is_constructible<Types, UTypes>... is true
+      return __select_constructor::__invalid;
+    }
+#if defined(_CCCL_BUILTIN_REFERENCE_CONSTRUCTS_FROM_TEMPORARY)
+    else if constexpr ((reference_constructs_from_temporary_v<_Type, _UTypes&&> || ...))
+    { // [tuple.cnstr]-15: This constructor is defined as deleted if
+      // (reference_constructs_from_temporary_v<Types, UTypes&&> || ...) is true
+      return __select_constructor::__deleted;
+    }
+#endif // _CCCL_BUILTIN_REFERENCE_CONSTRUCTS_FROM_TEMPORARY
+    else if constexpr (!(is_convertible_v<_UTypes, _Type> && ...))
+    { // [tuple.cnstr]-15: !conjunction_v<is_convertible<UTypes, Types>...>
+      return __select_constructor::__explicit;
+    }
+    else
+    {
+      return __select_constructor::__implicit;
+    }
+    // NOLINTEND(bugprone-branch-clone)
+  }
+
+  // A tuple with a single element can never be constructed from fewer elements
+  template <class... _UTypes>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor
+  __select_variadic_constructible_less_rank() noexcept
+  {
+    return __select_constructor::__invalid;
+  }
+
+  _CCCL_EXEC_CHECK_DISABLE
+  template <class _UTuple, size_t... _Indices>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL __select_constructor
+  __select_tuple_like_constructible(__tuple_indices<_Indices...>) noexcept
+  {
+#if _CCCL_COMPILER(GCC, <, 8) // Old GCC eagerly instantiates __select_tuple_like_constructible_impl
+    if constexpr (!__disambiguate_tuple_like_v<_UTuple>)
+    {
+      return __select_constructor::__invalid;
+    }
+    else
+#endif // _CCCL_COMPILER(GCC, <, 8)
+    {
+      using ::cuda::std::get;
+      return __select_variadic_constructible<decltype(get<_Indices>(::cuda::std::declval<_UTuple>()))...>();
+    }
+  }
+
+  template <class _UTuple>
+  static constexpr __select_constructor __select_tuple_like_constructible_v =
+    __select_tuple_like_constructible<_UTuple>(__make_tuple_indices_t<1>{});
+
+  _CCCL_EXEC_CHECK_DISABLE
+  template <class _UTuple, size_t... _Indices>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool
+  __nothrow_tuple_like_constructible(__tuple_indices<_Indices...>) noexcept
+  {
+    using ::cuda::std::get;
+    return (is_nothrow_constructible_v<_Type, decltype(get<_Indices>(::cuda::std::declval<_UTuple>()))> && ...);
+  }
+
+  template <class _UTuple>
+  static constexpr bool __nothrow_tuple_like_constructible_v =
+    __nothrow_tuple_like_constructible<_UTuple>(__make_tuple_indices_t<1>{});
+
+  // Assignments
+  static constexpr bool __all_copy_assignable = is_copy_assignable_v<_Type>;
+  static constexpr bool __all_move_assignable = is_move_assignable_v<_Type>;
+
+  // [tuple.assign]-5: is_copy_assignable_v<const Types> is true for all i.
+  static constexpr bool __all_const_copy_assignable = is_copy_assignable_v<const _Type>;
+  // [tuple.assign]-12: is_assignable_v<const Types&, Types> is true for all i.
+  static constexpr bool __all_const_move_assignable = is_assignable_v<const _Type&, _Type>;
+
+  template <bool _IsConst, class... _UTypes>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __select_converting_assignable() noexcept
+  {
+    // NOLINTBEGIN(bugprone-branch-clone)
+    if constexpr (sizeof...(_UTypes) != 1)
+    { // [tuple.assign]-15.1: sizeof...(Types) equals sizeof...(UTypes) and
+      return false;
+    }
+    else if constexpr (is_same_v<tuple<_Type>, tuple<_UTypes...>>)
+    { // Disambiguate the non-converting assignments
+      return false;
+    }
+    else if constexpr (_IsConst)
+    { // [tuple.assign]-18.2: is_assignable_v<const Types&, const UTypes&> is true for all i.
+      // [tuple.assign]-24.2: is_assignable_v<const Types&, UTypes> is true for all i.
+      return (is_assignable_v<const _Type&, _UTypes> && ...);
+    }
+    else
+    { // [tuple.assign]-15.2: is_assignable_v<Types&, const UTypes&> is true for all i.
+      // [tuple.assign]-21.2: is_assignable_v<Types&, UTypes> is true for all i.
+      return (is_assignable_v<_Type&, _UTypes> && ...);
+    }
+    // NOLINTEND(bugprone-branch-clone)
+  }
+
+  _CCCL_EXEC_CHECK_DISABLE
+  template <bool _IsConst, class _UTuple, size_t... _Indices>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool
+  __select_tuple_like_assignable(__tuple_indices<_Indices...>) noexcept
+  {
+    using ::cuda::std::get;
+    // NOLINTBEGIN(bugprone-branch-clone)
+    if constexpr (is_same_v<remove_cvref_t<_UTuple>, tuple<_Type>>)
+    { // [tuple.assign]-39.1: different-from<UTuple, tuple>
+      return false;
+    }
+    else if constexpr (__is_cuda_std_ranges_subrange_v<remove_cvref_t<_UTuple>>)
+    { // [tuple.assign]-39.2: remove_cvref_t<UTuple> is not a specialization of ranges::subrange,
+      return false;
+    }
+    else if constexpr (!__tuple_like_with_size<_UTuple, 1>)
+    { // [tuple.assign]-39.3: sizeof...(Types) equals tuple_size_v<remove_cvref_t<UTuple>>, and
+      return false;
+    }
+    else if constexpr (_IsConst)
+    { // [tuple.assign]-42.4: is_assignable_v<const T_i&, decltype(get<i>(std::forward<UTuple>(u)))> is true for
+      // all i
+      return (is_assignable_v<const _Type&, decltype(get<_Indices>(::cuda::std::declval<_UTuple>()))> && ...);
+    }
+    else
+    { // [tuple.assign]-39.4: is_assignable_v<T_i&, decltype(get<i>(std::forward<UTuple>(u)))> is true for all i
+      return (is_assignable_v<_Type&, decltype(get<_Indices>(::cuda::std::declval<_UTuple>()))> && ...);
+    }
+    // NOLINTEND(bugprone-branch-clone)
+  }
+  _CCCL_EXEC_CHECK_DISABLE
+  template <bool _IsConst, class _UTuple>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __select_tuple_like_assignable() noexcept
+  {
+    return __select_tuple_like_assignable<_IsConst, _UTuple>(__make_tuple_indices_t<1>{});
+  }
+
+  _CCCL_EXEC_CHECK_DISABLE
+  template <bool _IsConst, class _UTuple, size_t... _Indices>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool
+  __nothrow_tuple_like_assignable(__tuple_indices<_Indices...>) noexcept
+  {
+    using ::cuda::std::get;
+    if constexpr (_IsConst)
+    {
+      return (is_nothrow_assignable_v<const _Type&, decltype(get<_Indices>(::cuda::std::declval<_UTuple>()))> && ...);
+    }
+    else
+    {
+      return (is_nothrow_assignable_v<_Type&, decltype(get<_Indices>(::cuda::std::declval<_UTuple>()))> && ...);
+    }
+  }
+  _CCCL_EXEC_CHECK_DISABLE
+  template <bool _IsConst, class _UTuple>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __nothrow_tuple_like_assignable() noexcept
+  {
+    return __nothrow_tuple_like_assignable<_IsConst, _UTuple>(__make_tuple_indices_t<1>{});
+  }
+
+  // Comparisons
+  template <class... _UTypes>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __is_equality_comparable() noexcept
+  {
+    if constexpr (sizeof...(_UTypes) != 1)
+    {
+      return false;
+    }
+    else
+    {
+      return (__is_cpp17_equality_comparable_v<_Type, _UTypes> && ...);
+    }
+  }
+
+  template <class... _UTypes>
+  static constexpr bool __is_equality_comparable_v = __is_equality_comparable<_UTypes...>();
+
+  template <class... _UTypes>
+  static constexpr bool __is_nothrow_equality_comparable_v =
+    (__is_cpp17_nothrow_equality_comparable_v<_Type, _UTypes> && ...);
+
+  template <class... _UTypes>
+  [[nodiscard]] _CCCL_TRIVIAL_API static _CCCL_CONSTEVAL bool __is_less_than_comparable() noexcept
+  {
+    if constexpr (sizeof...(_UTypes) != 1)
+    {
+      return false;
+    }
+    else
+    {
+      return (__is_cpp17_less_than_comparable_v<_Type, _UTypes> && ...);
+    }
+  }
+
+  template <class... _UTypes>
+  static constexpr bool __is_less_than_comparable_v = __is_less_than_comparable<_UTypes...>();
+
+  template <class... _UTypes>
+  static constexpr bool __is_nothrow_less_than_comparable_v =
+    (__is_cpp17_nothrow_less_than_comparable_v<_Type, _UTypes> && ...);
 };
 
 _CCCL_END_NAMESPACE_CUDA_STD
