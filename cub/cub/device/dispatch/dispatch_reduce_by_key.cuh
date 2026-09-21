@@ -668,7 +668,7 @@ struct CCCL_DEPRECATED_BECAUSE("Use the tuning API for DeviceReduce::ReduceByKey
 
 namespace detail::reduce_by_key
 {
-// we move the conversion of the policy to the agent policy and its use out of the lambda below, so MSVC does not ICE
+// we move the conversion of the policy to the agent policy and its use out of dispatch_functor, so MSVC does not ICE
 template <typename PolicyGetter, typename... Args>
 _CCCL_HOST_DEVICE_API auto determine_threads_items_vsmem(PolicyGetter policy_getter)
 {
@@ -689,7 +689,8 @@ _CCCL_HOST_DEVICE_API auto determine_threads_items_vsmem(PolicyGetter policy_get
                             vsmem_helper_t::vsmem_per_block};
 }
 
-template <typename KeysInputIteratorT,
+template <typename PolicySelector,
+          typename KeysInputIteratorT,
           typename UniqueOutputIteratorT,
           typename ValuesInputIteratorT,
           typename AggregatesOutputIteratorT,
@@ -697,62 +698,41 @@ template <typename KeysInputIteratorT,
           typename EqualityOpT,
           typename ReductionOpT,
           typename OffsetT,
-          typename AccumT         = ::cuda::std::__accumulator_t<ReductionOpT, it_value_t<ValuesInputIteratorT>>,
-          typename KeyT           = non_void_value_t<UniqueOutputIteratorT, it_value_t<KeysInputIteratorT>>,
-          typename PolicySelector = policy_selector_from_types<ReductionOpT, AccumT, KeyT>>
-#if _CCCL_HAS_CONCEPTS()
-  requires reduce_by_key::reduce_by_key_policy_selector<PolicySelector>
-#endif // _CCCL_HAS_CONCEPTS()
-CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
-  void* d_temp_storage,
-  size_t& temp_storage_bytes,
-  KeysInputIteratorT d_keys_in,
-  UniqueOutputIteratorT d_unique_out,
-  ValuesInputIteratorT d_values_in,
-  AggregatesOutputIteratorT d_aggregates_out,
-  NumRunsOutputIteratorT d_num_runs_out,
-  EqualityOpT equality_op,
-  ReductionOpT reduction_op,
-  OffsetT num_items,
-  cudaStream_t stream,
-  PolicySelector policy_selector = {})
+          typename AccumT>
+struct dispatch_functor
 {
-  using streaming_context_t = NullType; // streaming context not used for ReduceByKey yet
-  using ScanTileStateT      = ReduceByKeyScanTileState<AccumT, OffsetT>;
-  [[maybe_unused]] static constexpr int init_kernel_threads = 128;
+  using streaming_context_t                = NullType; // streaming context not used for ReduceByKey yet
+  using ScanTileStateT                     = ReduceByKeyScanTileState<AccumT, OffsetT>;
+  static constexpr int init_kernel_threads = 128;
 
-  ::cuda::compute_capability cc{};
-  if (const auto error = CubDebug(ptx_compute_cap(cc)))
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  KeysInputIteratorT d_keys_in;
+  UniqueOutputIteratorT d_unique_out;
+  ValuesInputIteratorT d_values_in;
+  AggregatesOutputIteratorT d_aggregates_out;
+  NumRunsOutputIteratorT d_num_runs_out;
+  EqualityOpT equality_op;
+  ReductionOpT reduction_op;
+  OffsetT num_items;
+  cudaStream_t stream;
+
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter) const
   {
-    return error;
-  }
-
-  return detail::dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) {
-#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    NV_IF_TARGET(NV_IS_HOST, ({
-                   ::std::stringstream ss;
-                   ss << policy_getter();
-                   _CubLog("Dispatching DeviceReduceByKey to compute capability %d.%d with tuning: %s\n",
-                           cc.major_cap(),
-                           cc.minor_cap(),
-                           ss.str().c_str());
-                 }))
-#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    log_dispatch("DeviceReduceByKey", cc, policy_getter());
-#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-
-    const auto [threads_per_block, items_per_thread, vsmem_per_block] = determine_threads_items_vsmem<
-      decltype(policy_getter),
-      KeysInputIteratorT,
-      UniqueOutputIteratorT,
-      ValuesInputIteratorT,
-      AggregatesOutputIteratorT,
-      NumRunsOutputIteratorT,
-      EqualityOpT,
-      ReductionOpT,
-      OffsetT,
-      AccumT,
-      streaming_context_t>(policy_getter);
+    const auto [threads_per_block, items_per_thread, vsmem_per_block] =
+      detail::reduce_by_key::determine_threads_items_vsmem<
+        PolicyGetter,
+        KeysInputIteratorT,
+        UniqueOutputIteratorT,
+        ValuesInputIteratorT,
+        AggregatesOutputIteratorT,
+        NumRunsOutputIteratorT,
+        EqualityOpT,
+        ReductionOpT,
+        OffsetT,
+        AccumT,
+        streaming_context_t>(policy_getter);
 
     // Number of input tiles
     const int tile_size = threads_per_block * items_per_thread;
@@ -892,7 +872,80 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
       }
     }
     return cudaSuccess;
-  });
+  }
+};
+
+template <typename KeysInputIteratorT,
+          typename UniqueOutputIteratorT,
+          typename ValuesInputIteratorT,
+          typename AggregatesOutputIteratorT,
+          typename NumRunsOutputIteratorT,
+          typename EqualityOpT,
+          typename ReductionOpT,
+          typename OffsetT,
+          typename AccumT         = ::cuda::std::__accumulator_t<ReductionOpT, it_value_t<ValuesInputIteratorT>>,
+          typename KeyT           = non_void_value_t<UniqueOutputIteratorT, it_value_t<KeysInputIteratorT>>,
+          typename PolicySelector = policy_selector_from_types<ReductionOpT, AccumT, KeyT>>
+#if _CCCL_HAS_CONCEPTS()
+  requires reduce_by_key::reduce_by_key_policy_selector<PolicySelector>
+#endif // _CCCL_HAS_CONCEPTS()
+CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
+  void* d_temp_storage,
+  size_t& temp_storage_bytes,
+  KeysInputIteratorT d_keys_in,
+  UniqueOutputIteratorT d_unique_out,
+  ValuesInputIteratorT d_values_in,
+  AggregatesOutputIteratorT d_aggregates_out,
+  NumRunsOutputIteratorT d_num_runs_out,
+  EqualityOpT equality_op,
+  ReductionOpT reduction_op,
+  OffsetT num_items,
+  cudaStream_t stream,
+  PolicySelector policy_selector = {})
+{
+  ::cuda::compute_capability cc{};
+  if (const auto error = CubDebug(ptx_compute_cap(cc)))
+  {
+    return error;
+  }
+
+#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  NV_IF_TARGET(NV_IS_HOST, ({
+                 ::std::stringstream ss;
+                 ss << policy_selector(cc);
+                 _CubLog("Dispatching DeviceReduceByKey to compute capability %d.%d with tuning: %s\n",
+                         cc.major_cap(),
+                         cc.minor_cap(),
+                         ss.str().c_str());
+               }))
+#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  log_dispatch("DeviceReduceByKey", cc, policy_selector(cc));
+#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+
+  return detail::dispatch_compute_cap(
+    policy_selector,
+    cc,
+    dispatch_functor<PolicySelector,
+                     KeysInputIteratorT,
+                     UniqueOutputIteratorT,
+                     ValuesInputIteratorT,
+                     AggregatesOutputIteratorT,
+                     NumRunsOutputIteratorT,
+                     EqualityOpT,
+                     ReductionOpT,
+                     OffsetT,
+                     AccumT>{
+      d_temp_storage,
+      temp_storage_bytes,
+      d_keys_in,
+      d_unique_out,
+      d_values_in,
+      d_aggregates_out,
+      d_num_runs_out,
+      equality_op,
+      reduction_op,
+      num_items,
+      stream});
 }
 } // namespace detail::reduce_by_key
 
