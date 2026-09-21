@@ -189,66 +189,37 @@ __launch_bounds__(
   vsmem_helper_t::discard_temp_storage(temp_storage);
 }
 
-template <typename KeyIt1,
+template <typename PolicySelector,
+          typename KeyIt1,
           typename ValueIt1,
           typename KeyIt2,
           typename ValueIt2,
           typename KeyIt3,
           typename ValueIt3,
           typename Offset,
-          typename CompareOp,
-          typename PolicySelector        = policy_selector_from_types<KeyIt1, ValueIt1, KeyIt2, ValueIt2, Offset>,
-          typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY>
-#if _CCCL_HAS_CONCEPTS()
-  requires merge_policy_selector<PolicySelector>
-#endif // _CCCL_HAS_CONCEPTS()
-CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
-  void* d_temp_storage,
-  size_t& temp_storage_bytes,
-  KeyIt1 d_keys1,
-  ValueIt1 d_values1,
-  Offset num_items1,
-  KeyIt2 d_keys2,
-  ValueIt2 d_values2,
-  Offset num_items2,
-  KeyIt3 d_keys_out,
-  ValueIt3 d_values_out,
-  CompareOp compare_op,
-  cudaStream_t stream,
-  PolicySelector policy_selector         = {},
-  KernelLauncherFactory launcher_factory = {})
+          typename CompareOp>
+struct dispatch_functor
 {
-  ::cuda::compute_capability cc{};
-  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  KeyIt1 d_keys1;
+  ValueIt1 d_values1;
+  Offset num_items1;
+  KeyIt2 d_keys2;
+  ValueIt2 d_values2;
+  Offset num_items2;
+  KeyIt3 d_keys_out;
+  ValueIt3 d_values_out;
+  CompareOp compare_op;
+  cudaStream_t stream;
+
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter) const
   {
-    return error;
-  }
-
-  return dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) {
-#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    NV_IF_TARGET(NV_IS_HOST, ({
-                   std::stringstream ss;
-                   ss << policy_getter();
-                   _CubLog("Dispatching DeviceMerge to compute capability %d.%d with tuning: %s\n",
-                           cc.major_cap(),
-                           cc.minor_cap(),
-                           ss.str().c_str());
-                 }))
-#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    log_dispatch("DeviceMerge", cc, policy_getter());
-#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-
-    static_assert(::cuda::std::is_empty_v<decltype(policy_getter)>);
-    using AgentT = typename choose_merge_agent<
-      decltype(policy_getter),
-      KeyIt1,
-      ValueIt1,
-      KeyIt2,
-      ValueIt2,
-      KeyIt3,
-      ValueIt3,
-      Offset,
-      CompareOp>::type;
+    static_assert(::cuda::std::is_empty_v<PolicyGetter>);
+    using AgentT =
+      typename choose_merge_agent<PolicyGetter, KeyIt1, ValueIt1, KeyIt2, ValueIt2, KeyIt3, ValueIt3, Offset, CompareOp>::
+        type;
 
     const auto num_tiles = ::cuda::ceil_div(num_items1 + num_items2, AgentT::items_per_tile);
     void* allocations[2] = {nullptr, nullptr};
@@ -279,7 +250,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
       if (const auto error = CubDebug(
             THRUST_NS_QUALIFIER::cuda_cub::detail::triple_chevron(
               partition_grid_size, threads_per_partition_block, 0, stream)
-              .doit(device_partition_merge_path_kernel<
+              .doit(detail::merge::device_partition_merge_path_kernel<
                       PolicySelector,
                       KeyIt1,
                       ValueIt1,
@@ -333,7 +304,73 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
     }
 
     return cudaSuccess;
-  });
+  }
+};
+
+template <typename KeyIt1,
+          typename ValueIt1,
+          typename KeyIt2,
+          typename ValueIt2,
+          typename KeyIt3,
+          typename ValueIt3,
+          typename Offset,
+          typename CompareOp,
+          typename PolicySelector        = policy_selector_from_types<KeyIt1, ValueIt1, KeyIt2, ValueIt2, Offset>,
+          typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY>
+#if _CCCL_HAS_CONCEPTS()
+  requires merge_policy_selector<PolicySelector>
+#endif // _CCCL_HAS_CONCEPTS()
+CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
+  void* d_temp_storage,
+  size_t& temp_storage_bytes,
+  KeyIt1 d_keys1,
+  ValueIt1 d_values1,
+  Offset num_items1,
+  KeyIt2 d_keys2,
+  ValueIt2 d_values2,
+  Offset num_items2,
+  KeyIt3 d_keys_out,
+  ValueIt3 d_values_out,
+  CompareOp compare_op,
+  cudaStream_t stream,
+  PolicySelector policy_selector         = {},
+  KernelLauncherFactory launcher_factory = {})
+{
+  ::cuda::compute_capability cc{};
+  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
+  {
+    return error;
+  }
+
+#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  NV_IF_TARGET(NV_IS_HOST, ({
+                 std::stringstream ss;
+                 ss << policy_selector(cc);
+                 _CubLog("Dispatching DeviceMerge to compute capability %d.%d with tuning: %s\n",
+                         cc.major_cap(),
+                         cc.minor_cap(),
+                         ss.str().c_str());
+               }))
+#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  log_dispatch("DeviceMerge", cc, policy_selector(cc));
+#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+
+  return dispatch_compute_cap(
+    policy_selector,
+    cc,
+    dispatch_functor<PolicySelector, KeyIt1, ValueIt1, KeyIt2, ValueIt2, KeyIt3, ValueIt3, Offset, CompareOp>{
+      d_temp_storage,
+      temp_storage_bytes,
+      d_keys1,
+      d_values1,
+      num_items1,
+      d_keys2,
+      d_values2,
+      num_items2,
+      d_keys_out,
+      d_values_out,
+      compare_op,
+      stream});
 }
 } // namespace detail::merge
 CUB_NAMESPACE_END
