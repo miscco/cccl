@@ -501,52 +501,35 @@ template <typename KeyInputIteratorT,
           typename NumSelectedIteratorT,
           typename EqualityOpT,
           typename OffsetT,
-          typename PolicySelector =
-            policy_selector_from_types<detail::it_value_t<KeyInputIteratorT>, detail::it_value_t<ValueInputIteratorT>>,
-          typename KernelSource = DeviceUniqueByKeyKernelSource<
-            PolicySelector,
-            KeyInputIteratorT,
-            ValueInputIteratorT,
-            KeyOutputIteratorT,
-            ValueOutputIteratorT,
-            NumSelectedIteratorT,
-            ScanTileState<OffsetT>,
-            EqualityOpT,
-            OffsetT>,
-          typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY,
-          typename KeyT                  = detail::it_value_t<KeyInputIteratorT>,
-          typename ValueT                = detail::it_value_t<ValueInputIteratorT>>
-CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
-  void* d_temp_storage,
-  size_t& temp_storage_bytes,
-  KeyInputIteratorT d_keys_in,
-  ValueInputIteratorT d_values_in,
-  KeyOutputIteratorT d_keys_out,
-  ValueOutputIteratorT d_values_out,
-  NumSelectedIteratorT d_num_selected_out,
-  EqualityOpT equality_op,
-  OffsetT num_items,
-  cudaStream_t stream,
-  PolicySelector policy_selector         = {},
-  KernelSource kernel_source             = {},
-  KernelLauncherFactory launcher_factory = {},
-  KeyT*                                  = nullptr /* for CCCL.C */,
-  ValueT*                                = nullptr /* for CCCL.C */) -> cudaError_t
+          typename KernelSource,
+          typename KernelLauncherFactory>
+struct dispatch_functor
 {
-  ::cuda::compute_capability cc{};
-  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
-  {
-    return error;
-  }
+  ::cuda::compute_capability cc;
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  KeyInputIteratorT d_keys_in;
+  ValueInputIteratorT d_values_in;
+  KeyOutputIteratorT d_keys_out;
+  ValueOutputIteratorT d_values_out;
+  NumSelectedIteratorT d_num_selected_out;
+  EqualityOpT equality_op;
+  OffsetT num_items;
+  cudaStream_t stream;
+  KernelSource kernel_source;
+  KernelLauncherFactory launcher_factory;
 
-  return detail::dispatch_compute_cap(policy_selector, cc, [&]([[maybe_unused]] auto policy_getter) {
+  // not const: MaxSmOccupancy is a non-const member of the launcher factory
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter)
+  {
 #ifdef CUB_DEFINE_RUNTIME_POLICIES
     // vsmem is not supported in CCCL.C, so just use the policy directly
     const UniqueByKeyPolicy active_policy     = policy_getter();
     const ::cuda::std::size_t vsmem_per_block = 0;
 #else
     using vsmem_adapted_agents = unique_by_key_vsmem_helper_t<
-      decltype(policy_getter),
+      PolicyGetter,
       KeyInputIteratorT,
       ValueInputIteratorT,
       KeyOutputIteratorT,
@@ -554,7 +537,8 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
       EqualityOpT,
       OffsetT>;
     constexpr UniqueByKeyPolicy active_policy = vsmem_adapted_agents::policy;
-    const ::cuda::std::size_t vsmem_per_block = vsmem_helper_impl<typename vsmem_adapted_agents::agent_t>::vsmem_per_block;
+    const ::cuda::std::size_t vsmem_per_block =
+      vsmem_helper_impl<typename vsmem_adapted_agents::agent_t>::vsmem_per_block;
 #endif
 
 #if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
@@ -710,7 +694,79 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
     }
 
     return CubDebug(detail::DebugSyncStream(stream));
-  });
+  }
+};
+
+template <typename KeyInputIteratorT,
+          typename ValueInputIteratorT,
+          typename KeyOutputIteratorT,
+          typename ValueOutputIteratorT,
+          typename NumSelectedIteratorT,
+          typename EqualityOpT,
+          typename OffsetT,
+          typename PolicySelector =
+            policy_selector_from_types<detail::it_value_t<KeyInputIteratorT>, detail::it_value_t<ValueInputIteratorT>>,
+          typename KernelSource = DeviceUniqueByKeyKernelSource<
+            PolicySelector,
+            KeyInputIteratorT,
+            ValueInputIteratorT,
+            KeyOutputIteratorT,
+            ValueOutputIteratorT,
+            NumSelectedIteratorT,
+            ScanTileState<OffsetT>,
+            EqualityOpT,
+            OffsetT>,
+          typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY,
+          typename KeyT                  = detail::it_value_t<KeyInputIteratorT>,
+          typename ValueT                = detail::it_value_t<ValueInputIteratorT>>
+CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
+  void* d_temp_storage,
+  size_t& temp_storage_bytes,
+  KeyInputIteratorT d_keys_in,
+  ValueInputIteratorT d_values_in,
+  KeyOutputIteratorT d_keys_out,
+  ValueOutputIteratorT d_values_out,
+  NumSelectedIteratorT d_num_selected_out,
+  EqualityOpT equality_op,
+  OffsetT num_items,
+  cudaStream_t stream,
+  PolicySelector policy_selector         = {},
+  KernelSource kernel_source             = {},
+  KernelLauncherFactory launcher_factory = {},
+  KeyT*                                  = nullptr /* for CCCL.C */,
+  ValueT*                                = nullptr /* for CCCL.C */) -> cudaError_t
+{
+  ::cuda::compute_capability cc{};
+  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
+  {
+    return error;
+  }
+
+  return detail::dispatch_compute_cap(
+    policy_selector,
+    cc,
+    dispatch_functor<KeyInputIteratorT,
+                     ValueInputIteratorT,
+                     KeyOutputIteratorT,
+                     ValueOutputIteratorT,
+                     NumSelectedIteratorT,
+                     EqualityOpT,
+                     OffsetT,
+                     KernelSource,
+                     KernelLauncherFactory>{
+      cc,
+      d_temp_storage,
+      temp_storage_bytes,
+      d_keys_in,
+      d_values_in,
+      d_keys_out,
+      d_values_out,
+      d_num_selected_out,
+      equality_op,
+      num_items,
+      stream,
+      kernel_source,
+      launcher_factory});
 }
 } // namespace detail::unique_by_key
 
