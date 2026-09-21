@@ -454,7 +454,7 @@ public:
   _CCCL_API constexpr const tuple& operator=(const tuple& __t) const
     noexcept((is_nothrow_copy_assignable_v<const _Tp> && ...))
   {
-    ::cuda::std::__memberwise_copy_assign(*this, __t, __make_tuple_indices_t<sizeof...(_Tp)>{});
+    __base_.__memberwise_copy_assign(__t);
     return *this;
   }
 
@@ -464,8 +464,7 @@ public:
   _CCCL_API constexpr const tuple& operator=(tuple&& __t) const
     noexcept((is_nothrow_assignable_v<const _Tp&, _Tp> && ...))
   {
-    ::cuda::std::__memberwise_forward_assign(
-      *this, ::cuda::std::move(__t), __type_list<_Tp...>{}, __make_tuple_indices_t<sizeof...(_Tp)>{});
+    __base_.__memberwise_forward_assign(::cuda::std::move(__t));
     return *this;
   }
 
@@ -480,7 +479,7 @@ public:
   _CCCL_API constexpr tuple&
   operator=(const tuple<_UTypes...>& __t) noexcept((is_nothrow_assignable_v<_Tp&, const _UTypes&> && ...))
   {
-    ::cuda::std::__memberwise_copy_assign(*this, __t, __make_tuple_indices_t<sizeof...(_Tp)>{});
+    __base_.__memberwise_copy_assign(__t);
     return *this;
   }
 
@@ -491,7 +490,7 @@ public:
   _CCCL_API constexpr const tuple& operator=(const tuple<_UTypes...>& __t) const
     noexcept((is_nothrow_assignable_v<const _Tp&, const _UTypes&> && ...))
   {
-    ::cuda::std::__memberwise_copy_assign(*this, __t, __make_tuple_indices_t<sizeof...(_Tp)>{});
+    __base_.__memberwise_copy_assign(__t);
     return *this;
   }
 
@@ -501,8 +500,7 @@ public:
             enable_if_t<_Constraints::value, int> = 0>
   _CCCL_API constexpr tuple& operator=(tuple<_UTypes...>&& __t) noexcept((is_nothrow_assignable_v<_Tp&, _UTypes> && ...))
   {
-    ::cuda::std::__memberwise_forward_assign(
-      *this, ::cuda::std::move(__t), __type_list<_UTypes...>(), __make_tuple_indices_t<sizeof...(_Tp)>{});
+    __base_.__memberwise_forward_assign(::cuda::std::move(__t));
     return *this;
   }
 
@@ -513,8 +511,7 @@ public:
   _CCCL_API constexpr const tuple& operator=(tuple<_UTypes...>&& __t) const
     noexcept((is_nothrow_assignable_v<const _Tp&, _UTypes> && ...))
   {
-    ::cuda::std::__memberwise_forward_assign(
-      *this, ::cuda::std::move(__t), __type_list<_UTypes...>(), __make_tuple_indices_t<sizeof...(_Tp)>{});
+    __base_.__memberwise_forward_assign(::cuda::std::move(__t));
     return *this;
   }
 
@@ -534,8 +531,7 @@ public:
   _CCCL_API constexpr tuple&
   operator=(_UTuple&& __t) noexcept(_NothrowTupleLikeAssignable</*__is_const=*/false, _UTuple>::value)
   {
-    ::cuda::std::__memberwise_tuple_assign(
-      *this, ::cuda::std::forward<_UTuple>(__t), __make_tuple_indices_t<sizeof...(_Tp)>{});
+    __base_.__memberwise_forward_assign(::cuda::std::forward<_UTuple>(__t));
     return *this;
   }
 
@@ -547,8 +543,7 @@ public:
   _CCCL_API constexpr const tuple& operator=(_UTuple&& __t) const
     noexcept(_NothrowTupleLikeAssignable</*__is_const=*/true, _UTuple>::value)
   {
-    ::cuda::std::__memberwise_tuple_assign(
-      *this, ::cuda::std::forward<_UTuple>(__t), __make_tuple_indices_t<sizeof...(_Tp)>{});
+    __base_.__memberwise_forward_assign(::cuda::std::forward<_UTuple>(__t));
     return *this;
   }
 

@@ -376,34 +376,6 @@ struct __tuple_like_constructor_tag
 
 // __tuple_impl
 
-_CCCL_EXEC_CHECK_DISABLE
-template <class _Dest, class _Source, size_t... _Indices>
-_CCCL_API constexpr void __memberwise_copy_assign(_Dest& __dest, _Source const& __source, __tuple_indices<_Indices...>)
-{
-  using ::cuda::std::get;
-  ((void) (get<_Indices>(__dest) = get<_Indices>(__source)), ...);
-}
-
-_CCCL_EXEC_CHECK_DISABLE
-template <class _Dest, class _Source, class... _Up, size_t... _Indices>
-_CCCL_API constexpr void
-__memberwise_forward_assign(_Dest& __dest, _Source&& __source, __type_list<_Up...>, __tuple_indices<_Indices...>)
-{
-  using ::cuda::std::get;
-  ((void) (get<_Indices>(__dest) = ::cuda::std::forward<_Up>(get<_Indices>(__source))), ...);
-}
-
-_CCCL_EXEC_CHECK_DISABLE
-template <class _Dest, class _Source, size_t... _Indices>
-_CCCL_API constexpr void __memberwise_tuple_assign(_Dest& __dest, _Source&& __source, __tuple_indices<_Indices...>)
-{
-  using ::cuda::std::get;
-  // clang-tidy incorrectly reports "'__source' used after it was forwarded".
-  // Each expansion forwards the tuple only to select get<I>'s cvref-qualified overload for a distinct element.
-  // NOLINTNEXTLINE(bugprone-use-after-move)
-  ((void) (get<_Indices>(__dest) = get<_Indices>(::cuda::std::forward<_Source>(__source))), ...);
-}
-
 template <class _Indx, class... _Tp>
 struct _CCCL_DECLSPEC_EMPTY_BASES __tuple_impl;
 
@@ -488,6 +460,42 @@ struct _CCCL_DECLSPEC_EMPTY_BASES __tuple_impl<__tuple_indices<_Indx...>, _Tp...
 #endif //  _CCCL_CUDA_COMPILER(NVCC, <, 12, 1)
   {
     (__tuple_leaf<_Indx, _Tp>::swap(static_cast<__tuple_leaf<_Indx, _Tp>&>(__t)), ...);
+  }
+
+  _CCCL_EXEC_CHECK_DISABLE
+  template <class _Source>
+  _CCCL_API constexpr void __memberwise_copy_assign(_Source const& __source)
+  {
+    ((void) (__tuple_leaf<_Indx, _Tp>::__get() = ::cuda::std::get<_Indx>(__source)), ...);
+  }
+
+  _CCCL_EXEC_CHECK_DISABLE
+  template <class _Source>
+  _CCCL_API constexpr void __memberwise_copy_assign(_Source const& __source) const
+  {
+    ((void) (__tuple_leaf<_Indx, _Tp>::__get() = ::cuda::std::get<_Indx>(__source)), ...);
+  }
+
+  _CCCL_EXEC_CHECK_DISABLE
+  template <class _Source>
+  _CCCL_API constexpr void __memberwise_forward_assign(_Source&& __source)
+  {
+    using ::cuda::std::get;
+    // clang-tidy incorrectly reports "'__source' used after it was forwarded".
+    // Each expansion forwards the tuple only to select get<I>'s cvref-qualified overload for a distinct element.
+    // NOLINTNEXTLINE(bugprone-use-after-move)
+    ((void) (__tuple_leaf<_Indx, _Tp>::__get() = get<_Indx>(::cuda::std::forward<_Source>(__source))), ...);
+  }
+
+  _CCCL_EXEC_CHECK_DISABLE
+  template <class _Source>
+  _CCCL_API constexpr void __memberwise_forward_assign(_Source&& __source) const
+  {
+    using ::cuda::std::get;
+    // clang-tidy incorrectly reports "'__source' used after it was forwarded".
+    // Each expansion forwards the tuple only to select get<I>'s cvref-qualified overload for a distinct element.
+    // NOLINTNEXTLINE(bugprone-use-after-move)
+    ((void) (__tuple_leaf<_Indx, _Tp>::__get() = get<_Indx>(::cuda::std::forward<_Source>(__source))), ...);
   }
 };
 
