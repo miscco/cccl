@@ -405,6 +405,55 @@ CUB_RUNTIME_FUNCTION cudaError_t invoke_lookahead(
 }
 #endif // __cccl_ptx_isa >= 920
 
+#if __cccl_ptx_isa >= 920
+template <class PolicySelector,
+          class InputIteratorT,
+          class UniqueOutputIteratorT,
+          class LengthsOutputIteratorT,
+          class NumRunsOutputIteratorT,
+          class OffsetT,
+          class KernelSource,
+          class LauncherFactory>
+struct dispatch_functor
+{
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  InputIteratorT d_in;
+  UniqueOutputIteratorT d_unique_out;
+  LengthsOutputIteratorT d_counts_out;
+  NumRunsOutputIteratorT d_num_runs_out;
+  OffsetT num_items;
+  cudaStream_t stream;
+  KernelSource kernel_source;
+  LauncherFactory launcher_factory;
+
+  template <class PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter) const
+  {
+    if CUB_DETAIL_CONSTEXPR_ISH (policy_getter().algorithm == RleAlgorithm::lookahead)
+    {
+      return detail::rle::encode::invoke_lookahead(
+        kernel_source,
+        policy_getter().lookahead,
+        d_temp_storage,
+        temp_storage_bytes,
+        d_in,
+        d_unique_out,
+        d_counts_out,
+        d_num_runs_out,
+        num_items,
+        stream,
+        launcher_factory);
+    }
+    else
+    {
+      return detail::rle::encode::invoke_streaming<PolicySelector, streaming_kernel_source<PolicySelector>>(
+        d_temp_storage, temp_storage_bytes, d_in, d_unique_out, d_counts_out, d_num_runs_out, num_items, stream);
+    }
+  }
+};
+#endif // __cccl_ptx_isa >= 920
+
 // Dispatches DeviceRunLengthEncode::Encode: the lookahead implementation when the tuning policy selects
 // it (host-side callers on viable types), the streaming reduce-by-key implementation otherwise (lookback
 // policies, non-viable types, and device-side callers).
@@ -445,46 +494,46 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
     {
       return error;
     }
-    return detail::dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) -> cudaError_t {
+
 #  if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-      NV_IF_TARGET(NV_IS_HOST, ({
-                     ::std::stringstream ss;
-                     ss << policy_getter();
-                     _CubLog("Dispatching DeviceRunLengthEncode::Encode to compute capability %d.%d with tuning: %s\n",
-                             cc.major_cap(),
-                             cc.minor_cap(),
-                             ss.str().c_str());
-                   }))
+    NV_IF_TARGET(NV_IS_HOST, ({
+                   ::std::stringstream ss;
+                   ss << policy_selector(cc);
+                   _CubLog("Dispatching DeviceRunLengthEncode::Encode to compute capability %d.%d with tuning: %s\n",
+                           cc.major_cap(),
+                           cc.minor_cap(),
+                           ss.str().c_str());
+                 }))
 #  else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-      log_dispatch("DeviceRunLengthEncode::Encode", cc, policy_getter());
+    log_dispatch("DeviceRunLengthEncode::Encode", cc, policy_selector(cc));
 #  endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
 
-      if CUB_DETAIL_CONSTEXPR_ISH (policy_getter().algorithm == RleAlgorithm::lookahead)
-      {
-        return invoke_lookahead(
-          kernel_source,
-          policy_getter().lookahead,
-          d_temp_storage,
-          temp_storage_bytes,
-          d_in,
-          d_unique_out,
-          d_counts_out,
-          d_num_runs_out,
-          num_items,
-          stream,
-          launcher_factory);
-      }
-      else
-      {
-        return invoke_streaming<PolicySelector, streaming_kernel_source<PolicySelector>>(
-          d_temp_storage, temp_storage_bytes, d_in, d_unique_out, d_counts_out, d_num_runs_out, num_items, stream);
-      }
-    });
+    return detail::dispatch_compute_cap(
+      policy_selector,
+      cc,
+      dispatch_functor<PolicySelector,
+                       InputIteratorT,
+                       UniqueOutputIteratorT,
+                       LengthsOutputIteratorT,
+                       NumRunsOutputIteratorT,
+                       OffsetT,
+                       KernelSource,
+                       LauncherFactory>{
+        d_temp_storage,
+        temp_storage_bytes,
+        d_in,
+        d_unique_out,
+        d_counts_out,
+        d_num_runs_out,
+        num_items,
+        stream,
+        kernel_source,
+        launcher_factory});
   }
   else
 #endif // __cccl_ptx_isa >= 920
   {
-    return invoke_streaming<PolicySelector>(
+    return detail::rle::encode::invoke_streaming<PolicySelector>(
       d_temp_storage, temp_storage_bytes, d_in, d_unique_out, d_counts_out, d_num_runs_out, num_items, stream);
   }
 }
