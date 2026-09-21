@@ -2151,6 +2151,23 @@ struct dispatch_impl
   }
 };
 
+template <typename KeyT,
+          typename ValueT,
+          typename OffsetT,
+          typename DecomposerT,
+          typename KernelSource,
+          typename KernelLauncherFactory>
+struct dispatch_functor
+{
+  dispatch_impl<KeyT, ValueT, OffsetT, DecomposerT, KernelSource, KernelLauncherFactory>& impl;
+
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter) const
+  {
+    return impl.invoke(policy_getter);
+  }
+};
+
 template <SortOrder Order,
           typename KeyT,
           typename ValueT,
@@ -2207,9 +2224,10 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
     kernel_source,
     launcher_factory};
 
-  return dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) {
-    return impl.invoke(policy_getter);
-  });
+  return dispatch_compute_cap(
+    policy_selector,
+    cc,
+    dispatch_functor<KeyT, ValueT, OffsetT, DecomposerT, KernelSource, KernelLauncherFactory>{impl});
 }
 } // namespace detail::radix_sort
 
