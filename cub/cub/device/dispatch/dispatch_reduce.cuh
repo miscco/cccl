@@ -727,8 +727,8 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t invoke_regular_size_reduce(
   [[maybe_unused]] AccumT* d_block_reductions = nullptr; // buffer for per-block aggregates for the two-phase code path
   if constexpr (!StableReductionOrder)
   {
-    if (const auto error =
-          CubDebug(launcher_factory.MemsetAsync(get_device_ptr(&d_out), 0, kernel_source.InitSize(), stream)))
+    if (const auto error = CubDebug(
+          launcher_factory.MemsetAsync(detail::reduce::get_device_ptr(&d_out), 0, kernel_source.InitSize(), stream)))
     {
       return error;
     }
@@ -925,71 +925,36 @@ template <typename InputIteratorT,
           ::cuda::std::enable_if_t<!::cuda::std::is_same_v<OverrideAccumT, use_default>, int> = 0>
 _CCCL_HOST_DEVICE_API auto select_accum_t(OverrideAccumT*) -> OverrideAccumT;
 
-template <
-  typename OverrideAccumT   = use_default,
-  bool StableReductionOrder = true,
-  typename InputIteratorT,
-  typename OutputIteratorT,
-  typename OffsetT,
-  typename ReductionOpT,
-  typename InitValueT     = non_void_value_t<OutputIteratorT, it_value_t<InputIteratorT>>,
-  typename TransformOpT   = ::cuda::std::identity,
-  typename AccumT         = decltype(select_accum_t<InputIteratorT, InitValueT, ReductionOpT, TransformOpT>(
-    static_cast<OverrideAccumT*>(nullptr))),
-  typename PolicySelector = policy_selector_from_types<
-    AccumT,
-    num_items_offset_t<OffsetT>,
-    ReductionOpT,
-    StableReductionOrder ? __determinism_t::__run_to_run : __determinism_t::__not_guaranteed>,
-  typename KernelSource = DeviceReduceKernelSource<
-    PolicySelector,
-    InputIteratorT,
-    OutputIteratorT,
-    num_items_offset_t<OffsetT>,
-    CUB_NS_QUALIFIER::detail::parameter_from_host_t<num_items_offset_t<OffsetT>, OffsetT>,
-    ReductionOpT,
-    InitValueT,
-    AccumT,
-    TransformOpT,
-    StableReductionOrder>,
-  typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY>
-#if _CCCL_HAS_CONCEPTS()
-  requires reduce_policy_selector<PolicySelector>
-#endif // _CCCL_HAS_CONCEPTS()
-CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
-  void* d_temp_storage,
-  size_t& temp_storage_bytes,
-  InputIteratorT d_in,
-  OutputIteratorT d_out,
-  OffsetT num_items,
-  ReductionOpT reduction_op,
-  InitValueT init,
-  cudaStream_t stream,
-  TransformOpT transform_op              = {},
-  PolicySelector policy_selector         = {},
-  KernelSource kernel_source             = {},
-  KernelLauncherFactory launcher_factory = {}) -> cudaError_t
+template <bool StableReductionOrder,
+          typename OffsetT,
+          typename AccumT,
+          typename ReductionOpT,
+          typename InputIteratorT,
+          typename OutputIteratorT,
+          typename InitValueT,
+          typename TransformOpT,
+          typename KernelSource,
+          typename KernelLauncherFactory>
+struct dispatch_functor
 {
   using offset_t = num_items_offset_t<OffsetT>;
 
-  ::cuda::compute_capability cc{};
-  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
-  {
-    return error;
-  }
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  InputIteratorT d_in;
+  OutputIteratorT d_out;
+  OffsetT num_items;
+  ReductionOpT reduction_op;
+  InitValueT init;
+  cudaStream_t stream;
+  TransformOpT transform_op;
+  offset_t offset_num_items;
+  KernelSource kernel_source;
+  KernelLauncherFactory launcher_factory;
 
-  // TODO: Remove this workaround once nvcc versions older than 12.4 are no longer supported.
-  // Older nvcc versions eagerly instantiate discarded statements in generic lambdas, so perform this conversion here.
-  // Both suppressions are needed for "never referenced" and "set but never used" diagnostics across supported nvcc
-  // and MSVC combinations.
-  [[maybe_unused]] offset_t offset_num_items{}; // NOLINT(misc-const-correctness)
-  if constexpr (StableReductionOrder && !::cuda::args::__traits<OffsetT>::is_deferred)
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter) const
   {
-    offset_num_items = static_cast<offset_t>(num_items);
-  }
-  (void) offset_num_items;
-
-  return dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) {
     CUB_DETAIL_CONSTEXPR_ISH const ReducePolicy active_policy = policy_getter();
 
     // known operators for integers are stable, even when using a non-deterministic reduction order
@@ -1003,19 +968,6 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
         active_policy.single_tile.reduce_algorithm != BLOCK_REDUCE_WARP_REDUCTIONS_NONDETERMINISTIC,
         "A run-to-run deterministic reduction must not use a non-deterministic reduce_algorithm");
     }
-
-#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    NV_IF_TARGET(NV_IS_HOST, ({
-                   std::stringstream ss;
-                   ss << active_policy;
-                   _CubLog("Dispatching DeviceReduce to compute capability %d.%d with tuning: %s\n",
-                           cc.major_cap(),
-                           cc.minor_cap(),
-                           ss.str().c_str());
-                 }))
-#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    log_dispatch("DeviceReduce", cc, active_policy);
-#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
 
     if constexpr (StableReductionOrder && !::cuda::args::__traits<OffsetT>::is_deferred)
     {
@@ -1083,7 +1035,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
     }
 
     // Regular size
-    return invoke_regular_size_reduce<StableReductionOrder, AccumT>(
+    return detail::reduce::invoke_regular_size_reduce<StableReductionOrder, AccumT>(
       d_temp_storage,
       temp_storage_bytes,
       d_in,
@@ -1096,7 +1048,110 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
       active_policy,
       kernel_source,
       launcher_factory);
-  });
+  }
+};
+
+template <
+  typename OverrideAccumT   = use_default,
+  bool StableReductionOrder = true,
+  typename InputIteratorT,
+  typename OutputIteratorT,
+  typename OffsetT,
+  typename ReductionOpT,
+  typename InitValueT   = non_void_value_t<OutputIteratorT, it_value_t<InputIteratorT>>,
+  typename TransformOpT = ::cuda::std::identity,
+  typename AccumT = decltype(detail::reduce::select_accum_t<InputIteratorT, InitValueT, ReductionOpT, TransformOpT>(
+    static_cast<OverrideAccumT*>(nullptr))),
+  typename PolicySelector = policy_selector_from_types<
+    AccumT,
+    num_items_offset_t<OffsetT>,
+    ReductionOpT,
+    StableReductionOrder ? __determinism_t::__run_to_run : __determinism_t::__not_guaranteed>,
+  typename KernelSource = DeviceReduceKernelSource<
+    PolicySelector,
+    InputIteratorT,
+    OutputIteratorT,
+    num_items_offset_t<OffsetT>,
+    CUB_NS_QUALIFIER::detail::parameter_from_host_t<num_items_offset_t<OffsetT>, OffsetT>,
+    ReductionOpT,
+    InitValueT,
+    AccumT,
+    TransformOpT,
+    StableReductionOrder>,
+  typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY>
+#if _CCCL_HAS_CONCEPTS()
+  requires reduce_policy_selector<PolicySelector>
+#endif // _CCCL_HAS_CONCEPTS()
+CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
+  void* d_temp_storage,
+  size_t& temp_storage_bytes,
+  InputIteratorT d_in,
+  OutputIteratorT d_out,
+  OffsetT num_items,
+  ReductionOpT reduction_op,
+  InitValueT init,
+  cudaStream_t stream,
+  TransformOpT transform_op              = {},
+  PolicySelector policy_selector         = {},
+  KernelSource kernel_source             = {},
+  KernelLauncherFactory launcher_factory = {}) -> cudaError_t
+{
+  ::cuda::compute_capability cc{};
+  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
+  {
+    return error;
+  }
+
+  // TODO: Remove this workaround once nvcc versions older than 12.4 are no longer supported.
+  // Older nvcc versions eagerly instantiate discarded statements in generic lambdas, so perform this conversion here.
+  // Both suppressions are needed for "never referenced" and "set but never used" diagnostics across supported nvcc
+  // and MSVC combinations.
+  using offset_t = num_items_offset_t<OffsetT>;
+  [[maybe_unused]] offset_t offset_num_items{}; // NOLINT(misc-const-correctness)
+  if constexpr (StableReductionOrder && !::cuda::args::__traits<OffsetT>::is_deferred)
+  {
+    offset_num_items = static_cast<offset_t>(num_items);
+  }
+  (void) offset_num_items;
+
+#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  NV_IF_TARGET(NV_IS_HOST, ({
+                 std::stringstream ss;
+                 ss << policy_selector(cc);
+                 _CubLog("Dispatching DeviceReduce to compute capability %d.%d with tuning: %s\n",
+                         cc.major_cap(),
+                         cc.minor_cap(),
+                         ss.str().c_str());
+               }))
+#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  log_dispatch("DeviceReduce", cc, policy_selector(cc));
+#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+
+  return dispatch_compute_cap(
+    policy_selector,
+    cc,
+    dispatch_functor<StableReductionOrder,
+                     OffsetT,
+                     AccumT,
+                     ReductionOpT,
+                     InputIteratorT,
+                     OutputIteratorT,
+                     InitValueT,
+                     TransformOpT,
+                     KernelSource,
+                     KernelLauncherFactory>{
+      d_temp_storage,
+      temp_storage_bytes,
+      d_in,
+      d_out,
+      num_items,
+      reduction_op,
+      init,
+      stream,
+      transform_op,
+      offset_num_items,
+      kernel_source,
+      launcher_factory});
 }
 } // namespace detail::reduce
 
