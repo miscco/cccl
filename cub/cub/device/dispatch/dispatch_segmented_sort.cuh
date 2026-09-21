@@ -1263,98 +1263,74 @@ CUB_RUNTIME_FUNCTION _CCCL_VISIBILITY_HIDDEN _CCCL_FORCEINLINE cudaError_t sort_
   return cudaSuccess;
 }
 
-template <
-  SortOrder Order,
-  typename OffsetT,
-  typename KeyT,
-  typename ValueT,
-  typename BeginOffsetIteratorT,
-  typename EndOffsetIteratorT,
-  typename PolicySelector = policy_selector_from_types<KeyT, ValueT>,
-  typename KernelSource =
-    DeviceSegmentedSortKernelSource<PolicySelector, Order, KeyT, ValueT, BeginOffsetIteratorT, EndOffsetIteratorT, OffsetT>,
-  typename PartitionPolicySelector = detail::three_way_partition::policy_selector_from_types<
-    cub::detail::it_value_t<THRUST_NS_QUALIFIER::counting_iterator<local_segment_index_t>>,
-    three_way_partition::per_partition_offset_t>,
-  typename PartitionKernelSource = detail::three_way_partition::DeviceThreeWayPartitionKernelSource<
-    PartitionPolicySelector,
-    THRUST_NS_QUALIFIER::counting_iterator<local_segment_index_t>,
-    local_segment_index_t*,
-    local_segment_index_t*,
-    ::cuda::std::reverse_iterator<local_segment_index_t*>,
-    local_segment_index_t*,
-    three_way_partition::ScanTileStateT,
-    LargeSegmentsSelectorT<OffsetT, BeginOffsetIteratorT, EndOffsetIteratorT>,
-    SmallSegmentsSelectorT<OffsetT, BeginOffsetIteratorT, EndOffsetIteratorT>,
-    three_way_partition::per_partition_offset_t,
-    three_way_partition::streaming_context_t<global_segment_offset_t>,
-    choose_signed_offset<global_segment_offset_t>::type>,
-  typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY>
-#if _CCCL_HAS_CONCEPTS()
-  requires segmented_sort_policy_selector<PolicySelector>
-        && three_way_partition::three_way_partition_policy_selector<PartitionPolicySelector>
-#endif // _CCCL_HAS_CONCEPTS()
-CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
-  void* d_temp_storage,
-  size_t& temp_storage_bytes,
-  DoubleBuffer<KeyT>& d_keys,
-  DoubleBuffer<ValueT>& d_values,
-  ::cuda::std::int64_t num_items,
-  global_segment_offset_t num_segments,
-  BeginOffsetIteratorT d_begin_offsets,
-  EndOffsetIteratorT d_end_offsets,
-  bool is_overwrite_okay,
-  cudaStream_t stream,
-  PolicySelector policy_selector                    = {},
-  PartitionPolicySelector partition_policy_selector = {},
-  KernelSource kernel_source                        = {},
-  PartitionKernelSource partition_kernel_source     = {},
-  KernelLauncherFactory launcher_factory            = {}) -> cudaError_t
+template <SortOrder Order,
+          typename OffsetT,
+          typename KeyT,
+          typename ValueT,
+          typename BeginOffsetIteratorT,
+          typename EndOffsetIteratorT,
+          typename KernelSource,
+          typename PartitionPolicySelector,
+          typename PartitionKernelSource,
+          typename KernelLauncherFactory>
+struct dispatch_functor
 {
-  [[maybe_unused]] static constexpr bool keys_only = ::cuda::std::is_same_v<ValueT, NullType>;
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  DoubleBuffer<KeyT>& d_keys;
+  DoubleBuffer<ValueT>& d_values;
+  ::cuda::std::int64_t num_items;
+  global_segment_offset_t num_segments;
+  BeginOffsetIteratorT d_begin_offsets;
+  EndOffsetIteratorT d_end_offsets;
+  bool is_overwrite_okay;
+  cudaStream_t stream;
+  KernelSource kernel_source;
+  PartitionPolicySelector partition_policy_selector;
+  PartitionKernelSource partition_kernel_source;
+  KernelLauncherFactory launcher_factory;
 
-  const auto get_num_passes = [&](int radix_bits) {
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE int get_num_passes(int radix_bits) const
+  {
     const int num_bits   = static_cast<int>(kernel_source.KeySize()) * CHAR_BIT;
     const int num_passes = ::cuda::ceil_div(num_bits, radix_bits);
     return num_passes;
-  };
+  }
 
-  const auto get_final_selector = [&](int selector, int radix_bits) {
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE int get_final_selector(int selector, int radix_bits) const
+  {
     if (!is_overwrite_okay)
     {
       return (selector + 1) & 1;
     }
     return (selector + get_num_passes(radix_bits)) & 1;
-  };
-
-  const auto get_final_output = [&](auto& buffer, int radix_bits) {
-    const int final_selector = get_final_selector(buffer.selector, radix_bits);
-    return buffer.d_buffers[final_selector];
-  };
-
-  ::cuda::compute_capability cc{};
-  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
-  {
-    return error;
   }
 
-  return detail::dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) -> cudaError_t {
-    check_policy<keys_only>(policy_getter); // MSVC fails to evaluate static_asserts inside this lambda, so move them to
-                                            // a function
-    CUB_DETAIL_CONSTEXPR_ISH const SegmentedSortPolicy active_policy = policy_getter();
+  template <typename BufferT>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto get_final_output(BufferT& buffer, int radix_bits) const
+  {
+    const int final_selector = get_final_selector(buffer.selector, radix_bits);
+    return buffer.d_buffers[final_selector];
+  }
 
-#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    NV_IF_TARGET(NV_IS_HOST, ({
-                   ::std::stringstream ss;
-                   ss << active_policy;
-                   _CubLog("Dispatching DeviceSegmentedSort to compute capability %d.%d with tuning: %s\n",
-                           cc.major_cap(),
-                           cc.minor_cap(),
-                           ss.str().c_str());
-                 }))
-#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    log_dispatch("DeviceSegmentedSort", cc, active_policy);
-#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  struct get_final_output_op
+  {
+    dispatch_functor const& self;
+
+    template <typename BufferT>
+    CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto operator()(BufferT& buffer, int radix_bits) const
+    {
+      return self.get_final_output(buffer, radix_bits);
+    }
+  };
+
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter) const
+  {
+    [[maybe_unused]] static constexpr bool keys_only = ::cuda::std::is_same_v<ValueT, NullType>;
+    detail::segmented_sort::check_policy<keys_only>(policy_getter); // MSVC fails to evaluate static_asserts inside this
+                                                                    // lambda, so move them to a function
+    CUB_DETAIL_CONSTEXPR_ISH const SegmentedSortPolicy active_policy = policy_getter();
 
     const int radix_bits = active_policy.large_segment.radix_bits;
 
@@ -1516,7 +1492,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
 
     if (partition_segments)
     {
-      if (const auto error = sort_with_partitioning(
+      if (const auto error = detail::segmented_sort::sort_with_partitioning(
             segmented_sort_kernel_large,
             segmented_sort_kernel_small,
             num_segments,
@@ -1540,14 +1516,14 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
             launcher_factory,
             partition_policy_selector,
             active_policy,
-            get_final_output))
+            get_final_output_op{*this}))
       {
         return error;
       }
     }
     else
     {
-      if (const auto error = sort_without_partitioning(
+      if (const auto error = detail::segmented_sort::sort_without_partitioning(
             segmented_sort_fallback_kernel,
             num_segments,
             d_begin_offsets,
@@ -1559,7 +1535,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
             d_values_double_buffer,
             launcher_factory,
             active_policy,
-            get_final_output))
+            get_final_output_op{*this}))
       {
         return error;
       }
@@ -1568,7 +1544,103 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
     d_keys.selector   = get_final_selector(d_keys.selector, radix_bits);
     d_values.selector = get_final_selector(d_values.selector, radix_bits);
     return cudaSuccess;
-  });
+  }
+};
+
+template <
+  SortOrder Order,
+  typename OffsetT,
+  typename KeyT,
+  typename ValueT,
+  typename BeginOffsetIteratorT,
+  typename EndOffsetIteratorT,
+  typename PolicySelector = policy_selector_from_types<KeyT, ValueT>,
+  typename KernelSource =
+    DeviceSegmentedSortKernelSource<PolicySelector, Order, KeyT, ValueT, BeginOffsetIteratorT, EndOffsetIteratorT, OffsetT>,
+  typename PartitionPolicySelector = detail::three_way_partition::policy_selector_from_types<
+    cub::detail::it_value_t<THRUST_NS_QUALIFIER::counting_iterator<local_segment_index_t>>,
+    three_way_partition::per_partition_offset_t>,
+  typename PartitionKernelSource = detail::three_way_partition::DeviceThreeWayPartitionKernelSource<
+    PartitionPolicySelector,
+    THRUST_NS_QUALIFIER::counting_iterator<local_segment_index_t>,
+    local_segment_index_t*,
+    local_segment_index_t*,
+    ::cuda::std::reverse_iterator<local_segment_index_t*>,
+    local_segment_index_t*,
+    three_way_partition::ScanTileStateT,
+    LargeSegmentsSelectorT<OffsetT, BeginOffsetIteratorT, EndOffsetIteratorT>,
+    SmallSegmentsSelectorT<OffsetT, BeginOffsetIteratorT, EndOffsetIteratorT>,
+    three_way_partition::per_partition_offset_t,
+    three_way_partition::streaming_context_t<global_segment_offset_t>,
+    choose_signed_offset<global_segment_offset_t>::type>,
+  typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY>
+#if _CCCL_HAS_CONCEPTS()
+  requires segmented_sort_policy_selector<PolicySelector>
+        && three_way_partition::three_way_partition_policy_selector<PartitionPolicySelector>
+#endif // _CCCL_HAS_CONCEPTS()
+CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
+  void* d_temp_storage,
+  size_t& temp_storage_bytes,
+  DoubleBuffer<KeyT>& d_keys,
+  DoubleBuffer<ValueT>& d_values,
+  ::cuda::std::int64_t num_items,
+  global_segment_offset_t num_segments,
+  BeginOffsetIteratorT d_begin_offsets,
+  EndOffsetIteratorT d_end_offsets,
+  bool is_overwrite_okay,
+  cudaStream_t stream,
+  PolicySelector policy_selector                    = {},
+  PartitionPolicySelector partition_policy_selector = {},
+  KernelSource kernel_source                        = {},
+  PartitionKernelSource partition_kernel_source     = {},
+  KernelLauncherFactory launcher_factory            = {}) -> cudaError_t
+{
+  ::cuda::compute_capability cc{};
+  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
+  {
+    return error;
+  }
+
+#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  NV_IF_TARGET(NV_IS_HOST, ({
+                 ::std::stringstream ss;
+                 ss << policy_selector(cc);
+                 _CubLog("Dispatching DeviceSegmentedSort to compute capability %d.%d with tuning: %s\n",
+                         cc.major_cap(),
+                         cc.minor_cap(),
+                         ss.str().c_str());
+               }))
+#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  log_dispatch("DeviceSegmentedSort", cc, policy_selector(cc));
+#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+
+  return detail::dispatch_compute_cap(
+    policy_selector,
+    cc,
+    dispatch_functor<Order,
+                     OffsetT,
+                     KeyT,
+                     ValueT,
+                     BeginOffsetIteratorT,
+                     EndOffsetIteratorT,
+                     KernelSource,
+                     PartitionPolicySelector,
+                     PartitionKernelSource,
+                     KernelLauncherFactory>{
+      d_temp_storage,
+      temp_storage_bytes,
+      d_keys,
+      d_values,
+      num_items,
+      num_segments,
+      d_begin_offsets,
+      d_end_offsets,
+      is_overwrite_okay,
+      stream,
+      kernel_source,
+      partition_policy_selector,
+      partition_kernel_source,
+      launcher_factory});
 }
 } // namespace detail::segmented_sort
 
