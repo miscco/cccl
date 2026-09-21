@@ -22,9 +22,9 @@ __global__ void cas_cluster_relaxed_non_volatile(int* data, int* out, int n)
 ; SMXX-DAG:  ld.param.{{b|u}}32 %r[[#INPUT:]], {{.*}}[[FUNCTION]]_param_2{{.*}}
 ; SMXX-DAG:  cvta.to.global.u64 %rd[[#GOUT:]], %rd[[#EXPECTED]];
 ; SMXX-DAG:  ld.global.{{b|u}}32 %r[[#LOCALEXP:]], [%rd[[#GOUT]]];
-; SMXX-NEXT: {{/*[[:space:]] *}}atom.cas.relaxed.gpu.b32 %r[[#DEST:]],[%rd[[#ATOM]]],%r[[#LOCALEXP]],%r[[#INPUT]];{{[[:space:]]/*}}
-; SMXX-NEXT: st.global.{{b|u}}32 [%rd[[#GOUT]]], %r[[#DEST]];
-; SMXX-NEXT: ret;
+; SMXX-DAG:  {{/*[[:space:]] *}}atom.cas.relaxed.gpu.b32 %r[[#DEST:]],{{[[:space:]]*}}[%rd[[#ATOM]]],{{[[:space:]]*}}%r[[#LOCALEXP]],{{[[:space:]]*}}%r[[#INPUT]];{{[[:space:]]/*}}
+; SMXX-DAG:  st.global.{{b|u}}32 [%rd[[#GOUT]]], %r[[#DEST]];
+; SMXX:      ret;
 
 ; NOT-SM90-PLUS-LABEL: .visible .entry {{_.*cas_cluster_relaxed_non_volatile.*}}(
 ; NOT-SM90-PLUS-NOT: {{.*}}atom{{.*}}.cluster{{.*}}

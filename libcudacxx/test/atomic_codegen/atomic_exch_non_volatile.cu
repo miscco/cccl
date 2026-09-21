@@ -12,6 +12,7 @@ __global__ void exch_cluster_relaxed_non_volatile(int* data, int* out, int n)
   *out     = ref.exchange(n, cuda::std::memory_order_relaxed);
 }
 
+// clang-format off
 /*
 
 ; SMXX-LABEL: .target sm_{{[0-9]+[af]?}}
@@ -20,9 +21,9 @@ __global__ void exch_cluster_relaxed_non_volatile(int* data, int* out, int n)
 ; SMXX-DAG:  ld.param.{{b|u}}64 %rd[[#EXPECTED:]], {{.*}}[[FUNCTION]]_param_1{{.*}}
 ; SMXX-DAG:  ld.param.{{b|u}}32 %r[[#INPUT:]], {{.*}}[[FUNCTION]]_param_2{{.*}}
 ; SMXX-DAG:  cvta.to.global.u64 %rd[[#GOUT:]], %rd[[#EXPECTED]];
-; SMXX-DAG:  {{/*[[:space:]] *}}atom.exch.relaxed.gpu.b32 %r[[#DEST:]],[%rd[[#ATOM]]],%r[[#INPUT]];{{[[:space:]]/*}}
-; SMXX-NEXT: st.global.{{b|u}}32 [%rd[[#GOUT]]], %r[[#DEST]];
-; SMXX-NEXT: ret;
+; SMXX-DAG:  {{/*[[:space:]] *}}atom.exch.relaxed.gpu.b32 %r[[#DEST:]],{{[[:space:]]*}}[%rd[[#ATOM]]],{{[[:space:]]*}}%r[[#INPUT]];{{[[:space:]]/*}}
+; SMXX-DAG:  st.global.{{b|u}}32 [%rd[[#GOUT]]], %r[[#DEST]];
+; SMXX:      ret;
 
 ; NOT-SM90-PLUS-LABEL: .visible .entry {{_.*exch_cluster_relaxed_non_volatile.*}}(
 ; NOT-SM90-PLUS-NOT: {{.*}}atom{{.*}}.cluster{{.*}}

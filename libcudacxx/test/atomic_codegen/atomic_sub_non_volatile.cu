@@ -30,6 +30,7 @@ __global__ void sub_relaxed_system_pointer_non_volatile(int** data, int** out, i
   *out     = ref.fetch_sub(n, cuda::std::memory_order_relaxed);
 }
 
+// clang-format off
 /*
 
 ; SMXX-LABEL: .target sm_{{[0-9]+[af]?}}
@@ -39,9 +40,9 @@ __global__ void sub_relaxed_system_pointer_non_volatile(int** data, int** out, i
 ; SMXX-DAG:  ld.param.{{b|u}}32 %r[[#INPUT:]], {{.*}}[[FUNCTION]]_param_2{{.*}}
 ; SMXX-DAG:  cvta.to.global.u64 %rd[[#GOUT:]], %rd[[#RESULT]];
 ; SMXX-DAG:  neg.s32 %r[[#NEG:]], %r[[#INPUT]];
-; SMXX-DAG:  {{/*[[:space:]] *}}atom.add.relaxed.gpu.s32 %r[[#DEST:]],[%rd[[#ATOM]]],%r[[#NEG]];{{[[:space:]]/*}}
-; SMXX-NEXT: st.global.{{b|u}}32 [%rd[[#GOUT]]], %r[[#DEST]];
-; SMXX-NEXT: ret;
+; SMXX-DAG:  {{/*[[:space:]] *}}atom.add.relaxed.gpu.s32 %r[[#DEST:]],{{[[:space:]]*}}[%rd[[#ATOM]]],{{[[:space:]]*}}%r[[#NEG]];{{[[:space:]]/*}}
+; SMXX-DAG:  st.global.{{b|u}}32 [%rd[[#GOUT]]], %r[[#DEST]];
+; SMXX:      ret;
 
 ; SMXX-LABEL: .visible .entry {{_.*sub_relaxed_block_pointer_non_volatile.*}}(
 ; SMXX: {{.*}}atom.add.relaxed.cta.u64{{.*}}

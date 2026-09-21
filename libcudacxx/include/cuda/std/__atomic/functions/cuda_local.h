@@ -40,6 +40,18 @@ _CCCL_BEGIN_NAMESPACE_CUDA_STD
 
 #if _CCCL_CUDA_COMPILATION()
 
+template <class _Type>
+[[nodiscard]] _CCCL_DEVICE_API _Type* __cuda_atomic_launder(_Type* __ptr)
+{
+#  if defined(_CCCL_ATOMIC_UNSAFE_AUTOMATIC_STORAGE) && !defined(_LIBCUDACXX_FORCE_PTX_AUTOMATIC_STORAGE_PATH)
+  return __ptr;
+#  else // ^^^ unsafe automatic storage ^^^ / vvv safe automatic storage vvv
+  _Type* __result;
+  asm("mov.b64 %0, %1;" : "=l"(__result) : "l"(__ptr));
+  return __result;
+#  endif // safe automatic storage
+}
+
 _CCCL_DEVICE_API inline bool __cuda_atomic_is_local(const volatile void* __ptr)
 {
 #  if defined(_CCCL_ATOMIC_UNSAFE_AUTOMATIC_STORAGE) && !defined(_LIBCUDACXX_FORCE_PTX_AUTOMATIC_STORAGE_PATH)

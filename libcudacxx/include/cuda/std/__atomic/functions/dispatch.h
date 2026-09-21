@@ -28,6 +28,7 @@
 #include <cuda/std/__atomic/functions/host.h>
 #include <cuda/std/__type_traits/copy_cv.h>
 #include <cuda/std/__type_traits/enable_if.h>
+#include <cuda/std/__type_traits/is_same.h>
 #include <cuda/std/cassert>
 
 #include <cuda/std/__cccl/prologue.h>
@@ -248,9 +249,25 @@ _CCCL_HOST_DEVICE_API void __cuda_atomic_load_dispatch(
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_load<_Backend, __proxy_pointee> __bound_load{__backend, __ptr_proxy, __dst_proxy};
-  ::cuda::std::__cuda_atomic_load_order_dispatch(
-    __backend, __bound_load, __order, __scope, __proxy_tag{}, __cuda_atomic_mmio_disable{});
+  if constexpr (is_same_v<_Backend, __cuda_atomic_host_backend>)
+  {
+    ::cuda::std::__cuda_atomic_load(
+      __backend, __ptr_proxy, *__dst_proxy, __order, __proxy_tag{}, __thread_scope_tag{}, __cuda_atomic_mmio_disable{});
+    return;
+  }
+#if _CCCL_CTK_AT_LEAST(13, 5) && _CCCL_HAS_NV_ATOMIC_BUILTINS()
+  else if constexpr (is_same_v<_Backend, __cuda_atomic_nvvm_backend>)
+  {
+    return ::cuda::std::__cuda_atomic_nvvm_load(
+      ::cuda::std::__cuda_atomic_launder(__ptr_proxy), *__dst_proxy, __order, __proxy_tag{}, __scope);
+  }
+#endif // _CCCL_CTK_AT_LEAST(13, 5) && _CCCL_HAS_NV_ATOMIC_BUILTINS()
+  else
+  {
+    __cuda_atomic_bind_load<_Backend, __proxy_pointee> __bound_load{__backend, __ptr_proxy, __dst_proxy};
+    ::cuda::std::__cuda_atomic_load_order_dispatch(
+      __backend, __bound_load, __order, __scope, __proxy_tag{}, __cuda_atomic_mmio_disable{});
+  }
 }
 
 template <class _Backend, class _Type, class _Sco>
@@ -285,7 +302,7 @@ __cuda_atomic_store_dispatch(_Backend __backend, _Type* __ptr, _Up __val, memory
   using __proxy_tag            = __cuda_atomic_deduce_bitwise_tag_t<__value_type>;
   __proxy_pointee* __ptr_proxy = reinterpret_cast<__proxy_pointee*>(__ptr);
   __value_type __store         = __val;
-  const __proxy_t* __val_proxy = reinterpret_cast<__proxy_t*>(&__store);
+  __proxy_t* __val_proxy       = reinterpret_cast<__proxy_t*>(&__store);
 #if _CCCL_CUDA_COMPILATION()
   if constexpr (_Backend::__requires_local_memory_workaround)
   {
@@ -295,9 +312,25 @@ __cuda_atomic_store_dispatch(_Backend __backend, _Type* __ptr, _Up __val, memory
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_store<_Backend, __proxy_pointee> __bound_store{__backend, __ptr_proxy, *__val_proxy};
-  ::cuda::std::__cuda_atomic_store_order_dispatch(
-    __backend, __bound_store, __order, __scope, __proxy_tag{}, __cuda_atomic_mmio_disable{});
+  if constexpr (is_same_v<_Backend, __cuda_atomic_host_backend>)
+  {
+    ::cuda::std::__cuda_atomic_store(
+      __backend, __ptr_proxy, *__val_proxy, __order, __proxy_tag{}, __thread_scope_tag{}, __cuda_atomic_mmio_disable{});
+    return;
+  }
+#if _CCCL_CTK_AT_LEAST(13, 5) && _CCCL_HAS_NV_ATOMIC_BUILTINS()
+  else if constexpr (is_same_v<_Backend, __cuda_atomic_nvvm_backend>)
+  {
+    return ::cuda::std::__cuda_atomic_nvvm_store(
+      ::cuda::std::__cuda_atomic_launder(__ptr_proxy), *__val_proxy, __order, __proxy_tag{}, __scope);
+  }
+#endif // _CCCL_CTK_AT_LEAST(13, 5) && _CCCL_HAS_NV_ATOMIC_BUILTINS()
+  else
+  {
+    __cuda_atomic_bind_store<_Backend, __proxy_pointee> __bound_store{__backend, __ptr_proxy, *__val_proxy};
+    ::cuda::std::__cuda_atomic_store_order_dispatch(
+      __backend, __bound_store, __order, __scope, __proxy_tag{}, __cuda_atomic_mmio_disable{});
+  }
 }
 
 template <typename _Backend, typename _Type>
@@ -344,10 +377,41 @@ template <class _Backend, class _Type, class _Cas, class _Sco>
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_compare_exchange<_Backend, __proxy_pointee> __bound_compare_swap{
-    __backend, __ptr_proxy, __exp_proxy, *__exp_proxy, *__des_proxy};
-  return ::cuda::std::__cuda_atomic_compare_exchange_order_dispatch(
-    __backend, __bound_compare_swap, __success, __failure, __scope, _Cas{}, __proxy_tag{});
+  if constexpr (is_same_v<_Backend, __cuda_atomic_host_backend>)
+  {
+    return ::cuda::std::__cuda_atomic_compare_exchange(
+      __backend,
+      __ptr_proxy,
+      *__exp_proxy,
+      *__exp_proxy,
+      *__des_proxy,
+      _Cas{},
+      __cuda_atomic_runtime_cas_order{__success, __failure},
+      __proxy_tag{},
+      __thread_scope_tag{});
+  }
+#if _CCCL_CTK_AT_LEAST(13, 5) && _CCCL_HAS_NV_ATOMIC_BUILTINS()
+  else if constexpr (is_same_v<_Backend, __cuda_atomic_nvvm_backend>)
+  {
+    return ::cuda::std::__cuda_atomic_nvvm_compare_exchange(
+      ::cuda::std::__cuda_atomic_launder(__ptr_proxy),
+      *__exp_proxy,
+      *__exp_proxy,
+      *__des_proxy,
+      _Cas{},
+      __success,
+      __failure,
+      __proxy_tag{},
+      __scope);
+  }
+#endif // _CCCL_CTK_AT_LEAST(13, 5) && _CCCL_HAS_NV_ATOMIC_BUILTINS()
+  else
+  {
+    __cuda_atomic_bind_compare_exchange<_Backend, __proxy_pointee> __bound_compare_swap{
+      __backend, __ptr_proxy, __exp_proxy, *__exp_proxy, *__des_proxy};
+    return ::cuda::std::__cuda_atomic_compare_exchange_order_dispatch(
+      __backend, __bound_compare_swap, __success, __failure, __scope, _Cas{}, __proxy_tag{});
+  }
 }
 
 template <typename _Backend, typename _Type>
@@ -384,8 +448,24 @@ _CCCL_HOST_DEVICE_API void __cuda_atomic_exchange_dispatch(
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_exchange<_Backend, __proxy_pointee> __bound_swap{__backend, __ptr_proxy, __old_proxy, *__new_proxy};
-  ::cuda::std::__cuda_atomic_exchange_order_dispatch(__backend, __bound_swap, __order, __scope, __proxy_tag{});
+  if constexpr (is_same_v<_Backend, __cuda_atomic_host_backend>)
+  {
+    ::cuda::std::__cuda_atomic_exchange(
+      __backend, __ptr_proxy, *__old_proxy, *__new_proxy, __order, __proxy_tag{}, __thread_scope_tag{});
+  }
+#if _CCCL_CTK_AT_LEAST(13, 5) && _CCCL_HAS_NV_ATOMIC_BUILTINS()
+  else if constexpr (is_same_v<_Backend, __cuda_atomic_nvvm_backend>)
+  {
+    return ::cuda::std::__cuda_atomic_nvvm_exchange(
+      ::cuda::std::__cuda_atomic_launder(__ptr_proxy), *__old_proxy, *__new_proxy, __order, __proxy_tag{}, __scope);
+  }
+#endif // _CCCL_CTK_AT_LEAST(13, 5) && _CCCL_HAS_NV_ATOMIC_BUILTINS()
+  else
+  {
+    __cuda_atomic_bind_exchange<_Backend, __proxy_pointee> __bound_swap{
+      __backend, __ptr_proxy, __old_proxy, *__new_proxy};
+    ::cuda::std::__cuda_atomic_exchange_order_dispatch(__backend, __bound_swap, __order, __scope, __proxy_tag{});
+  }
 }
 
 template <class _Backend, class _Type, class _Up, class _Sco>
@@ -413,6 +493,27 @@ struct __cuda_atomic_bind_fetch_add
     ::cuda::std::__cuda_atomic_fetch_add(__backend, __ptr, *__dst, __op, __order, _Tag{}, _Sco{});
   }
 };
+
+#define _CCCL_ATOMIC_DIRECT_FETCH(_Name, _Tag)                                                   \
+  if constexpr (is_same_v<_Backend, __cuda_atomic_host_backend>)                                 \
+  {                                                                                              \
+    ::cuda::std::__cuda_atomic_fetch_##_Name(                                                    \
+      __backend, __ptr_proxy, *__dst_proxy, *__op_proxy, __order, _Tag{}, __thread_scope_tag{}); \
+  }                                                                                              \
+  _CCCL_NVVM_ATOMIC_DIRECT_FETCH(_Name, _Tag)
+
+#if _CCCL_CTK_AT_LEAST(13, 5) && _CCCL_HAS_NV_ATOMIC_BUILTINS()
+#  define _CCCL_NVVM_ATOMIC_DIRECT_FETCH(_Name, _Tag)                                                          \
+    else if constexpr (is_same_v<_Backend, __cuda_atomic_nvvm_backend>)                                        \
+    {                                                                                                          \
+      ::cuda::std::__cuda_atomic_nvvm_fetch_##_Name(                                                           \
+        ::cuda::std::__cuda_atomic_launder(__ptr_proxy), *__dst_proxy, *__op_proxy, __order, _Tag{}, __scope); \
+    }
+#else // ^^^ NV atomic builtins available ^^^ / vvv NV atomic builtins
+      // unavailable vvv
+#  define _CCCL_NVVM_ATOMIC_DIRECT_FETCH(_Name, _Tag)
+#endif // NV atomic builtins unavailable
+
 template <class _Backend, class _Type, class _Up, class _Sco>
 [[nodiscard]] _CCCL_HOST_DEVICE_API __unv<_Type>
 __cuda_atomic_fetch_add_dispatch(_Backend __backend, _Type* __ptr, _Up __op, memory_order __order, _Sco __scope)
@@ -435,8 +536,13 @@ __cuda_atomic_fetch_add_dispatch(_Backend __backend, _Type* __ptr, _Up __op, mem
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_fetch_add<_Backend, __proxy_pointee> __bound_add{__backend, __ptr_proxy, __dst_proxy, *__op_proxy};
-  __cuda_atomic_fetch_order_dispatch(__backend, __bound_add, __order, __scope, __proxy_tag{});
+  _CCCL_ATOMIC_DIRECT_FETCH(add, __proxy_tag)
+  else
+  {
+    __cuda_atomic_bind_fetch_add<_Backend, __proxy_pointee> __bound_add{
+      __backend, __ptr_proxy, __dst_proxy, *__op_proxy};
+    __cuda_atomic_fetch_order_dispatch(__backend, __bound_add, __order, __scope, __proxy_tag{});
+  }
   return __dst;
 }
 
@@ -475,8 +581,13 @@ __cuda_atomic_fetch_and_dispatch(_Backend __backend, _Type* __ptr, _Up __op, mem
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_fetch_and<_Backend, __proxy_pointee> __bound_and{__backend, __ptr_proxy, __dst_proxy, *__op_proxy};
-  __cuda_atomic_fetch_order_dispatch(__backend, __bound_and, __order, __scope, __proxy_tag{});
+  _CCCL_ATOMIC_DIRECT_FETCH(and, __proxy_tag)
+  else
+  {
+    __cuda_atomic_bind_fetch_and<_Backend, __proxy_pointee> __bound_and{
+      __backend, __ptr_proxy, __dst_proxy, *__op_proxy};
+    __cuda_atomic_fetch_order_dispatch(__backend, __bound_and, __order, __scope, __proxy_tag{});
+  }
   return __dst;
 }
 
@@ -515,8 +626,13 @@ __cuda_atomic_fetch_max_dispatch(_Backend __backend, _Type* __ptr, _Up __op, mem
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_fetch_max<_Backend, __proxy_pointee> __bound_max{__backend, __ptr_proxy, __dst_proxy, *__op_proxy};
-  __cuda_atomic_fetch_order_dispatch(__backend, __bound_max, __order, __scope, __proxy_tag{});
+  _CCCL_ATOMIC_DIRECT_FETCH(max, __proxy_tag)
+  else
+  {
+    __cuda_atomic_bind_fetch_max<_Backend, __proxy_pointee> __bound_max{
+      __backend, __ptr_proxy, __dst_proxy, *__op_proxy};
+    __cuda_atomic_fetch_order_dispatch(__backend, __bound_max, __order, __scope, __proxy_tag{});
+  }
   return __dst;
 }
 
@@ -555,8 +671,13 @@ __cuda_atomic_fetch_min_dispatch(_Backend __backend, _Type* __ptr, _Up __op, mem
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_fetch_min<_Backend, __proxy_pointee> __bound_min{__backend, __ptr_proxy, __dst_proxy, *__op_proxy};
-  __cuda_atomic_fetch_order_dispatch(__backend, __bound_min, __order, __scope, __proxy_tag{});
+  _CCCL_ATOMIC_DIRECT_FETCH(min, __proxy_tag)
+  else
+  {
+    __cuda_atomic_bind_fetch_min<_Backend, __proxy_pointee> __bound_min{
+      __backend, __ptr_proxy, __dst_proxy, *__op_proxy};
+    __cuda_atomic_fetch_order_dispatch(__backend, __bound_min, __order, __scope, __proxy_tag{});
+  }
   return __dst;
 }
 
@@ -595,8 +716,12 @@ __cuda_atomic_fetch_or_dispatch(_Backend __backend, _Type* __ptr, _Up __op, memo
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_fetch_or<_Backend, __proxy_pointee> __bound_or{__backend, __ptr_proxy, __dst_proxy, *__op_proxy};
-  __cuda_atomic_fetch_order_dispatch(__backend, __bound_or, __order, __scope, __proxy_tag{});
+  _CCCL_ATOMIC_DIRECT_FETCH(or, __proxy_tag)
+  else
+  {
+    __cuda_atomic_bind_fetch_or<_Backend, __proxy_pointee> __bound_or{__backend, __ptr_proxy, __dst_proxy, *__op_proxy};
+    __cuda_atomic_fetch_order_dispatch(__backend, __bound_or, __order, __scope, __proxy_tag{});
+  }
   return __dst;
 }
 
@@ -635,8 +760,13 @@ __cuda_atomic_fetch_xor_dispatch(_Backend __backend, _Type* __ptr, _Up __op, mem
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_fetch_xor<_Backend, __proxy_pointee> __bound_xor{__backend, __ptr_proxy, __dst_proxy, *__op_proxy};
-  __cuda_atomic_fetch_order_dispatch(__backend, __bound_xor, __order, __scope, __proxy_tag{});
+  _CCCL_ATOMIC_DIRECT_FETCH(xor, __proxy_tag)
+  else
+  {
+    __cuda_atomic_bind_fetch_xor<_Backend, __proxy_pointee> __bound_xor{
+      __backend, __ptr_proxy, __dst_proxy, *__op_proxy};
+    __cuda_atomic_fetch_order_dispatch(__backend, __bound_xor, __order, __scope, __proxy_tag{});
+  }
   return __dst;
 }
 
@@ -678,11 +808,18 @@ __cuda_atomic_fetch_sub_dispatch(_Backend __backend, _Type* __ptr, _Up __op, mem
     }
   }
 #endif // _CCCL_CUDA_COMPILATION()
-  __cuda_atomic_bind_fetch_sub<_Backend, __proxy_pointee> __bound_fetch_sub{
-    __backend, __ptr_proxy, __dst_proxy, __op_proxy};
-  ::cuda::std::__cuda_atomic_fetch_order_dispatch(__backend, __bound_fetch_sub, __order, __scope, __proxy_operand{});
+  _CCCL_ATOMIC_DIRECT_FETCH(sub, __proxy_operand)
+  else
+  {
+    __cuda_atomic_bind_fetch_sub<_Backend, __proxy_pointee> __bound_fetch_sub{
+      __backend, __ptr_proxy, __dst_proxy, __op_proxy};
+    ::cuda::std::__cuda_atomic_fetch_order_dispatch(__backend, __bound_fetch_sub, __order, __scope, __proxy_operand{});
+  }
   return __dst;
 }
+
+#undef _CCCL_NVVM_ATOMIC_DIRECT_FETCH
+#undef _CCCL_ATOMIC_DIRECT_FETCH
 
 _CCCL_END_NAMESPACE_CUDA_STD
 

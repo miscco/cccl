@@ -27,6 +27,7 @@
 #include <cuda/std/__type_traits/always_false.h>
 #include <cuda/std/__type_traits/is_integral.h>
 #include <cuda/std/__type_traits/is_signed.h>
+#include <cuda/std/__type_traits/remove_volatile.h>
 #include <cuda/std/cassert>
 #include <cuda/std/cstdint>
 
@@ -86,12 +87,6 @@ inline constexpr int __cuda_atomic_nvvm_scope<__thread_scope_device_tag> = __NV_
 template <>
 inline constexpr int __cuda_atomic_nvvm_scope<__thread_scope_system_tag> = __NV_THREAD_SCOPE_SYSTEM;
 
-template <class _Type>
-[[nodiscard]] _CCCL_DEVICE_API __unv<_Type>* __cuda_atomic_nvvm_ptr(_Type* __ptr)
-{
-  return const_cast<__unv<_Type>*>(__ptr);
-}
-
 template <class _Order>
 struct __cuda_atomic_nvvm_failure_order
 {
@@ -134,7 +129,7 @@ _CCCL_DEVICE_API void __cuda_atomic_load(
   _Scope __scope,
   __cuda_atomic_mmio_disable)
 {
-  ::__nv_atomic_load(::cuda::std::__cuda_atomic_nvvm_ptr(__ptr),
+  ::__nv_atomic_load(const_cast<remove_volatile_t<_Type>*>(__ptr),
                      &__dst,
                      +__cuda_atomic_nvvm_order<_Order>,
                      +__cuda_atomic_nvvm_scope<_Scope>);
@@ -150,10 +145,70 @@ _CCCL_DEVICE_API void __cuda_atomic_store(
   _Scope __scope,
   __cuda_atomic_mmio_disable)
 {
-  ::__nv_atomic_store(::cuda::std::__cuda_atomic_nvvm_ptr(__ptr),
+  ::__nv_atomic_store(const_cast<remove_volatile_t<_Type>*>(__ptr),
                       &__val,
                       +__cuda_atomic_nvvm_order<_Order>,
                       +__cuda_atomic_nvvm_scope<_Scope>);
+}
+
+template <class _Type, class _Operand, class _Scope>
+_CCCL_DEVICE_API void
+__cuda_atomic_nvvm_load(const _Type* __ptr, __unv<_Type>& __dst, memory_order __order, _Operand, _Scope)
+{
+  switch (::cuda::std::__atomic_order_to_int(__order))
+  {
+    case __ATOMIC_RELAXED:
+      return ::__nv_atomic_load(
+        const_cast<remove_volatile_t<_Type>*>(__ptr), &__dst, __NV_ATOMIC_RELAXED, +__cuda_atomic_nvvm_scope<_Scope>);
+    case __ATOMIC_CONSUME:
+      [[fallthrough]];
+    case __ATOMIC_ACQUIRE:
+      return ::__nv_atomic_load(
+        const_cast<remove_volatile_t<_Type>*>(__ptr), &__dst, __NV_ATOMIC_ACQUIRE, +__cuda_atomic_nvvm_scope<_Scope>);
+    case __ATOMIC_SEQ_CST:
+      return ::__nv_atomic_load(
+        const_cast<remove_volatile_t<_Type>*>(__ptr), &__dst, __NV_ATOMIC_SEQ_CST, +__cuda_atomic_nvvm_scope<_Scope>);
+    default:
+      _CCCL_ASSERT(false, "invalid load memory order");
+  }
+}
+
+template <class _Type, class _Operand, class _Scope>
+_CCCL_DEVICE_API void
+__cuda_atomic_nvvm_store(_Type* __ptr, __unv<_Type> __val, memory_order __order, _Operand __operand, _Scope __scope)
+{
+  switch (::cuda::std::__atomic_order_to_int(__order))
+  {
+    case __ATOMIC_RELAXED:
+      return ::cuda::std::__cuda_atomic_store(
+        __cuda_atomic_nvvm_backend{},
+        __ptr,
+        __val,
+        __cuda_atomic_order_relaxed{},
+        __operand,
+        __scope,
+        __cuda_atomic_mmio_disable{});
+    case __ATOMIC_RELEASE:
+      return ::cuda::std::__cuda_atomic_store(
+        __cuda_atomic_nvvm_backend{},
+        __ptr,
+        __val,
+        __cuda_atomic_order_release{},
+        __operand,
+        __scope,
+        __cuda_atomic_mmio_disable{});
+    case __ATOMIC_SEQ_CST:
+      return ::cuda::std::__cuda_atomic_store(
+        __cuda_atomic_nvvm_backend{},
+        __ptr,
+        __val,
+        __cuda_atomic_order_seq_cst{},
+        __operand,
+        __scope,
+        __cuda_atomic_mmio_disable{});
+    default:
+      _CCCL_ASSERT(false, "invalid store memory order");
+  }
 }
 
 template <class _Type,
@@ -183,7 +238,7 @@ template <class _Type,
     NV_IF_ELSE_TARGET(
       NV_PROVIDES_SM_90,
       (return ::__nv_atomic_compare_exchange(
-                ::cuda::std::__cuda_atomic_nvvm_ptr(__ptr),
+                const_cast<remove_volatile_t<_Type>*>(__ptr),
                 &__dst,
                 &__op,
                 ::cuda::std::__cuda_atomic_cas_is_weak(_Cas{}),
@@ -195,13 +250,105 @@ template <class _Type,
   else
   {
     return ::__nv_atomic_compare_exchange(
-      ::cuda::std::__cuda_atomic_nvvm_ptr(__ptr),
+      const_cast<remove_volatile_t<_Type>*>(__ptr),
       &__dst,
       &__op,
       ::cuda::std::__cuda_atomic_cas_is_weak(_Cas{}),
       +__cuda_atomic_nvvm_order<__success>,
       +__cuda_atomic_nvvm_order<__failure>,
       +__cuda_atomic_nvvm_scope<_Scope>);
+  }
+}
+
+template <class _Success, class _Type, class _Cas, class _Operand, class _Scope>
+[[nodiscard]] _CCCL_DEVICE_API bool __cuda_atomic_nvvm_compare_exchange_failure_order(
+  _Type* __ptr,
+  __unv<_Type>& __dst,
+  __unv<_Type> __cmp,
+  __unv<_Type> __op,
+  _Cas __cas,
+  int __failure,
+  _Operand __operand,
+  _Scope __scope)
+{
+  switch (__failure)
+  {
+    case __ATOMIC_RELAXED:
+      return ::cuda::std::__cuda_atomic_compare_exchange(
+        __cuda_atomic_nvvm_backend{},
+        __ptr,
+        __dst,
+        __cmp,
+        __op,
+        __cas,
+        __cuda_atomic_cas_order<_Success, __cuda_atomic_order_relaxed>{},
+        __operand,
+        __scope);
+    case __ATOMIC_CONSUME:
+      [[fallthrough]];
+    case __ATOMIC_ACQUIRE:
+      return ::cuda::std::__cuda_atomic_compare_exchange(
+        __cuda_atomic_nvvm_backend{},
+        __ptr,
+        __dst,
+        __cmp,
+        __op,
+        __cas,
+        __cuda_atomic_cas_order<_Success, __cuda_atomic_order_acquire>{},
+        __operand,
+        __scope);
+    case __ATOMIC_SEQ_CST:
+      return ::cuda::std::__cuda_atomic_compare_exchange(
+        __cuda_atomic_nvvm_backend{},
+        __ptr,
+        __dst,
+        __cmp,
+        __op,
+        __cas,
+        __cuda_atomic_cas_order<_Success, __cuda_atomic_order_seq_cst>{},
+        __operand,
+        __scope);
+    default:
+      _CCCL_ASSERT(false, "invalid compare-exchange failure memory order");
+      _CCCL_UNREACHABLE();
+  }
+}
+
+template <class _Type, class _Cas, class _Operand, class _Scope>
+[[nodiscard]] _CCCL_DEVICE_API bool __cuda_atomic_nvvm_compare_exchange(
+  _Type* __ptr,
+  __unv<_Type>& __dst,
+  __unv<_Type> __cmp,
+  __unv<_Type> __op,
+  _Cas __cas,
+  memory_order __success,
+  memory_order __failure,
+  _Operand __operand,
+  _Scope __scope)
+{
+  const int __failure_order = ::cuda::std::__atomic_failure_order_to_int(__failure);
+  switch (::cuda::std::__atomic_order_to_int(__success))
+  {
+    case __ATOMIC_RELAXED:
+      return ::cuda::std::__cuda_atomic_nvvm_compare_exchange_failure_order<__cuda_atomic_order_relaxed>(
+        __ptr, __dst, __cmp, __op, __cas, __failure_order, __operand, __scope);
+    case __ATOMIC_CONSUME:
+      [[fallthrough]];
+    case __ATOMIC_ACQUIRE:
+      return ::cuda::std::__cuda_atomic_nvvm_compare_exchange_failure_order<__cuda_atomic_order_acquire>(
+        __ptr, __dst, __cmp, __op, __cas, __failure_order, __operand, __scope);
+    case __ATOMIC_RELEASE:
+      return ::cuda::std::__cuda_atomic_nvvm_compare_exchange_failure_order<__cuda_atomic_order_release>(
+        __ptr, __dst, __cmp, __op, __cas, __failure_order, __operand, __scope);
+    case __ATOMIC_ACQ_REL:
+      return ::cuda::std::__cuda_atomic_nvvm_compare_exchange_failure_order<__cuda_atomic_order_acq_rel>(
+        __ptr, __dst, __cmp, __op, __cas, __failure_order, __operand, __scope);
+    case __ATOMIC_SEQ_CST:
+      return ::cuda::std::__cuda_atomic_nvvm_compare_exchange_failure_order<__cuda_atomic_order_seq_cst>(
+        __ptr, __dst, __cmp, __op, __cas, __failure_order, __operand, __scope);
+    default:
+      _CCCL_ASSERT(false, "invalid compare-exchange success memory order");
+      _CCCL_UNREACHABLE();
   }
 }
 
@@ -220,7 +367,7 @@ _CCCL_DEVICE_API void __cuda_atomic_exchange(
     NV_IF_ELSE_TARGET(
       NV_PROVIDES_SM_100,
       (::__nv_atomic_exchange(
-         ::cuda::std::__cuda_atomic_nvvm_ptr(__ptr),
+         const_cast<remove_volatile_t<_Type>*>(__ptr),
          &__op,
          &__dst,
          +__cuda_atomic_nvvm_order<_Order>,
@@ -238,7 +385,7 @@ _CCCL_DEVICE_API void __cuda_atomic_exchange(
     NV_IF_ELSE_TARGET(
       NV_PROVIDES_SM_90,
       (::__nv_atomic_exchange(
-         ::cuda::std::__cuda_atomic_nvvm_ptr(__ptr),
+         const_cast<remove_volatile_t<_Type>*>(__ptr),
          &__op,
          &__dst,
          +__cuda_atomic_nvvm_order<_Order>,
@@ -248,12 +395,41 @@ _CCCL_DEVICE_API void __cuda_atomic_exchange(
   else
   {
     ::__nv_atomic_exchange(
-      ::cuda::std::__cuda_atomic_nvvm_ptr(__ptr),
+      const_cast<remove_volatile_t<_Type>*>(__ptr),
       &__op,
       &__dst,
       +__cuda_atomic_nvvm_order<_Order>,
       +__cuda_atomic_nvvm_scope<_Scope>);
   }
+}
+
+template <class _Type, class _Operand, class _Scope>
+_CCCL_DEVICE_API void __cuda_atomic_nvvm_exchange(
+  _Type* __ptr, __unv<_Type>& __dst, __unv<_Type> __op, memory_order __order, _Operand __operand, _Scope __scope)
+{
+#  define _CCCL_NVVM_ATOMIC_EXCHANGE(_Order)    \
+    return ::cuda::std::__cuda_atomic_exchange( \
+      __cuda_atomic_nvvm_backend{}, __ptr, __dst, __op, _Order{}, __operand, __scope)
+
+  switch (::cuda::std::__atomic_order_to_int(__order))
+  {
+    case __ATOMIC_RELAXED:
+      _CCCL_NVVM_ATOMIC_EXCHANGE(__cuda_atomic_order_relaxed);
+    case __ATOMIC_CONSUME:
+      [[fallthrough]];
+    case __ATOMIC_ACQUIRE:
+      _CCCL_NVVM_ATOMIC_EXCHANGE(__cuda_atomic_order_acquire);
+    case __ATOMIC_RELEASE:
+      _CCCL_NVVM_ATOMIC_EXCHANGE(__cuda_atomic_order_release);
+    case __ATOMIC_ACQ_REL:
+      _CCCL_NVVM_ATOMIC_EXCHANGE(__cuda_atomic_order_acq_rel);
+    case __ATOMIC_SEQ_CST:
+      _CCCL_NVVM_ATOMIC_EXCHANGE(__cuda_atomic_order_seq_cst);
+    default:
+      _CCCL_ASSERT(false, "invalid exchange memory order");
+  }
+
+#  undef _CCCL_NVVM_ATOMIC_EXCHANGE
 }
 
 #  define _CCCL_DEFINE_NVVM_FETCH_ARITHMETIC(_Name)                                                                   \
@@ -268,7 +444,7 @@ _CCCL_DEVICE_API void __cuda_atomic_exchange(
       __cuda_atomic_nvvm_backend, _Type* __ptr, __unv<_Type>& __dst, __unv<_Type> __op, _Order, _Operand, _Scope)     \
     {                                                                                                                 \
       __dst = ::__nv_atomic_fetch_##_Name(                                                                            \
-        ::cuda::std::__cuda_atomic_nvvm_ptr(__ptr),                                                                   \
+        const_cast<remove_volatile_t<_Type>*>(__ptr),                                                                 \
         __op,                                                                                                         \
         +__cuda_atomic_nvvm_order<_Order>,                                                                            \
         +__cuda_atomic_nvvm_scope<_Scope>);                                                                           \
@@ -284,7 +460,7 @@ _CCCL_DEVICE_API void __cuda_atomic_exchange(
       __cuda_atomic_nvvm_backend, _Type* __ptr, __unv<_Type>& __dst, __unv<_Type> __op, _Order, _Operand, _Scope)     \
     {                                                                                                                 \
       const auto __result = ::__nv_atomic_fetch_##_Name(                                                              \
-        reinterpret_cast<uint64_t*>(::cuda::std::__cuda_atomic_nvvm_ptr(__ptr)),                                      \
+        reinterpret_cast<uint64_t*>(const_cast<remove_volatile_t<_Type>*>(__ptr)),                                    \
         ::cuda::std::bit_cast<uint64_t>(__op),                                                                        \
         +__cuda_atomic_nvvm_order<_Order>,                                                                            \
         +__cuda_atomic_nvvm_scope<_Scope>);                                                                           \
@@ -303,7 +479,7 @@ _CCCL_DEVICE_API void __cuda_atomic_exchange(
       __cuda_atomic_nvvm_backend, _Type* __ptr, __unv<_Type>& __dst, __unv<_Type> __op, _Order, _Operand, _Scope) \
     {                                                                                                             \
       __dst = ::__nv_atomic_fetch_##_Name(                                                                        \
-        ::cuda::std::__cuda_atomic_nvvm_ptr(__ptr),                                                               \
+        const_cast<remove_volatile_t<_Type>*>(__ptr),                                                             \
         __op,                                                                                                     \
         +__cuda_atomic_nvvm_order<_Order>,                                                                        \
         +__cuda_atomic_nvvm_scope<_Scope>);                                                                       \
@@ -323,7 +499,7 @@ _CCCL_DEVICE_API void __cuda_atomic_fetch_sub(
   _Scope)
 {
   __dst = ::__nv_atomic_fetch_add(
-    ::cuda::std::__cuda_atomic_nvvm_ptr(__ptr),
+    const_cast<remove_volatile_t<_Type>*>(__ptr),
     -__op,
     +__cuda_atomic_nvvm_order<_Order>,
     +__cuda_atomic_nvvm_scope<_Scope>);
@@ -337,6 +513,46 @@ _CCCL_DEFINE_NVVM_FETCH_OP(max, is_integral_v<_Type>)
 
 #  undef _CCCL_DEFINE_NVVM_FETCH_ARITHMETIC
 #  undef _CCCL_DEFINE_NVVM_FETCH_OP
+
+#  define _CCCL_DEFINE_NVVM_RUNTIME_FETCH(_Name)                                                                      \
+    template <class _Type, class _Operand, class _Scope>                                                              \
+    _CCCL_DEVICE_API void __cuda_atomic_nvvm_fetch_##_Name(                                                           \
+      _Type* __ptr, __unv<_Type>& __dst, __unv<_Type> __op, memory_order __order, _Operand __operand, _Scope __scope) \
+    {                                                                                                                 \
+      switch (::cuda::std::__atomic_order_to_int(__order))                                                            \
+      {                                                                                                               \
+        case __ATOMIC_RELAXED:                                                                                        \
+          return ::cuda::std::__cuda_atomic_fetch_##_Name(                                                            \
+            __cuda_atomic_nvvm_backend{}, __ptr, __dst, __op, __cuda_atomic_order_relaxed{}, __operand, __scope);     \
+        case __ATOMIC_CONSUME:                                                                                        \
+          [[fallthrough]];                                                                                            \
+        case __ATOMIC_ACQUIRE:                                                                                        \
+          return ::cuda::std::__cuda_atomic_fetch_##_Name(                                                            \
+            __cuda_atomic_nvvm_backend{}, __ptr, __dst, __op, __cuda_atomic_order_acquire{}, __operand, __scope);     \
+        case __ATOMIC_RELEASE:                                                                                        \
+          return ::cuda::std::__cuda_atomic_fetch_##_Name(                                                            \
+            __cuda_atomic_nvvm_backend{}, __ptr, __dst, __op, __cuda_atomic_order_release{}, __operand, __scope);     \
+        case __ATOMIC_ACQ_REL:                                                                                        \
+          return ::cuda::std::__cuda_atomic_fetch_##_Name(                                                            \
+            __cuda_atomic_nvvm_backend{}, __ptr, __dst, __op, __cuda_atomic_order_acq_rel{}, __operand, __scope);     \
+        case __ATOMIC_SEQ_CST:                                                                                        \
+          return ::cuda::std::__cuda_atomic_fetch_##_Name(                                                            \
+            __cuda_atomic_nvvm_backend{}, __ptr, __dst, __op, __cuda_atomic_order_seq_cst{}, __operand, __scope);     \
+        default:                                                                                                      \
+          _CCCL_ASSERT(false, "invalid fetch memory order");                                                          \
+          return;                                                                                                     \
+      }                                                                                                               \
+    }
+
+_CCCL_DEFINE_NVVM_RUNTIME_FETCH(add)
+_CCCL_DEFINE_NVVM_RUNTIME_FETCH(sub)
+_CCCL_DEFINE_NVVM_RUNTIME_FETCH(and)
+_CCCL_DEFINE_NVVM_RUNTIME_FETCH(or)
+_CCCL_DEFINE_NVVM_RUNTIME_FETCH(xor)
+_CCCL_DEFINE_NVVM_RUNTIME_FETCH(min)
+_CCCL_DEFINE_NVVM_RUNTIME_FETCH(max)
+
+#  undef _CCCL_DEFINE_NVVM_RUNTIME_FETCH
 
 template <class _Scope>
 struct __cuda_atomic_nvvm_fence
