@@ -428,8 +428,8 @@ _CCCL_HOST_API ::cuda::std::expected<cluster_launch_shape, cudaError_t> select_c
           continue;
         }
 
-        const auto clusters_per_wave =
-          probe_clusters_per_wave(kernel_ptr, stream, threads_per_block, candidate_blocks, resident_smem_bytes);
+        const auto clusters_per_wave = detail::batched_topk::probe_clusters_per_wave(
+          kernel_ptr, stream, threads_per_block, candidate_blocks, resident_smem_bytes);
         if (!clusters_per_wave)
         {
           return ::cuda::std::unexpected<cudaError_t /* nvcc 12.0 fails CTAD here */>(clusters_per_wave.error());
@@ -601,7 +601,7 @@ _CCCL_HOST_API cudaError_t launch_cluster_arm(
   // Usable dynamic shared-memory budget (opt-in minus the kernel's static footprint); the policy slot cap may narrow
   // it further into `max_dynamic_smem_bytes` below.
   int hw_dynamic_smem_bytes = 0;
-  if (const auto error = max_dynamic_smem_size_for_fixed(hw_dynamic_smem_bytes, kernel_ptr))
+  if (const auto error = detail::batched_topk::max_dynamic_smem_size_for_fixed(hw_dynamic_smem_bytes, kernel_ptr))
   {
     return error;
   }
@@ -627,7 +627,7 @@ _CCCL_HOST_API cudaError_t launch_cluster_arm(
   }
 
   // Resolve the launch shape (cluster blocks + dynamic SMEM) for the max segment size.
-  const auto shape = select_cluster_launch_shape<layout_t>(
+  const auto shape = detail::batched_topk::select_cluster_launch_shape<layout_t>(
     static_cast<::cuda::std::uint64_t>(max_seg_size),
     static_cast<::cuda::std::uint64_t>(num_seg_val),
     max_dynamic_smem_bytes,
@@ -945,6 +945,148 @@ template <typename PolicySelector>
 }
 #endif // !defined(CUB_DEFINE_RUNTIME_POLICIES) && !_CCCL_COMPILER(NVRTC)
 
+template <::cuda::execution::determinism::__determinism_t Determinism,
+          ::cuda::execution::tie_break::__tie_break_t TieBreak,
+          typename KeyInputItItT,
+          typename KeyOutputItItT,
+          typename ValueInputItItT,
+          typename ValueOutputItItT,
+          typename SegmentSizeParameterT,
+          typename KParameterT,
+          typename SelectDirectionParameterT,
+          typename NumSegmentsParameterT,
+          typename policy_selector_t,
+          typename default_policy_selector_t,
+          typename LargeSegmentTileOffsetT,
+          typename KernelLauncherFactory>
+struct dispatch_functor
+{
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  KeyInputItItT d_key_segments_it;
+  KeyOutputItItT d_key_segments_out_it;
+  ValueInputItItT d_value_segments_it;
+  ValueOutputItItT d_value_segments_out_it;
+  SegmentSizeParameterT segment_sizes;
+  KParameterT k;
+  SelectDirectionParameterT select_directions;
+  NumSegmentsParameterT num_segments;
+  cudaStream_t stream;
+  KernelLauncherFactory launcher_factory;
+
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE bool empty_batch_no_launch() const
+  {
+    return d_temp_storage != nullptr
+        && (detail::params::get_param(num_segments, 0) == 0 || ::cuda::args::__highest_(segment_sizes) <= 0);
+  }
+
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter) const
+  {
+    constexpr topk_policy active_policy = policy_getter();
+    if constexpr (active_policy.backend == topk_algorithm::baseline)
+    {
+      // Computed from the template parameters, not a captured function-scope constant: MSVC rejects the latter as
+      // non-constant inside this lambda's `if constexpr`.
+      constexpr bool deterministic = (Determinism != ::cuda::execution::determinism::__determinism_t::__not_guaranteed)
+                                  || (TieBreak != ::cuda::execution::tie_break::__tie_break_t::__unspecified);
+      if constexpr (deterministic)
+      {
+        // A `tune`d selector forced the baseline backend for a deterministic / tie-break request it cannot serve (only
+        // the SM 9.0+ cluster backend is deterministic). Mirror the arch-unsupported / oversize-baseline failure model:
+        // a hard compile error by default, deferred to a runtime cudaErrorNotSupported only under the escape hatches.
+#if !defined(CUB_DEFINE_RUNTIME_POLICIES) && !_CCCL_COMPILER(NVRTC) \
+  && !defined(CUB_DISABLE_TOPK_UNSUPPORTED_ARCH_ASSERT)
+        static_assert(
+          !deterministic,
+          "cub::DeviceBatchedTopK: a tuned policy selector forced the baseline backend for a deterministic "
+          "/ tie-break request it cannot serve (only the SM 9.0+ cluster backend is deterministic). Drop "
+          "the override, relax the determinism / tie-break requirement, or define "
+          "CUB_DISABLE_TOPK_UNSUPPORTED_ARCH_ASSERT to defer the diagnosis to runtime "
+          "(cudaErrorNotSupported).");
+#endif // !defined(CUB_DEFINE_RUNTIME_POLICIES) && !_CCCL_COMPILER(NVRTC)
+       // && !defined(CUB_DISABLE_TOPK_UNSUPPORTED_ARCH_ASSERT)
+       // Report a positive temp-storage size so the two-phase protocol proceeds, then fail the launch explicitly.
+        if (d_temp_storage == nullptr)
+        {
+          temp_storage_bytes = 1;
+          return cudaSuccess;
+        }
+        return cudaErrorNotSupported;
+      }
+      else
+      {
+        if (empty_batch_no_launch())
+        {
+          return cudaSuccess;
+        }
+        return detail::batched_topk::
+          launch_baseline_arm<policy_selector_t, decltype(policy_getter), LargeSegmentTileOffsetT, Determinism, TieBreak>(
+            d_temp_storage,
+            temp_storage_bytes,
+            d_key_segments_it,
+            d_key_segments_out_it,
+            d_value_segments_it,
+            d_value_segments_out_it,
+            segment_sizes,
+            k,
+            select_directions,
+            num_segments,
+            stream,
+            launcher_factory);
+      }
+    }
+    else if constexpr (active_policy.backend == topk_algorithm::cluster)
+    {
+#if !_CCCL_HAS_DYNAMIC_CLUSTER_LAUNCH()
+      // The automatic selector never picks the cluster backend when dynamic cluster launches are disabled (see
+      // cluster_capable), so reaching here means a `tune`d selector forced it. The kernel would launch without its
+      // cluster extent (triple_chevron drops it), so reject the contradiction at compile time rather than run wrong.
+      static_assert(active_policy.backend != topk_algorithm::cluster,
+                    "cub::DeviceBatchedTopK: a tuned policy selector forced the cluster backend, but "
+                    "_CCCL_DISABLE_DYNAMIC_CLUSTER_LAUNCH is defined. Drop the override or the macro.");
+#endif // !_CCCL_HAS_DYNAMIC_CLUSTER_LAUNCH()
+      if (empty_batch_no_launch())
+      {
+        return cudaSuccess;
+      }
+      // `UserProvidedTuning`: false for the automatic selector, which returns `cluster` solely for a
+      // `cluster_capable(cc)` and so needs no runtime re-check; a `tune`d override is a different type and keeps it.
+      // Inlined as a type trait rather than a function-scope constexpr, which MSVC rejects inside this lambda.
+      return detail::batched_topk::launch_cluster_arm<
+        policy_selector_t,
+        LargeSegmentTileOffsetT,
+        Determinism,
+        TieBreak,
+        !::cuda::std::is_same_v<policy_selector_t, default_policy_selector_t>>(
+        policy_getter,
+        d_temp_storage,
+        temp_storage_bytes,
+        d_key_segments_it,
+        d_key_segments_out_it,
+        d_value_segments_it,
+        d_value_segments_out_it,
+        segment_sizes,
+        k,
+        select_directions,
+        num_segments,
+        stream,
+        launcher_factory);
+    }
+    else
+    {
+      // Unsupported on this architecture (e.g. a deterministic request on pre-SM90). Report a positive temp-storage
+      // size so the two-phase protocol proceeds, then fail the launch explicitly.
+      if (d_temp_storage == nullptr)
+      {
+        temp_storage_bytes = 1;
+        return cudaSuccess;
+      }
+      return cudaErrorNotSupported;
+    }
+  }
+};
+
 // Internal entry point: the single dispatch that replaces the standalone baseline / cluster dispatches. It resolves the
 // runtime compute capability, then uses `dispatch_compute_cap` to pick, per architecture, the backend chosen by the
 // resolved policy selector (deterministic -> cluster; otherwise the arch+size crossover). Both host arms launch the
@@ -1057,136 +1199,56 @@ _CCCL_HOST_API cudaError_t dispatch_select(
   // bounds-checked only by assertions active in assertion-enabled (e.g. debug) builds -- host-side for a host-known
   // immediate value and device-side for values read from a deferred / deferred_sequence handle.
 
+  // Empty batch = no work: zero segments or a non-positive tightest max segment size.
+  // Consulted only on the launch (`d_temp_storage != nullptr`) of a *supported* arm below: the query pass falls
+  // through to size `temp_storage_bytes`, and the unsupported arm ignores it so an
+  // unavailable request still fails with cudaErrorNotSupported rather than being masked into success.
   ::cuda::compute_capability cc{};
   if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
   {
     return error;
   }
 
-  // Empty batch = no work: zero segments or a non-positive tightest max segment size.
-  // Consulted only on the launch (`d_temp_storage != nullptr`) of a *supported* arm below: the query pass falls
-  // through to size `temp_storage_bytes`, and the unsupported arm ignores it so an
-  // unavailable request still fails with cudaErrorNotSupported rather than being masked into success.
-  const auto empty_batch_no_launch = [&] {
-    return d_temp_storage != nullptr
-        && (detail::params::get_param(num_segments, 0) == 0 || ::cuda::args::__highest_(segment_sizes) <= 0);
-  };
-
-  return detail::dispatch_compute_cap(policy_selector_t{}, cc, [&](auto policy_getter) -> cudaError_t {
-    constexpr topk_policy active_policy = policy_getter();
 #if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    NV_IF_TARGET(NV_IS_HOST, ({
-                   ::std::stringstream ss;
-                   ss << active_policy;
-                   _CubLog("Dispatching DeviceBatchedTopK to compute capability %d.%d with tuning: %s\n",
-                           cc.major_cap(),
-                           cc.minor_cap(),
-                           ss.str().c_str());
-                 }))
+  NV_IF_TARGET(NV_IS_HOST, ({
+                 ::std::stringstream ss;
+                 ss << policy_selector_t{}(cc);
+                 _CubLog("Dispatching DeviceBatchedTopK to compute capability %d.%d with tuning: %s\n",
+                         cc.major_cap(),
+                         cc.minor_cap(),
+                         ss.str().c_str());
+               }))
 #endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    if constexpr (active_policy.backend == topk_algorithm::baseline)
-    {
-      // Computed from the template parameters, not a captured function-scope constant: MSVC rejects the latter as
-      // non-constant inside this lambda's `if constexpr`.
-      constexpr bool deterministic = (Determinism != ::cuda::execution::determinism::__determinism_t::__not_guaranteed)
-                                  || (TieBreak != ::cuda::execution::tie_break::__tie_break_t::__unspecified);
-      if constexpr (deterministic)
-      {
-        // A `tune`d selector forced the baseline backend for a deterministic / tie-break request it cannot serve (only
-        // the SM 9.0+ cluster backend is deterministic). Mirror the arch-unsupported / oversize-baseline failure model:
-        // a hard compile error by default, deferred to a runtime cudaErrorNotSupported only under the escape hatches.
-#if !defined(CUB_DEFINE_RUNTIME_POLICIES) && !_CCCL_COMPILER(NVRTC) \
-  && !defined(CUB_DISABLE_TOPK_UNSUPPORTED_ARCH_ASSERT)
-        static_assert(
-          !deterministic,
-          "cub::DeviceBatchedTopK: a tuned policy selector forced the baseline backend for a deterministic "
-          "/ tie-break request it cannot serve (only the SM 9.0+ cluster backend is deterministic). Drop "
-          "the override, relax the determinism / tie-break requirement, or define "
-          "CUB_DISABLE_TOPK_UNSUPPORTED_ARCH_ASSERT to defer the diagnosis to runtime "
-          "(cudaErrorNotSupported).");
-#endif // !defined(CUB_DEFINE_RUNTIME_POLICIES) && !_CCCL_COMPILER(NVRTC)
-       // && !defined(CUB_DISABLE_TOPK_UNSUPPORTED_ARCH_ASSERT)
-       // Report a positive temp-storage size so the two-phase protocol proceeds, then fail the launch explicitly.
-        if (d_temp_storage == nullptr)
-        {
-          temp_storage_bytes = 1;
-          return cudaSuccess;
-        }
-        return cudaErrorNotSupported;
-      }
-      else
-      {
-        if (empty_batch_no_launch())
-        {
-          return cudaSuccess;
-        }
-        return launch_baseline_arm<policy_selector_t,
-                                   decltype(policy_getter),
-                                   LargeSegmentTileOffsetT,
-                                   Determinism,
-                                   TieBreak>(
-          d_temp_storage,
-          temp_storage_bytes,
-          d_key_segments_it,
-          d_key_segments_out_it,
-          d_value_segments_it,
-          d_value_segments_out_it,
-          segment_sizes,
-          k,
-          select_directions,
-          num_segments,
-          stream,
-          launcher_factory);
-      }
-    }
-    else if constexpr (active_policy.backend == topk_algorithm::cluster)
-    {
-#if !_CCCL_HAS_DYNAMIC_CLUSTER_LAUNCH()
-      // The automatic selector never picks the cluster backend when dynamic cluster launches are disabled (see
-      // cluster_capable), so reaching here means a `tune`d selector forced it. The kernel would launch without its
-      // cluster extent (triple_chevron drops it), so reject the contradiction at compile time rather than run wrong.
-      static_assert(active_policy.backend != topk_algorithm::cluster,
-                    "cub::DeviceBatchedTopK: a tuned policy selector forced the cluster backend, but "
-                    "_CCCL_DISABLE_DYNAMIC_CLUSTER_LAUNCH is defined. Drop the override or the macro.");
-#endif // !_CCCL_HAS_DYNAMIC_CLUSTER_LAUNCH()
-      if (empty_batch_no_launch())
-      {
-        return cudaSuccess;
-      }
-      // `UserProvidedTuning`: false for the automatic selector, which returns `cluster` solely for a
-      // `cluster_capable(cc)` and so needs no runtime re-check; a `tune`d override is a different type and keeps it.
-      // Inlined as a type trait rather than a function-scope constexpr, which MSVC rejects inside this lambda.
-      return launch_cluster_arm<policy_selector_t,
-                                LargeSegmentTileOffsetT,
-                                Determinism,
-                                TieBreak,
-                                !::cuda::std::is_same_v<policy_selector_t, default_policy_selector_t>>(
-        policy_getter,
-        d_temp_storage,
-        temp_storage_bytes,
-        d_key_segments_it,
-        d_key_segments_out_it,
-        d_value_segments_it,
-        d_value_segments_out_it,
-        segment_sizes,
-        k,
-        select_directions,
-        num_segments,
-        stream,
-        launcher_factory);
-    }
-    else
-    {
-      // Unsupported on this architecture (e.g. a deterministic request on pre-SM90). Report a positive temp-storage
-      // size so the two-phase protocol proceeds, then fail the launch explicitly.
-      if (d_temp_storage == nullptr)
-      {
-        temp_storage_bytes = 1;
-        return cudaSuccess;
-      }
-      return cudaErrorNotSupported;
-    }
-  });
+
+  return detail::dispatch_compute_cap(
+    policy_selector_t{},
+    cc,
+    dispatch_functor<Determinism,
+                     TieBreak,
+                     KeyInputItItT,
+                     KeyOutputItItT,
+                     ValueInputItItT,
+                     ValueOutputItItT,
+                     SegmentSizeParameterT,
+                     KParameterT,
+                     SelectDirectionParameterT,
+                     NumSegmentsParameterT,
+                     policy_selector_t,
+                     default_policy_selector_t,
+                     LargeSegmentTileOffsetT,
+                     KernelLauncherFactory>{
+      d_temp_storage,
+      temp_storage_bytes,
+      d_key_segments_it,
+      d_key_segments_out_it,
+      d_value_segments_it,
+      d_value_segments_out_it,
+      segment_sizes,
+      k,
+      select_directions,
+      num_segments,
+      stream,
+      launcher_factory});
 }
 
 template <typename KBoundT, typename SegmentSizeBoundT>
@@ -1263,7 +1325,7 @@ _CCCL_HOST_API cudaError_t dispatch(
   if constexpr (OutputOrdering == ::cuda::execution::output_ordering::__output_ordering_t::__unsorted
                 || static_max_out <= 1)
   {
-    return dispatch_select<Determinism, TieBreak>(
+    return detail::batched_topk::dispatch_select<Determinism, TieBreak>(
       d_temp_storage,
       temp_storage_bytes,
       d_key_segments_it,
@@ -1341,7 +1403,7 @@ _CCCL_HOST_API cudaError_t dispatch(
         ::cuda::make_strided_iterator(::cuda::make_counting_iterator(static_cast<value_t*>(nullptr)), max_out);
 
       size_t selection_storage_bytes = 0;
-      if (const auto error = dispatch_select<Determinism, TieBreak>(
+      if (const auto error = detail::batched_topk::dispatch_select<Determinism, TieBreak>(
             nullptr,
             selection_storage_bytes,
             d_key_segments_it,
@@ -1377,7 +1439,7 @@ _CCCL_HOST_API cudaError_t dispatch(
       const auto scratch_value_segments_out_it =
         ::cuda::make_strided_iterator(::cuda::make_counting_iterator(value_scratch.get()), max_out);
 
-      if (const auto error = dispatch_select<Determinism, TieBreak>(
+      if (const auto error = detail::batched_topk::dispatch_select<Determinism, TieBreak>(
             selection_storage.get(),
             selection_storage_bytes,
             d_key_segments_it,
