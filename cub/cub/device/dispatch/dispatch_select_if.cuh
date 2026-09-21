@@ -1134,6 +1134,51 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch_policy(
   return cudaSuccess;
 }
 
+template <SelectImpl SelectionOpt,
+          typename InputIteratorT,
+          typename FlagsInputIteratorT,
+          typename SelectedOutputIteratorT,
+          typename NumSelectedIteratorT,
+          typename SelectOpT,
+          typename EqualityOpT,
+          typename OffsetT,
+          typename PolicySelector,
+          typename KernelLauncherFactory>
+struct dispatch_functor
+{
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  InputIteratorT d_in;
+  FlagsInputIteratorT d_flags;
+  SelectedOutputIteratorT d_selected_out;
+  NumSelectedIteratorT d_num_selected_out;
+  SelectOpT select_op;
+  EqualityOpT equality_op;
+  OffsetT num_items;
+  cudaStream_t stream;
+  PolicySelector policy_selector;
+  KernelLauncherFactory launcher_factory;
+
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter) const
+  {
+    return detail::select::dispatch_policy<SelectionOpt, PolicyGetter>(
+      policy_getter,
+      d_temp_storage,
+      temp_storage_bytes,
+      d_in,
+      d_flags,
+      d_selected_out,
+      d_num_selected_out,
+      select_op,
+      equality_op,
+      num_items,
+      stream,
+      policy_selector,
+      launcher_factory);
+  }
+};
+
 template <
   SelectImpl SelectionOpt,
   typename InputIteratorT,
@@ -1169,22 +1214,32 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
     return error;
   }
 
-  return dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) {
 #if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    NV_IF_TARGET(NV_IS_HOST, ({
-                   ::std::stringstream ss;
-                   ss << policy_getter();
-                   _CubLog("Dispatching DeviceSelectIf to compute capability %d.%d with tuning: %s\n",
-                           cc.major_cap(),
-                           cc.minor_cap(),
-                           ss.str().c_str());
-                 }))
+  NV_IF_TARGET(NV_IS_HOST, ({
+                 ::std::stringstream ss;
+                 ss << policy_selector(cc);
+                 _CubLog("Dispatching DeviceSelectIf to compute capability %d.%d with tuning: %s\n",
+                         cc.major_cap(),
+                         cc.minor_cap(),
+                         ss.str().c_str());
+               }))
 #else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    log_dispatch("DeviceSelectIf", cc, policy_getter());
+  log_dispatch("DeviceSelectIf", cc, policy_selector(cc));
 #endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
 
-    return dispatch_policy<SelectionOpt, decltype(policy_getter)>(
-      policy_getter,
+  return dispatch_compute_cap(
+    policy_selector,
+    cc,
+    dispatch_functor<SelectionOpt,
+                     InputIteratorT,
+                     FlagsInputIteratorT,
+                     SelectedOutputIteratorT,
+                     NumSelectedIteratorT,
+                     SelectOpT,
+                     EqualityOpT,
+                     OffsetT,
+                     PolicySelector,
+                     KernelLauncherFactory>{
       d_temp_storage,
       temp_storage_bytes,
       d_in,
@@ -1196,8 +1251,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
       num_items,
       stream,
       policy_selector,
-      launcher_factory);
-  });
+      launcher_factory});
 }
 } // namespace detail::select
 
