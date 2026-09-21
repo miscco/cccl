@@ -449,58 +449,38 @@ __launch_bounds__(int(current_policy<PolicySelector>().threads_per_block))
 //! @tparam DecomposerT
 //!   Implementation detail, do not specify directly, requirements on the content of this type are subject to breaking
 //!   change.
-template <
-  select SelectDirection,
-  typename KeyInputIteratorT,
-  typename KeyOutputIteratorT,
-  typename ValueInputIteratorT,
-  typename ValueOutputIteratorT,
-  typename OffsetT,
-  typename OutOffsetT,
-  typename DecomposerT = detail::identity_decomposer_t,
-  typename PolicySelector =
-    policy_selector_from_types<it_value_t<KeyInputIteratorT>, it_value_t<ValueInputIteratorT>, OffsetT, OutOffsetT>,
-  typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY>
-#if _CCCL_HAS_CONCEPTS()
-  requires topk_policy_selector<PolicySelector>
-#endif // _CCCL_HAS_CONCEPTS()
-CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
-  void* d_temp_storage,
-  size_t& temp_storage_bytes,
-  const KeyInputIteratorT d_keys_in,
-  KeyOutputIteratorT d_keys_out,
-  const ValueInputIteratorT d_values_in,
-  ValueOutputIteratorT d_values_out,
-  OffsetT num_items,
-  OutOffsetT k,
-  DecomposerT decomposer,
-  cudaStream_t stream,
-  PolicySelector policy_selector         = {},
-  KernelLauncherFactory launcher_factory = {})
+template <select SelectDirection,
+          typename KeyInputIteratorT,
+          typename KeyOutputIteratorT,
+          typename ValueInputIteratorT,
+          typename ValueOutputIteratorT,
+          typename OffsetT,
+          typename OutOffsetT,
+          typename DecomposerT,
+          typename PolicySelector,
+          typename KernelLauncherFactory>
+struct dispatch_functor
 {
-  ::cuda::compute_capability cc{};
-  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
-  {
-    return error;
-  }
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  KeyInputIteratorT d_keys_in;
+  KeyOutputIteratorT d_keys_out;
+  ValueInputIteratorT d_values_in;
+  ValueOutputIteratorT d_values_out;
+  OffsetT num_items;
+  OutOffsetT k;
+  DecomposerT decomposer;
+  cudaStream_t stream;
+  KernelLauncherFactory launcher_factory;
 
-  return dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) {
+  // not const: MaxSmOccupancy is a non-const member of the launcher factory
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter)
+  {
     static constexpr topk_policy active_policy = policy_getter();
-#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    NV_IF_TARGET(NV_IS_HOST, ({
-                   std::stringstream ss;
-                   ss << active_policy;
-                   _CubLog("Dispatching DeviceTopK to compute capability %d.%d with tuning: %s\n",
-                           cc.major_cap(),
-                           cc.minor_cap(),
-                           ss.str().c_str());
-                 }))
-#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    log_dispatch("DeviceTopK", cc, active_policy);
-#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    using key_in_t                  = it_value_t<KeyInputIteratorT>;
-    using value_in_t                = it_value_t<ValueInputIteratorT>;
-    static constexpr bool keys_only = ::cuda::std::is_same_v<value_in_t, NullType>;
+    using key_in_t                             = it_value_t<KeyInputIteratorT>;
+    using value_in_t                           = it_value_t<ValueInputIteratorT>;
+    static constexpr bool keys_only            = ::cuda::std::is_same_v<value_in_t, NullType>;
 
     // atomicAdd does not implement overloads for all integer types, so we limit OffsetT to uint32_t or unsigned long
     // long
@@ -533,7 +513,8 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
 
     // We are capping k at a maximum of num_items
     using common_offset_t = ::cuda::std::common_type_t<OffsetT, OutOffsetT>;
-    k = static_cast<OutOffsetT>((::cuda::std::min) (common_offset_t{k}, static_cast<common_offset_t>(num_items)));
+    OutOffsetT k_local =
+      static_cast<OutOffsetT>((::cuda::std::min) (common_offset_t{k}, static_cast<common_offset_t>(num_items)));
 
     // Specify temporary storage allocation requirements
     using counter_t             = Counter<key_in_t, OffsetT, OutOffsetT>;
@@ -659,7 +640,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
                     counter,
                     histogram,
                     num_items,
-                    k,
+                    k_local,
                     candidate_buffer_length,
                     extract_op,
                     0,
@@ -698,7 +679,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
                     counter,
                     histogram,
                     num_items,
-                    k,
+                    k_local,
                     candidate_buffer_length,
                     extract_op,
                     identify_op,
@@ -746,7 +727,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
                   idx_bufs.Current(),
                   counter,
                   num_items,
-                  k,
+                  k_local,
                   candidate_buffer_length,
                   identify_op,
                   pass)))
@@ -755,7 +736,81 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
     }
 
     return cudaSuccess;
-  });
+  }
+};
+
+template <
+  select SelectDirection,
+  typename KeyInputIteratorT,
+  typename KeyOutputIteratorT,
+  typename ValueInputIteratorT,
+  typename ValueOutputIteratorT,
+  typename OffsetT,
+  typename OutOffsetT,
+  typename DecomposerT = detail::identity_decomposer_t,
+  typename PolicySelector =
+    policy_selector_from_types<it_value_t<KeyInputIteratorT>, it_value_t<ValueInputIteratorT>, OffsetT, OutOffsetT>,
+  typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY>
+#if _CCCL_HAS_CONCEPTS()
+  requires topk_policy_selector<PolicySelector>
+#endif // _CCCL_HAS_CONCEPTS()
+CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
+  void* d_temp_storage,
+  size_t& temp_storage_bytes,
+  const KeyInputIteratorT d_keys_in,
+  KeyOutputIteratorT d_keys_out,
+  const ValueInputIteratorT d_values_in,
+  ValueOutputIteratorT d_values_out,
+  OffsetT num_items,
+  OutOffsetT k,
+  DecomposerT decomposer,
+  cudaStream_t stream,
+  PolicySelector policy_selector         = {},
+  KernelLauncherFactory launcher_factory = {})
+{
+  ::cuda::compute_capability cc{};
+  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
+  {
+    return error;
+  }
+
+#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  NV_IF_TARGET(NV_IS_HOST, ({
+                 std::stringstream ss;
+                 ss << policy_selector(cc);
+                 _CubLog("Dispatching DeviceTopK to compute capability %d.%d with tuning: %s\n",
+                         cc.major_cap(),
+                         cc.minor_cap(),
+                         ss.str().c_str());
+               }))
+#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+  log_dispatch("DeviceTopK", cc, policy_selector(cc));
+#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+
+  return dispatch_compute_cap(
+    policy_selector,
+    cc,
+    dispatch_functor<SelectDirection,
+                     KeyInputIteratorT,
+                     KeyOutputIteratorT,
+                     ValueInputIteratorT,
+                     ValueOutputIteratorT,
+                     OffsetT,
+                     OutOffsetT,
+                     DecomposerT,
+                     PolicySelector,
+                     KernelLauncherFactory>{
+      d_temp_storage,
+      temp_storage_bytes,
+      d_keys_in,
+      d_keys_out,
+      d_values_in,
+      d_values_out,
+      num_items,
+      k,
+      decomposer,
+      stream,
+      launcher_factory});
 }
 } // namespace detail::topk
 
