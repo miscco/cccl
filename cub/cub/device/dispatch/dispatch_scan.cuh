@@ -179,7 +179,7 @@ struct policy_selector_from_hub
 {
   [[nodiscard]] _CCCL_DEVICE_API constexpr auto operator()(::cuda::compute_capability /*cc*/) const -> ScanPolicy
   {
-    return convert_policy<typename PolicyHub::MaxPolicy::ActivePolicy>();
+    return detail::scan::convert_policy<typename PolicyHub::MaxPolicy::ActivePolicy>();
   }
 };
 } // namespace detail::scan
@@ -1224,7 +1224,7 @@ CUB_RUNTIME_FUNCTION _CCCL_HOST _CCCL_FORCEINLINE cudaError_t invoke_lookahead(
   _CCCL_ASSERT(smem_size_1_stage <= int{detail::max_smem_per_block},
                "Single-stage lookahead scan exceeds architecture independent SMEM (48KiB)");
 #  else // defined(CUB_DEFINE_RUNTIME_POLICIES)
-  check_lookahead_smem<smem_size_1_stage>();
+  detail::scan::check_lookahead_smem<smem_size_1_stage>();
 #  endif // defined(CUB_DEFINE_RUNTIME_POLICIES)
 
   int num_stages = 1;
@@ -1378,7 +1378,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t invoke(
   if CUB_DETAIL_CONSTEXPR_ISH (policy_getter().algorithm == ScanAlgorithm::lookahead)
   {
     const bool atomic_scheduling = cc == ::cuda::compute_capability{9, 0};
-    return invoke_lookahead(
+    return detail::scan::invoke_lookahead(
       policy_getter,
       d_temp_storage,
       temp_storage_bytes,
@@ -1395,7 +1395,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t invoke(
   }
   else
   {
-    return invoke_lookback(
+    return detail::scan::invoke_lookback(
       policy_getter,
       d_temp_storage,
       temp_storage_bytes,
@@ -1410,6 +1410,59 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t invoke(
       launcher_factory);
   }
 }
+
+template <typename InputIteratorT,
+          typename OutputIteratorT,
+          typename ScanOpT,
+          typename InitValueT,
+          typename OffsetT,
+          typename KernelSource,
+          typename KernelLauncherFactory>
+struct dispatch_functor
+{
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  InputIteratorT d_in;
+  OutputIteratorT d_out;
+  ScanOpT scan_op;
+  InitValueT init_value;
+  OffsetT num_items;
+  cudaStream_t stream;
+  ::cuda::compute_capability cc;
+  KernelSource kernel_source;
+  KernelLauncherFactory launcher_factory;
+
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter) const
+  {
+#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+    NV_IF_TARGET(NV_IS_HOST, ({
+                   std::stringstream ss;
+                   ss << policy_getter();
+                   _CubLog("Dispatching DeviceScan to compute capability %d.%d with tuning: %s\n",
+                           cc.major_cap(),
+                           cc.minor_cap(),
+                           ss.str().c_str());
+                 }))
+#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+    log_dispatch("DeviceScan", cc, policy_getter());
+#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+
+    return detail::scan::invoke(
+      policy_getter,
+      d_temp_storage,
+      temp_storage_bytes,
+      d_in,
+      d_out,
+      scan_op,
+      init_value,
+      num_items,
+      stream,
+      cc,
+      kernel_source,
+      launcher_factory);
+  }
+};
 
 template <
   ForceInclusive EnforceInclusive = ForceInclusive::No,
@@ -1462,22 +1515,10 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
     return error;
   }
 
-  return dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) {
-#if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    NV_IF_TARGET(NV_IS_HOST, ({
-                   std::stringstream ss;
-                   ss << policy_getter();
-                   _CubLog("Dispatching DeviceScan to compute capability %d.%d with tuning: %s\n",
-                           cc.major_cap(),
-                           cc.minor_cap(),
-                           ss.str().c_str());
-                 }))
-#else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-    log_dispatch("DeviceScan", cc, policy_getter());
-#endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
-
-    return invoke(
-      policy_getter,
+  return dispatch_compute_cap(
+    policy_selector,
+    cc,
+    dispatch_functor<InputIteratorT, OutputIteratorT, ScanOpT, InitValueT, OffsetT, KernelSource, KernelLauncherFactory>{
       d_temp_storage,
       temp_storage_bytes,
       d_in,
@@ -1488,8 +1529,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
       stream,
       cc,
       kernel_source,
-      launcher_factory);
-  });
+      launcher_factory});
 }
 
 template <typename AccumT,
@@ -1526,25 +1566,19 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch_with_accum(
   KernelSource kernel_source             = {},
   KernelLauncherFactory launcher_factory = {}) -> cudaError_t
 {
-  return dispatch<EnforceInclusive,
-                  StableReductionOrder,
-                  InputIteratorT,
-                  OutputIteratorT,
-                  ScanOpT,
-                  InitValueT,
-                  OffsetT,
-                  AccumT>(
-    d_temp_storage,
-    temp_storage_bytes,
-    d_in,
-    d_out,
-    scan_op,
-    init_value,
-    num_items,
-    stream,
-    policy_selector,
-    kernel_source,
-    launcher_factory);
+  return detail::scan::
+    dispatch<EnforceInclusive, StableReductionOrder, InputIteratorT, OutputIteratorT, ScanOpT, InitValueT, OffsetT, AccumT>(
+      d_temp_storage,
+      temp_storage_bytes,
+      d_in,
+      d_out,
+      scan_op,
+      init_value,
+      num_items,
+      stream,
+      policy_selector,
+      kernel_source,
+      launcher_factory);
 }
 } // namespace detail::scan
 
