@@ -441,59 +441,33 @@ template <typename KeyInputIteratorT,
           typename ValueIteratorT,
           typename OffsetT,
           typename CompareOpT,
-          typename PolicySelector        = policy_selector_from_types<KeyIteratorT>,
-          typename KernelSource          = DeviceMergeSortKernelSource<PolicySelector,
-                                                                       KeyInputIteratorT,
-                                                                       ValueInputIteratorT,
-                                                                       KeyIteratorT,
-                                                                       ValueIteratorT,
-                                                                       OffsetT,
-                                                                       CompareOpT>,
-          typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY,
-          typename KeyT                  = it_value_t<KeyIteratorT>,
-          typename ValueT                = it_value_t<ValueIteratorT>>
-#if _CCCL_HAS_CONCEPTS()
-  requires merge_sort_policy_selector<PolicySelector>
-#endif // _CCCL_HAS_CONCEPTS()
-CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
-  void* d_temp_storage,
-  size_t& temp_storage_bytes,
-  KeyInputIteratorT d_input_keys,
-  ValueInputIteratorT d_input_items,
-  KeyIteratorT d_output_keys,
-  ValueIteratorT d_output_items,
-  OffsetT num_items,
-  CompareOpT compare_op,
-  cudaStream_t stream,
-  PolicySelector policy_selector         = {},
-  KernelSource kernel_source             = {},
-  KernelLauncherFactory launcher_factory = {},
-  KeyT*                                  = nullptr /* for CCCL.C */,
-  ValueT*                                = nullptr /* for CCCL.C */) -> cudaError_t
+          typename KeyT,
+          typename ValueT,
+          typename KernelSource,
+          typename KernelLauncherFactory>
+struct dispatch_functor
 {
-  [[maybe_unused]] constexpr bool keys_only = ::cuda::std::is_same_v<ValueT, NullType>;
+  void* d_temp_storage;
+  size_t& temp_storage_bytes;
+  KeyInputIteratorT d_input_keys;
+  ValueInputIteratorT d_input_items;
+  KeyIteratorT d_output_keys;
+  ValueIteratorT d_output_items;
+  OffsetT num_items;
+  CompareOpT compare_op;
+  cudaStream_t stream;
+  KernelSource kernel_source;
+  KernelLauncherFactory launcher_factory;
+  ::cuda::compute_capability cc;
 
-  if (num_items == 0)
+  template <typename PolicyGetter>
+  CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t operator()(PolicyGetter policy_getter) const
   {
-    if (d_temp_storage == nullptr)
-    {
-      temp_storage_bytes = 1;
-    }
-    return cudaSuccess;
-  }
-
-  ::cuda::compute_capability cc{};
-  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
-  {
-    return error;
-  }
-
-  return detail::dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) -> cudaError_t {
 #ifdef CUB_DEFINE_RUNTIME_POLICIES
     const MergeSortPolicy active_policy = policy_getter();
 #else // CUB_DEFINE_RUNTIME_POLICIES
     using vsmem_adapted_agents = merge_sort_vsmem_helper_t<
-      decltype(policy_getter),
+      PolicyGetter,
       KeyInputIteratorT,
       ValueInputIteratorT,
       KeyIteratorT,
@@ -502,7 +476,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
       CompareOpT,
       KeyT,
       ValueT>;
-  constexpr MergeSortPolicy active_policy = vsmem_adapted_agents::policy;
+    constexpr MergeSortPolicy active_policy = vsmem_adapted_agents::policy;
 #endif // CUB_DEFINE_RUNTIME_POLICIES
 
 #if _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
@@ -517,6 +491,8 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
 #else // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
     log_dispatch("DeviceMergeSort", cc, active_policy);
 #endif // _CCCL_HOSTED() && defined(CUB_DEBUG_LOG)
+
+    [[maybe_unused]] constexpr bool keys_only = ::cuda::std::is_same_v<ValueT, NullType>;
 
     _CCCL_ASSERT(1 <= active_policy.threads_per_block && active_policy.threads_per_block <= 1024,
                  "Number of threads per block need to be inside [1;1024]");
@@ -534,7 +510,8 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
 #else // CUB_DEFINE_RUNTIME_POLICIES
     const ::cuda::std::size_t block_sort_smem_size =
       num_tiles * vsmem_helper_impl<typename vsmem_adapted_agents::block_sort_agent_t>::vsmem_per_block;
-    const ::cuda::std::size_t merge_smem_size = num_tiles * vsmem_helper_impl<typename vsmem_adapted_agents::merge_agent_t>::vsmem_per_block;
+    const ::cuda::std::size_t merge_smem_size =
+      num_tiles * vsmem_helper_impl<typename vsmem_adapted_agents::merge_agent_t>::vsmem_per_block;
 #endif // CUB_DEFINE_RUNTIME_POLICIES
     const ::cuda::std::size_t virtual_shared_memory_size = (::cuda::std::max) (block_sort_smem_size, merge_smem_size);
 
@@ -664,7 +641,85 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
     }
 
     return cudaSuccess;
-  });
+  }
+};
+
+template <typename KeyInputIteratorT,
+          typename ValueInputIteratorT,
+          typename KeyIteratorT,
+          typename ValueIteratorT,
+          typename OffsetT,
+          typename CompareOpT,
+          typename PolicySelector        = policy_selector_from_types<KeyIteratorT>,
+          typename KernelSource          = DeviceMergeSortKernelSource<PolicySelector,
+                                                                       KeyInputIteratorT,
+                                                                       ValueInputIteratorT,
+                                                                       KeyIteratorT,
+                                                                       ValueIteratorT,
+                                                                       OffsetT,
+                                                                       CompareOpT>,
+          typename KernelLauncherFactory = CUB_DETAIL_DEFAULT_KERNEL_LAUNCHER_FACTORY,
+          typename KeyT                  = it_value_t<KeyIteratorT>,
+          typename ValueT                = it_value_t<ValueIteratorT>>
+#if _CCCL_HAS_CONCEPTS()
+  requires merge_sort_policy_selector<PolicySelector>
+#endif // _CCCL_HAS_CONCEPTS()
+CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
+  void* d_temp_storage,
+  size_t& temp_storage_bytes,
+  KeyInputIteratorT d_input_keys,
+  ValueInputIteratorT d_input_items,
+  KeyIteratorT d_output_keys,
+  ValueIteratorT d_output_items,
+  OffsetT num_items,
+  CompareOpT compare_op,
+  cudaStream_t stream,
+  PolicySelector policy_selector         = {},
+  KernelSource kernel_source             = {},
+  KernelLauncherFactory launcher_factory = {},
+  KeyT*                                  = nullptr /* for CCCL.C */,
+  ValueT*                                = nullptr /* for CCCL.C */) -> cudaError_t
+{
+  if (num_items == 0)
+  {
+    if (d_temp_storage == nullptr)
+    {
+      temp_storage_bytes = 1;
+    }
+    return cudaSuccess;
+  }
+
+  ::cuda::compute_capability cc{};
+  if (const auto error = CubDebug(launcher_factory.PtxComputeCap(cc)))
+  {
+    return error;
+  }
+
+  return detail::dispatch_compute_cap(
+    policy_selector,
+    cc,
+    dispatch_functor<KeyInputIteratorT,
+                     ValueInputIteratorT,
+                     KeyIteratorT,
+                     ValueIteratorT,
+                     OffsetT,
+                     CompareOpT,
+                     KeyT,
+                     ValueT,
+                     KernelSource,
+                     KernelLauncherFactory>{
+      d_temp_storage,
+      temp_storage_bytes,
+      d_input_keys,
+      d_input_items,
+      d_output_keys,
+      d_output_items,
+      num_items,
+      compare_op,
+      stream,
+      kernel_source,
+      launcher_factory,
+      cc});
 }
 } // namespace detail::merge_sort
 
