@@ -446,9 +446,9 @@ case "${project}" in
     trace_repo_root="${project_build_dir}"
     ;;
   rapids)
+    require_command yq
+    rapids_manifest="${PROJECT_MANIFEST_YML:-/opt/rapids-build-utils/manifest.yaml}"
     if ((${#build_targets[@]} == 0)); then
-      require_command yq
-      rapids_manifest="${PROJECT_MANIFEST_YML:-/opt/rapids-build-utils/manifest.yaml}"
       rapids_targets="$(yq -r '.repos[].cpp[].name' "${rapids_manifest}")"
       [[ -n "${rapids_targets}" ]] \
         || { echo "error: RAPIDS manifest contains no C++ projects" >&2; exit 1; }
