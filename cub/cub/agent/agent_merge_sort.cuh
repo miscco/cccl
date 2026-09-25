@@ -16,6 +16,7 @@
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_merge_sort.cuh>
 #include <cub/block/block_store.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/device/dispatch/tuning/tuning_merge_sort.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/util_namespace.cuh>
@@ -690,5 +691,102 @@ struct AgentMerge
   }
 };
 } // namespace detail::merge_sort
+
+namespace detail
+{
+template <typename PolicyGetter,
+          typename KeyInputIteratorT,
+          typename ValueInputIteratorT,
+          typename KeyIteratorT,
+          typename ValueIteratorT,
+          typename KeyT,
+          typename ValueT>
+struct required_smem_layout<cub_algorithm::agent_block_sort,
+                            PolicyGetter,
+                            KeyInputIteratorT,
+                            ValueInputIteratorT,
+                            KeyIteratorT,
+                            ValueIteratorT,
+                            KeyT,
+                            ValueT>
+{
+private:
+  static constexpr auto policy          = PolicyGetter{}();
+  static constexpr int block_threads    = policy.threads_per_block;
+  static constexpr int items_per_thread = policy.items_per_thread;
+
+  template <typename T>
+  static constexpr smem_layout load_layout =
+    required_smem_layout_v<cub_algorithm::block_load,
+                           T,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockLoadAlgorithm, policy.load_algorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  template <typename T>
+  static constexpr smem_layout store_layout =
+    required_smem_layout_v<cub_algorithm::block_store,
+                           T,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockStoreAlgorithm, policy.store_algorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout merge_layout =
+    required_smem_layout_v<cub_algorithm::block_merge_sort,
+                           KeyT,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ValueT,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::union_layout(
+    load_layout<it_value_t<KeyInputIteratorT>>,
+    load_layout<it_value_t<ValueInputIteratorT>>,
+    store_layout<it_value_t<KeyIteratorT>>,
+    store_layout<it_value_t<ValueIteratorT>>,
+    store_layout<KeyT>,
+    store_layout<ValueT>,
+    merge_layout));
+};
+
+// AgentPartition keeps its tile state in registers.
+template <>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::agent_merge_sort_partition> = no_smem;
+
+template <typename PolicyGetter, typename KeyIteratorT, typename ValueIteratorT, typename KeyT, typename ValueT>
+struct required_smem_layout<cub_algorithm::agent_merge_sort_merge, PolicyGetter, KeyIteratorT, ValueIteratorT, KeyT, ValueT>
+{
+private:
+  static constexpr auto policy          = PolicyGetter{}();
+  static constexpr int block_threads    = policy.threads_per_block;
+  static constexpr int items_per_thread = policy.items_per_thread;
+  static constexpr int items_per_tile   = block_threads * items_per_thread;
+
+  template <typename T>
+  static constexpr smem_layout store_layout =
+    required_smem_layout_v<cub_algorithm::block_store,
+                           T,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockStoreAlgorithm, policy.store_algorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::union_layout(
+    store_layout<KeyT>,
+    store_layout<ValueT>,
+    store_layout<it_value_t<KeyIteratorT>>,
+    store_layout<it_value_t<ValueIteratorT>>,
+    detail::array_layout(type_layout<KeyT>, items_per_tile + 1),
+    detail::array_layout(type_layout<ValueT>, items_per_tile + 1)));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

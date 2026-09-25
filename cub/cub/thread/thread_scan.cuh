@@ -19,6 +19,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/thread/thread_operators.cuh>
 
 CUB_NAMESPACE_BEGIN
@@ -468,5 +469,8 @@ _CCCL_DEVICE _CCCL_FORCEINLINE void ThreadScanInclusivePartial(
 }
 
 //@}
+
+template <>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::thread_scan> = no_smem;
 } // namespace detail
 CUB_NAMESPACE_END

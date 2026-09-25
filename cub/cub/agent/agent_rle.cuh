@@ -26,7 +26,10 @@
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_scan.cuh>
 #include <cub/block/block_store.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
+#include <cub/warp/warp_exchange.cuh>
+#include <cub/warp/warp_scan.cuh>
 
 #include <cuda/__ptx/instructions/get_sreg.h>
 #include <cuda/std/__functional/operations.h>
@@ -1069,5 +1072,79 @@ struct AgentRle
   }
 };
 } // namespace detail::rle
+
+namespace detail
+{
+template <typename AgentRlePolicyT,
+          typename InputIteratorT,
+          typename LengthsOutputIteratorT,
+          typename OffsetT,
+          typename GlobalOffsetT>
+struct required_smem_layout<cub_algorithm::agent_rle,
+                            AgentRlePolicyT,
+                            InputIteratorT,
+                            LengthsOutputIteratorT,
+                            OffsetT,
+                            GlobalOffsetT>
+{
+private:
+  using item_t             = it_value_t<InputIteratorT>;
+  using length_t           = non_void_value_t<LengthsOutputIteratorT, GlobalOffsetT>;
+  using length_offset_pair = KeyValuePair<OffsetT, length_t>;
+
+  static constexpr int block_threads         = AgentRlePolicyT::BLOCK_THREADS;
+  static constexpr int items_per_thread      = AgentRlePolicyT::ITEMS_PER_THREAD;
+  static constexpr int warps                 = (block_threads + warp_threads - 1) / warp_threads;
+  static constexpr int active_exchange_warps = AgentRlePolicyT::STORE_WARP_TIME_SLICING ? 1 : warps;
+
+  template <typename T>
+  static constexpr smem_layout warp_exchange_layout =
+    required_smem_layout_v<cub_algorithm::warp_exchange,
+                           T,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<int, warp_threads>,
+                           ::cuda::std::integral_constant<WarpExchangeAlgorithm, WARP_EXCHANGE_SMEM>>;
+
+  static constexpr smem_layout pair_exchange_layout =
+    AgentRlePolicyT::STORE_WARP_TIME_SLICING
+      ? detail::array_layout(warp_exchange_layout<length_offset_pair>, active_exchange_warps)
+      : detail::array_layout(type_layout<NullType>, active_exchange_warps);
+
+  static constexpr smem_layout scan_storage = detail::struct_layout(
+    required_smem_layout_v<cub_algorithm::block_discontinuity,
+                           item_t,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>,
+    detail::array_layout(required_smem_layout_v<cub_algorithm::warp_scan,
+                                                length_offset_pair,
+                                                ::cuda::std::integral_constant<int, warp_threads>>,
+                         warps),
+    detail::uninitialized_layout(detail::array_layout(type_layout<length_offset_pair>, warps)),
+    required_smem_layout_v<cub_algorithm::tile_prefix_callback, length_offset_pair>);
+
+  static constexpr smem_layout scatter_storage = detail::union_layout(
+    type_layout<unsigned long long>,
+    pair_exchange_layout,
+    detail::array_layout(warp_exchange_layout<OffsetT>, active_exchange_warps),
+    detail::array_layout(warp_exchange_layout<length_t>, active_exchange_warps));
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::struct_layout(
+    detail::union_layout(
+      scan_storage,
+      required_smem_layout_v<cub_algorithm::block_load,
+                             item_t,
+                             ::cuda::std::integral_constant<int, block_threads>,
+                             ::cuda::std::integral_constant<int, items_per_thread>,
+                             ::cuda::std::integral_constant<BlockLoadAlgorithm, AgentRlePolicyT::LOAD_ALGORITHM>,
+                             ::cuda::std::integral_constant<int, 1>,
+                             ::cuda::std::integral_constant<int, 1>>,
+      scatter_storage),
+    type_layout<OffsetT>,
+    type_layout<length_offset_pair>,
+    type_layout<length_offset_pair>));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

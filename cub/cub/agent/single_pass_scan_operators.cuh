@@ -20,6 +20,7 @@
 #endif // no system header
 
 #include <cub/detail/iket_support.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/detail/strong_load.cuh>
 #include <cub/detail/strong_store.cuh>
 #include <cub/detail/uninitialized_copy.cuh>
@@ -1441,5 +1442,18 @@ public:
     return tile_idx;
   }
 };
+
+namespace detail
+{
+// The tile state and the delay constructor do not contribute to the storage, so the layout only depends on the scanned
+// type.
+template <typename T>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::tile_prefix_callback, T> =
+  detail::uninitialized_layout(detail::struct_layout(
+    required_smem_layout_v<cub_algorithm::warp_reduce, T, ::cuda::std::integral_constant<int, 32>>,
+    type_layout<T>,
+    type_layout<T>,
+    type_layout<T>));
+} // namespace detail
 
 CUB_NAMESPACE_END

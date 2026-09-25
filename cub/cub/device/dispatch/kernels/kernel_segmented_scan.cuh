@@ -21,6 +21,7 @@
 #include <cub/block/block_reduce.cuh>
 #include <cub/block/block_scan.cuh>
 #include <cub/block/block_store.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/detail/segmented_scan_helpers.cuh>
 #include <cub/device/dispatch/tuning/tuning_segmented_scan.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
@@ -671,5 +672,74 @@ __launch_bounds__(current_policy<PolicySelector>().block.threads_per_block)
   }
 }
 } // namespace detail::segmented_scan
+
+namespace detail
+{
+template <typename SegmentedScanPolicyGetterT, typename OffsetT, typename AccumT>
+struct required_smem_layout<cub_algorithm::agent_segmented_scan, SegmentedScanPolicyGetterT, OffsetT, AccumT>
+{
+private:
+  static constexpr auto block           = SegmentedScanPolicyGetterT{}().block;
+  static constexpr int threads          = block.threads_per_block;
+  static constexpr int items_per_thread = block.items_per_thread;
+  static constexpr int max_segments     = block.max_segments;
+  static constexpr bool multi_segment   = max_segments > 1;
+  using augmented_t                     = segmented_scan::agent_segmented_scan_compute_t<AccumT, max_segments>;
+
+  template <typename T>
+  static constexpr smem_layout load_layout =
+    required_smem_layout_v<cub_algorithm::block_load,
+                           T,
+                           ::cuda::std::integral_constant<int, threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockLoadAlgorithm, block.load_algorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  template <typename T>
+  static constexpr smem_layout store_layout =
+    required_smem_layout_v<cub_algorithm::block_store,
+                           T,
+                           ::cuda::std::integral_constant<int, threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockStoreAlgorithm, block.store_algorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  template <typename T>
+  static constexpr smem_layout scan_layout =
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           T,
+                           ::cuda::std::integral_constant<int, threads>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, block.scan_algorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout single_segment =
+    detail::struct_layout(detail::union_layout(load_layout<AccumT>, store_layout<AccumT>, scan_layout<AccumT>));
+
+  static constexpr smem_layout multi_segment_storage = detail::struct_layout(
+    detail::array_layout(type_layout<OffsetT>, max_segments),
+    type_layout<unsigned int>,
+    detail::union_layout(
+      load_layout<AccumT>,
+      store_layout<AccumT>,
+      scan_layout<AccumT>,
+      load_layout<augmented_t>,
+      store_layout<augmented_t>,
+      scan_layout<augmented_t>,
+      scan_layout<OffsetT>,
+      required_smem_layout_v<cub_algorithm::block_reduce,
+                             unsigned int,
+                             ::cuda::std::integral_constant<int, threads>,
+                             ::cuda::std::integral_constant<BlockReduceAlgorithm, BLOCK_REDUCE_WARP_REDUCTIONS>,
+                             ::cuda::std::integral_constant<int, 1>,
+                             ::cuda::std::integral_constant<int, 1>>));
+
+public:
+  static constexpr smem_layout value =
+    detail::uninitialized_layout(multi_segment ? multi_segment_storage : single_segment);
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

@@ -19,6 +19,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/detail/uninitialized_copy.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/warp/warp_scan.cuh>
@@ -508,6 +509,25 @@ struct BlockScanWarpScans
     T block_prefix   = temp_storage.block_prefix;
     exclusive_output = scan_op(block_prefix, exclusive_output);
   }
+};
+
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_scan_warp_scans,
+                            T,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  static constexpr int block_threads = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int warps         = ::cuda::ceil_div(block_threads, warp_threads);
+
+  static constexpr smem_layout warp_scan_layout =
+    required_smem_layout_v<cub_algorithm::warp_scan, T, ::cuda::std::integral_constant<int, warp_threads>>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::aligned_layout<32>(detail::struct_layout(
+    detail::array_layout(type_layout<T>, warps), detail::array_layout(warp_scan_layout, warps), type_layout<T>)));
 };
 } // namespace detail
 

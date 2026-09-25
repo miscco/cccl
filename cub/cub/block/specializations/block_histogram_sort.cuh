@@ -22,6 +22,7 @@
 
 #include <cub/block/block_discontinuity.cuh>
 #include <cub/block/block_radix_sort.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 
 CUB_NAMESPACE_BEGIN
@@ -203,6 +204,39 @@ struct BlockHistogramSort
       histogram[thread_offset] += count;
     }
   }
+};
+} // namespace detail
+
+namespace detail
+{
+template <typename T, int BlockDimX, int ItemsPerThread, int Bins, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_histogram_sort,
+                            T,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, ItemsPerThread>,
+                            ::cuda::std::integral_constant<int, Bins>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::union_layout(
+    required_smem_layout_v<cub_algorithm::block_radix_sort,
+                           T,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<int, ItemsPerThread>,
+                           NullType,
+                           ::cuda::std::integral_constant<int, 4>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, BLOCK_SCAN_WARP_SCANS>,
+                           ::cuda::std::integral_constant<cudaSharedMemConfig, cudaSharedMemBankSizeFourByte>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>,
+    detail::struct_layout(
+      required_smem_layout_v<cub_algorithm::block_discontinuity,
+                             T,
+                             ::cuda::std::integral_constant<int, BlockDimX>,
+                             ::cuda::std::integral_constant<int, BlockDimY>,
+                             ::cuda::std::integral_constant<int, BlockDimZ>>,
+      detail::array_layout(type_layout<unsigned int>, Bins),
+      detail::array_layout(type_layout<unsigned int>, Bins))));
 };
 } // namespace detail
 

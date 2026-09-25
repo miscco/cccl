@@ -17,6 +17,7 @@
 #include <cub/block/block_load_to_shared.cuh>
 #include <cub/block/block_merge_sort.cuh>
 #include <cub/block/block_store.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/util_namespace.cuh>
 #include <cub/util_type.cuh>
@@ -331,4 +332,64 @@ struct agent_t
   }
 };
 } // namespace detail::merge
+
+namespace detail
+{
+template <int ThreadsPerBlock,
+          int ItemsPerThread,
+          BlockStoreAlgorithm StoreAlgorithm,
+          bool UseBl2ShForKeys,
+          bool UseBl2ShForItems,
+          typename KeysIt1,
+          typename ItemsIt1>
+struct required_smem_layout<cub_algorithm::agent_merge,
+                            ::cuda::std::integral_constant<int, ThreadsPerBlock>,
+                            ::cuda::std::integral_constant<int, ItemsPerThread>,
+                            ::cuda::std::integral_constant<BlockStoreAlgorithm, StoreAlgorithm>,
+                            ::cuda::std::bool_constant<UseBl2ShForKeys>,
+                            ::cuda::std::bool_constant<UseBl2ShForItems>,
+                            KeysIt1,
+                            ItemsIt1>
+{
+private:
+  using key_type  = it_value_t<KeysIt1>;
+  using item_type = it_value_t<ItemsIt1>;
+
+  static constexpr int items_per_tile      = ItemsPerThread * ThreadsPerBlock;
+  static constexpr int bl2sh_minimum_align = LoadToSharedBufferAlignBytes<char>();
+
+  template <typename T>
+  static constexpr smem_layout buffer_layout = detail::aligned_layout<LoadToSharedBufferAlignBytes<T>()>(
+    detail::array_layout(type_layout<char>,
+                         LoadToSharedBufferSizeBytes<T>(items_per_tile + 1ULL)
+                           + (alignof(T) < bl2sh_minimum_align ? 2 * bl2sh_minimum_align : 0)));
+
+  template <typename T, bool UseBl2Sh>
+  static constexpr smem_layout shared_layout =
+    UseBl2Sh ? buffer_layout<T> : detail::array_layout(type_layout<T>, items_per_tile + 1);
+
+  template <typename T>
+  static constexpr smem_layout store_layout =
+    required_smem_layout_v<cub_algorithm::block_store,
+                           T,
+                           ::cuda::std::integral_constant<int, ThreadsPerBlock>,
+                           ::cuda::std::integral_constant<int, ItemsPerThread>,
+                           ::cuda::std::integral_constant<BlockStoreAlgorithm, StoreAlgorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout data_layout = detail::union_layout(
+    store_layout<key_type>,
+    store_layout<item_type>,
+    shared_layout<key_type, UseBl2ShForKeys>,
+    shared_layout<item_type, UseBl2ShForItems>);
+
+  static constexpr smem_layout load_to_shared_layout = required_smem_layout_v<cub_algorithm::block_load_to_shared>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(
+    UseBl2ShForKeys || UseBl2ShForItems ? detail::struct_layout(data_layout, load_to_shared_layout) : data_layout);
+};
+} // namespace detail
+
 CUB_NAMESPACE_END

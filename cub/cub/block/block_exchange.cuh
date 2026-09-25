@@ -18,6 +18,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/detail/uninitialized_copy.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
@@ -1399,5 +1400,30 @@ public:
 
   //! @}
 };
+
+namespace detail
+{
+template <typename T, int BlockDimX, int ItemsPerThread, bool WarpTimeSlicing, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_exchange,
+                            T,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, ItemsPerThread>,
+                            ::cuda::std::bool_constant<WarpTimeSlicing>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  static constexpr int block_threads = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int storage_threads =
+    WarpTimeSlicing && block_threads > detail::warp_threads ? detail::warp_threads : block_threads;
+  static constexpr int storage_items = storage_threads * ItemsPerThread;
+  static constexpr int padding_items =
+    ItemsPerThread > 4 && (ItemsPerThread & (ItemsPerThread - 1)) == 0 ? storage_items >> detail::log2_smem_banks : 0;
+
+public:
+  static constexpr smem_layout value =
+    detail::aligned_layout<16>(detail::array_layout(type_layout<T>, storage_items + padding_items));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

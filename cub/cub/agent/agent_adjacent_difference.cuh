@@ -16,6 +16,7 @@
 #include <cub/block/block_adjacent_difference.cuh>
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_store.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/util_namespace.cuh>
 #include <cub/util_type.cuh>
@@ -52,6 +53,32 @@ template <int ThreadsPerBlock,
 using AgentAdjacentDifferencePolicy CCCL_DEPRECATED_BECAUSE("Use the tuning API for DeviceAdjacentDifference") =
   detail::agent_adjacent_difference_policy<ThreadsPerBlock, ItemsPerThread, LoadAlgorithm, LoadModifier, StoreAlgorithm>;
 
+namespace detail
+{
+template <typename Policy, typename InputT, typename OutputT>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::agent_difference, Policy, InputT, OutputT> =
+  detail::union_layout(
+    required_smem_layout_v<cub_algorithm::block_load,
+                           InputT,
+                           ::cuda::std::integral_constant<int, Policy::BLOCK_THREADS>,
+                           ::cuda::std::integral_constant<int, Policy::ITEMS_PER_THREAD>,
+                           ::cuda::std::integral_constant<BlockLoadAlgorithm, Policy::LOAD_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>,
+    required_smem_layout_v<cub_algorithm::block_store,
+                           OutputT,
+                           ::cuda::std::integral_constant<int, Policy::BLOCK_THREADS>,
+                           ::cuda::std::integral_constant<int, Policy::ITEMS_PER_THREAD>,
+                           ::cuda::std::integral_constant<BlockStoreAlgorithm, Policy::STORE_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>,
+    required_smem_layout_v<cub_algorithm::block_adjacent_difference,
+                           InputT,
+                           ::cuda::std::integral_constant<int, Policy::BLOCK_THREADS>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>);
+} // namespace detail
+
 namespace detail::adjacent_difference
 {
 template <typename Policy,
@@ -82,11 +109,13 @@ struct AgentDifference
   /// Alias wrapper allowing storage to be unioned
   struct TempStorage : Uninitialized<_TempStorage>
   {};
+  static constexpr smem_layout required_smem =
+    required_smem_layout_v<cub_algorithm::agent_difference, Policy, InputT, OutputT>;
 
   static constexpr int BLOCK_THREADS      = Policy::BLOCK_THREADS;
   static constexpr int ITEMS_PER_THREAD   = Policy::ITEMS_PER_THREAD;
   static constexpr int ITEMS_PER_TILE     = Policy::ITEMS_PER_TILE;
-  static constexpr int SHARED_MEMORY_SIZE = static_cast<int>(sizeof(TempStorage));
+  static constexpr int SHARED_MEMORY_SIZE = static_cast<int>(required_smem.size);
 
   _TempStorage& temp_storage;
   InputIteratorT input_it;
@@ -241,5 +270,11 @@ struct AgentDifferenceInit
   }
 };
 } // namespace detail::adjacent_difference
+
+namespace detail
+{
+template <>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::agent_difference_init> = no_smem;
+} // namespace detail
 
 CUB_NAMESPACE_END

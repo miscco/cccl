@@ -18,6 +18,7 @@
 #endif // no system header
 
 #include <cub/block/block_exchange.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 
@@ -950,6 +951,36 @@ public:
 
   //! @}
 };
+
+namespace detail
+{
+template <typename T, int BlockDimX, int ItemsPerThread, BlockStoreAlgorithm Algorithm, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_store,
+                            T,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, ItemsPerThread>,
+                            ::cuda::std::integral_constant<BlockStoreAlgorithm, Algorithm>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  static constexpr bool uses_block_exchange =
+    Algorithm == BLOCK_STORE_TRANSPOSE || Algorithm == BLOCK_STORE_WARP_TRANSPOSE
+    || Algorithm == BLOCK_STORE_WARP_TRANSPOSE_TIMESLICED;
+  static constexpr smem_layout exchange =
+    required_smem_layout_v<cub_algorithm::block_exchange,
+                           T,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<int, ItemsPerThread>,
+                           ::cuda::std::bool_constant<Algorithm == BLOCK_STORE_WARP_TRANSPOSE_TIMESLICED>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>;
+
+public:
+  static constexpr smem_layout value =
+    uses_block_exchange ? detail::struct_layout(exchange, type_layout<int>) : no_smem;
+};
+} // namespace detail
 
 #ifndef _CCCL_DOXYGEN_INVOKED // Do not document
 template <class Policy, class It, class T = cub::detail::it_value_t<It>>

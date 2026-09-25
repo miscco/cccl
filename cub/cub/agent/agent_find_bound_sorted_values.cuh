@@ -14,6 +14,7 @@
 #endif // no system header
 
 #include <cub/block/block_merge_sort.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/util_namespace.cuh>
 #include <cub/util_type.cuh>
@@ -218,5 +219,24 @@ struct agent_t
   }
 };
 } // namespace detail::find_bound_sorted_values
+
+namespace detail
+{
+template <int ThreadsPerBlock, int ItemsPerThread, typename HaystackIt, typename NeedlesIt>
+struct required_smem_layout<cub_algorithm::agent_find_bound_sorted_values,
+                            ::cuda::std::integral_constant<int, ThreadsPerBlock>,
+                            ::cuda::std::integral_constant<int, ItemsPerThread>,
+                            HaystackIt,
+                            NeedlesIt>
+{
+private:
+  static constexpr int tile_size = ThreadsPerBlock * ItemsPerThread;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(
+    detail::struct_layout(detail::array_layout(type_layout<it_value_t<HaystackIt>>, tile_size),
+                          detail::array_layout(type_layout<it_value_t<NeedlesIt>>, tile_size)));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

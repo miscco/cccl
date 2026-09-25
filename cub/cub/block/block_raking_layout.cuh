@@ -20,7 +20,10 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_type.cuh>
+
+#include <cuda/__cmath/ceil_div.h>
 
 CUB_NAMESPACE_BEGIN
 
@@ -120,5 +123,34 @@ struct BlockRakingLayout
     return temp_storage.Alias().buff + (linear_tid * (SEGMENT_LENGTH + USE_SEGMENT_PADDING));
   }
 };
+
+namespace detail
+{
+//! Mirrors `BlockRakingLayout::SEGMENT_LENGTH` without instantiating `BlockRakingLayout`.
+[[nodiscard]] _CCCL_HOST_DEVICE_API constexpr int block_raking_segment_length(int threads_per_block)
+{
+  const int max_raking_threads = threads_per_block < warp_threads ? threads_per_block : warp_threads;
+  return ::cuda::ceil_div(threads_per_block, max_raking_threads);
+}
+
+//! Mirrors `BlockRakingLayout::RAKING_THREADS` without instantiating `BlockRakingLayout`.
+[[nodiscard]] _CCCL_HOST_DEVICE_API constexpr int block_raking_threads(int threads_per_block)
+{
+  return ::cuda::ceil_div(threads_per_block, detail::block_raking_segment_length(threads_per_block));
+}
+
+template <typename T, int ThreadsPerBlock>
+struct required_smem_layout<cub_algorithm::block_raking_layout, T, ::cuda::std::integral_constant<int, ThreadsPerBlock>>
+{
+private:
+  static constexpr int segment_length = detail::block_raking_segment_length(ThreadsPerBlock);
+  static constexpr int raking_threads = detail::block_raking_threads(ThreadsPerBlock);
+  static constexpr bool uses_padding  = (segment_length & 1) == 0 && segment_length > 2;
+  static constexpr int grid_elements  = raking_threads * (segment_length + uses_padding);
+
+public:
+  static constexpr smem_layout value = detail::aligned_layout<16>(detail::array_layout(type_layout<T>, grid_elements));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

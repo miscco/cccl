@@ -20,6 +20,7 @@
 #endif // no system header
 
 #include <cub/block/block_exchange.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
@@ -1183,6 +1184,33 @@ public:
 
   //! @}
 };
+
+namespace detail
+{
+template <typename T, int BlockDimX, int ItemsPerThread, BlockLoadAlgorithm Algorithm, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_load,
+                            T,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, ItemsPerThread>,
+                            ::cuda::std::integral_constant<BlockLoadAlgorithm, Algorithm>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+  static constexpr bool uses_block_exchange =
+    Algorithm == BLOCK_LOAD_TRANSPOSE || Algorithm == BLOCK_LOAD_WARP_TRANSPOSE
+    || Algorithm == BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED;
+  static constexpr smem_layout value =
+    uses_block_exchange
+      ? required_smem_layout_v<cub_algorithm::block_exchange,
+                               T,
+                               ::cuda::std::integral_constant<int, BlockDimX>,
+                               ::cuda::std::integral_constant<int, ItemsPerThread>,
+                               ::cuda::std::bool_constant<Algorithm == BLOCK_LOAD_WARP_TRANSPOSE_TIMESLICED>,
+                               ::cuda::std::integral_constant<int, BlockDimY>,
+                               ::cuda::std::integral_constant<int, BlockDimZ>>
+      : no_smem;
+};
+} // namespace detail
 
 template <class Policy, class It, class T = cub::detail::it_value_t<It>>
 struct BlockLoadType

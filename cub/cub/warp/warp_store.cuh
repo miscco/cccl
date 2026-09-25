@@ -17,6 +17,7 @@
 #endif // no system header
 
 #include <cub/block/block_store.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 #include <cub/warp/warp_exchange.cuh>
@@ -545,5 +546,23 @@ public:
 
   //! @}
 };
+
+namespace detail
+{
+template <typename T, int ItemsPerThread, WarpStoreAlgorithm Algorithm, int LogicalWarpThreads>
+inline constexpr smem_layout required_smem_layout_v<
+  cub_algorithm::warp_store,
+  T,
+  ::cuda::std::integral_constant<int, ItemsPerThread>,
+  ::cuda::std::integral_constant<WarpStoreAlgorithm, Algorithm>,
+  ::cuda::std::integral_constant<int, LogicalWarpThreads>> =
+  Algorithm == WARP_STORE_TRANSPOSE
+    ? required_smem_layout_v<cub_algorithm::warp_exchange,
+                             T,
+                             ::cuda::std::integral_constant<int, ItemsPerThread>,
+                             ::cuda::std::integral_constant<int, LogicalWarpThreads>,
+                             ::cuda::std::integral_constant<WarpExchangeAlgorithm, WARP_EXCHANGE_SMEM>>
+    : no_smem;
+} // namespace detail
 
 CUB_NAMESPACE_END

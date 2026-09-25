@@ -18,6 +18,7 @@
 #include <cub/block/block_store.cuh>
 #include <cub/block/block_topk.cuh>
 #include <cub/detail/choose_offset.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/detail/segmented_params.cuh>
 #include <cub/device/dispatch/dispatch_common.cuh>
 #include <cub/device/dispatch/tuning/tuning_batched_topk.cuh>
@@ -384,4 +385,73 @@ struct agent_batched_topk_worker_per_segment
   }
 };
 } // namespace detail::batched_topk
+
+namespace detail
+{
+template <typename PolicyGetter, typename KeyInputItItT, typename ValueInputItItT, typename SegmentSizeParameterT>
+struct required_smem_layout<cub_algorithm::agent_batched_topk,
+                            PolicyGetter,
+                            KeyInputItItT,
+                            ValueInputItItT,
+                            SegmentSizeParameterT>
+{
+private:
+  using key_type          = it_value_t<it_value_t<KeyInputItItT>>;
+  using value_type        = it_value_t<it_value_t<ValueInputItItT>>;
+  using segment_size_type = typename ::cuda::args::__traits<SegmentSizeParameterT>::element_type;
+
+  static constexpr auto policy                   = PolicyGetter{}();
+  static constexpr auto active_policy            = policy.worker_per_segment_policy;
+  static constexpr int threads_per_block         = active_policy.threads_per_block;
+  static constexpr int items_per_thread          = active_policy.items_per_thread;
+  static constexpr int epilogue_items_per_thread = active_policy.epilogue.items_per_thread;
+
+  template <typename T, BlockLoadAlgorithm Algorithm, int ItemsPerThread>
+  static constexpr smem_layout load_layout =
+    required_smem_layout_v<cub_algorithm::block_load,
+                           T,
+                           ::cuda::std::integral_constant<int, threads_per_block>,
+                           ::cuda::std::integral_constant<int, ItemsPerThread>,
+                           ::cuda::std::integral_constant<BlockLoadAlgorithm, Algorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  template <typename T, BlockStoreAlgorithm Algorithm, int ItemsPerThread>
+  static constexpr smem_layout store_layout =
+    required_smem_layout_v<cub_algorithm::block_store,
+                           T,
+                           ::cuda::std::integral_constant<int, threads_per_block>,
+                           ::cuda::std::integral_constant<int, ItemsPerThread>,
+                           ::cuda::std::integral_constant<BlockStoreAlgorithm, Algorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout topk_layout =
+    required_smem_layout_v<cub_algorithm::block_topk,
+                           key_type,
+                           ::cuda::std::integral_constant<int, threads_per_block>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           value_type>;
+
+  static constexpr smem_layout scan_layout =
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           int,
+                           ::cuda::std::integral_constant<int, threads_per_block>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, active_policy.epilogue.scan_algorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::union_layout(
+    load_layout<key_type, active_policy.load_algorithm, items_per_thread>,
+    load_layout<value_type, active_policy.load_algorithm, items_per_thread>,
+    topk_layout,
+    store_layout<key_type, active_policy.store_algorithm, items_per_thread>,
+    store_layout<value_type, active_policy.store_algorithm, items_per_thread>,
+    load_layout<segment_size_type, active_policy.epilogue.load_algorithm, epilogue_items_per_thread>,
+    scan_layout,
+    store_layout<segment_size_type, active_policy.epilogue.store_algorithm, epilogue_items_per_thread>));
+};
+} // namespace detail
+
 CUB_NAMESPACE_END

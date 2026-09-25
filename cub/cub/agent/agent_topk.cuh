@@ -19,6 +19,7 @@
 #include <cub/block/block_scan.cuh>
 #include <cub/block/block_store.cuh>
 #include <cub/block/radix_rank_sort_operations.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_type.cuh>
 
 #include <cuda/__cmath/ceil_div.h>
@@ -834,4 +835,50 @@ struct AgentTopK
   }
 };
 } // namespace detail::topk
+
+namespace detail
+{
+template <typename AgentTopKPolicyT, typename KeyInputIteratorT, typename OffsetT>
+struct required_smem_layout<cub_algorithm::agent_topk, AgentTopKPolicyT, KeyInputIteratorT, OffsetT>
+{
+private:
+  static constexpr int threads          = AgentTopKPolicyT::threads_per_block;
+  static constexpr int items_per_thread = AgentTopKPolicyT::items_per_thread;
+  static constexpr int num_buckets      = 1 << AgentTopKPolicyT::bits_per_pass;
+  static constexpr int bins_per_thread  = ::cuda::ceil_div(num_buckets, threads);
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::struct_layout(
+    detail::union_layout(
+      required_smem_layout_v<cub_algorithm::block_load,
+                             it_value_t<KeyInputIteratorT>,
+                             ::cuda::std::integral_constant<int, threads>,
+                             ::cuda::std::integral_constant<int, items_per_thread>,
+                             ::cuda::std::integral_constant<BlockLoadAlgorithm, AgentTopKPolicyT::load_algorithm>,
+                             ::cuda::std::integral_constant<int, 1>,
+                             ::cuda::std::integral_constant<int, 1>>,
+      required_smem_layout_v<cub_algorithm::block_load,
+                             OffsetT,
+                             ::cuda::std::integral_constant<int, threads>,
+                             ::cuda::std::integral_constant<int, bins_per_thread>,
+                             ::cuda::std::integral_constant<BlockLoadAlgorithm, BLOCK_LOAD_TRANSPOSE>,
+                             ::cuda::std::integral_constant<int, 1>,
+                             ::cuda::std::integral_constant<int, 1>>,
+      required_smem_layout_v<cub_algorithm::block_scan,
+                             OffsetT,
+                             ::cuda::std::integral_constant<int, threads>,
+                             ::cuda::std::integral_constant<BlockScanAlgorithm, AgentTopKPolicyT::SCAN_ALGORITHM>,
+                             ::cuda::std::integral_constant<int, 1>,
+                             ::cuda::std::integral_constant<int, 1>>,
+      required_smem_layout_v<cub_algorithm::block_store,
+                             OffsetT,
+                             ::cuda::std::integral_constant<int, threads>,
+                             ::cuda::std::integral_constant<int, bins_per_thread>,
+                             ::cuda::std::integral_constant<BlockStoreAlgorithm, BLOCK_STORE_TRANSPOSE>,
+                             ::cuda::std::integral_constant<int, 1>,
+                             ::cuda::std::integral_constant<int, 1>>),
+    detail::array_layout(type_layout<OffsetT>, num_buckets)));
+};
+} // namespace detail
+
 CUB_NAMESPACE_END

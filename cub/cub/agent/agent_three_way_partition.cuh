@@ -19,6 +19,7 @@
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_scan.cuh>
 #include <cub/block/block_store.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/util_device.cuh>
 
@@ -335,7 +336,7 @@ struct AgentThreeWayPartition
           // Medium item
           const int local_selection_idx = (first_items_selection_indices - num_first_selections_prefix)
                                         + (second_items_selection_indices - num_second_selections_prefix);
-          local_scatter_offset          = second_item_end + item_idx - local_selection_idx;
+          local_scatter_offset = second_item_end + item_idx - local_selection_idx;
         }
 
         temp_storage.raw_exchange.Alias()[local_scatter_offset] = items[ITEM];
@@ -584,5 +585,39 @@ struct AgentThreeWayPartition
   }
 };
 } // namespace detail::three_way_partition
+
+namespace detail
+{
+template <typename PolicyT, typename InputIteratorT, typename OffsetT>
+struct required_smem_layout<cub_algorithm::agent_three_way_partition, PolicyT, InputIteratorT, OffsetT>
+{
+private:
+  using input_t                         = it_value_t<InputIteratorT>;
+  using accum_pack_t                    = typename three_way_partition::accumulator_pack_t<OffsetT>::pack_t;
+  static constexpr int block_threads    = PolicyT::BLOCK_THREADS;
+  static constexpr int items_per_thread = PolicyT::ITEMS_PER_THREAD;
+
+  static constexpr smem_layout scan_storage = detail::struct_layout(
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           accum_pack_t,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, PolicyT::SCAN_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>,
+    required_smem_layout_v<cub_algorithm::tile_prefix_callback, accum_pack_t>);
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::union_layout(
+    scan_storage,
+    required_smem_layout_v<cub_algorithm::block_load,
+                           input_t,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockLoadAlgorithm, PolicyT::LOAD_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>,
+    detail::uninitialized_layout(detail::array_layout(type_layout<input_t>, block_threads* items_per_thread))));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

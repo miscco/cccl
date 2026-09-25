@@ -4,6 +4,7 @@
 #pragma once
 #include <cub/config.cuh>
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/thread/thread_load.cuh>
 #include <cub/util_arch.cuh>
@@ -199,5 +200,15 @@ struct agent_t
   }
 };
 } // namespace detail::find
+
+namespace detail
+{
+template <typename OffsetT>
+struct required_smem_layout<cub_algorithm::agent_find, OffsetT>
+{
+  static constexpr smem_layout value =
+    detail::uninitialized_layout(detail::struct_layout(type_layout<OffsetT>, type_layout<OffsetT>));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

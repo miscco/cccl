@@ -19,6 +19,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 #include <cub/warp/specializations/warp_exchange_shfl.cuh>
@@ -394,5 +395,25 @@ public:
 
   //@}
 };
+
+namespace detail
+{
+template <typename T, int ItemsPerThread, int LogicalWarpThreads, WarpExchangeAlgorithm Algorithm>
+struct required_smem_layout<cub_algorithm::warp_exchange,
+                            T,
+                            ::cuda::std::integral_constant<int, ItemsPerThread>,
+                            ::cuda::std::integral_constant<int, LogicalWarpThreads>,
+                            ::cuda::std::integral_constant<WarpExchangeAlgorithm, Algorithm>>
+{
+private:
+  static constexpr int tile_items = ItemsPerThread * LogicalWarpThreads + 1;
+  static constexpr int padding_items =
+    ItemsPerThread > 4 && (ItemsPerThread & (ItemsPerThread - 1)) == 0 ? tile_items >> log2_smem_banks : 0;
+
+public:
+  static constexpr smem_layout value =
+    Algorithm == WARP_EXCHANGE_SMEM ? detail::array_layout(type_layout<T>, tile_items + padding_items) : no_smem;
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

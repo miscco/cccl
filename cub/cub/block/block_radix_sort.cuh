@@ -2187,4 +2187,53 @@ public:
   //@}
 };
 
+namespace detail
+{
+template <typename KeyT,
+          int BlockDimX,
+          int ItemsPerThread,
+          typename ValueT,
+          int RadixBits,
+          BlockScanAlgorithm InnerScanAlgorithm,
+          cudaSharedMemConfig SMemConfig,
+          int BlockDimY,
+          int BlockDimZ>
+struct required_smem_layout<
+  cub_algorithm::block_radix_sort,
+  KeyT,
+  ::cuda::std::integral_constant<int, BlockDimX>,
+  ::cuda::std::integral_constant<int, ItemsPerThread>,
+  ValueT,
+  ::cuda::std::integral_constant<int, RadixBits>,
+  ::cuda::std::integral_constant<BlockScanAlgorithm, InnerScanAlgorithm>,
+  ::cuda::std::integral_constant<cudaSharedMemConfig, SMemConfig>,
+  ::cuda::std::integral_constant<int, BlockDimY>,
+  ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  static constexpr smem_layout rank_layout =
+    required_smem_layout_v<cub_algorithm::block_radix_rank_basic,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<int, RadixBits>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, InnerScanAlgorithm>,
+                           ::cuda::std::integral_constant<cudaSharedMemConfig, SMemConfig>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>;
+
+  template <typename T>
+  static constexpr smem_layout exchange_layout =
+    required_smem_layout_v<cub_algorithm::block_exchange,
+                           T,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<int, ItemsPerThread>,
+                           ::cuda::std::bool_constant<false>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(
+    detail::union_layout(rank_layout, rank_layout, exchange_layout<KeyT>, exchange_layout<ValueT>));
+};
+} // namespace detail
+
 CUB_NAMESPACE_END

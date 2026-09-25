@@ -202,6 +202,34 @@ struct BlockReduceRakingCommutativeOnly
     return partial;
   }
 };
+
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_reduce_raking_commutative_only,
+                            T,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  static constexpr int block_threads = BlockDimX * BlockDimY * BlockDimZ;
+  // The fall-back storage is part of the union regardless of whether the fall-back is actually used.
+  static constexpr int sharing_threads = block_threads - warp_threads > 1 ? block_threads - warp_threads : 1;
+
+  static constexpr smem_layout default_storage_layout = detail::struct_layout(
+    required_smem_layout_v<cub_algorithm::warp_reduce, T, ::cuda::std::integral_constant<int, warp_threads>>,
+    required_smem_layout_v<cub_algorithm::block_raking_layout, T, ::cuda::std::integral_constant<int, sharing_threads>>);
+
+  static constexpr smem_layout fallback_layout =
+    required_smem_layout_v<cub_algorithm::block_reduce_raking,
+                           T,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>;
+
+public:
+  static constexpr smem_layout value =
+    detail::uninitialized_layout(detail::union_layout(default_storage_layout, fallback_layout));
+};
 } // namespace detail
 
 CUB_NAMESPACE_END

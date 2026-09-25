@@ -25,6 +25,7 @@
 #include <cub/block/block_run_length_decode.cuh>
 #include <cub/block/block_scan.cuh>
 #include <cub/block/block_store.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 
@@ -1160,5 +1161,87 @@ private:
   BLevBlockOffsetTileState blev_block_scan_state;
 };
 } // namespace detail::batch_memcpy
+
+namespace detail
+{
+// Stable partitioning is disabled, so the load is striped.
+template <typename AgentMemcpySmallBuffersPolicyT,
+          typename BufferSizeIteratorT,
+          typename BufferOffsetT,
+          typename BlockOffsetT>
+struct required_smem_layout<cub_algorithm::agent_batch_memcpy,
+                            AgentMemcpySmallBuffersPolicyT,
+                            BufferSizeIteratorT,
+                            BufferOffsetT,
+                            BlockOffsetT>
+{
+private:
+  static constexpr int block_threads         = static_cast<int>(AgentMemcpySmallBuffersPolicyT::BLOCK_THREADS);
+  static constexpr int buffers_per_thread    = static_cast<int>(AgentMemcpySmallBuffersPolicyT::BUFFERS_PER_THREAD);
+  static constexpr int tlev_bytes_per_thread = static_cast<int>(AgentMemcpySmallBuffersPolicyT::TLEV_BYTES_PER_THREAD);
+  static constexpr int buffers_per_block     = buffers_per_thread * block_threads;
+  static constexpr auto prefer_pow2 =
+    AgentMemcpySmallBuffersPolicyT::PREFER_POW2_BITS
+      ? batch_memcpy::prefer_power_of_two_bits_option::yes
+      : batch_memcpy::prefer_power_of_two_bits_option::no;
+
+  // Three size classes: thread, warp, and block collaboration.
+  static constexpr uint32_t num_size_classes = 3;
+  using size_class_counter_t =
+    batch_memcpy::bit_packed_counter<num_size_classes, static_cast<uint32_t>(buffers_per_block), prefer_pow2>;
+  // Zipped byte assignments and partitioned buffer tuples are both a pair of uint16_t.
+  struct uint16_pair_t
+  {
+    uint16_t first;
+    uint16_t second;
+  };
+
+  static constexpr smem_layout blev_storage = detail::struct_layout(
+    required_smem_layout_v<cub_algorithm::tile_prefix_callback, BlockOffsetT>,
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           BlockOffsetT,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, BLOCK_SCAN_RAKING>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>);
+
+  static constexpr smem_layout tlev_storage = detail::struct_layout(
+    required_smem_layout_v<cub_algorithm::block_run_length_decode,
+                           uint16_t,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, buffers_per_thread>,
+                           uint32_t,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>,
+    required_smem_layout_v<cub_algorithm::block_exchange,
+                           uint16_pair_t,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, tlev_bytes_per_thread>,
+                           ::cuda::std::bool_constant<false>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>);
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::struct_layout(
+    detail::union_layout(
+      required_smem_layout_v<cub_algorithm::block_load,
+                             it_value_t<BufferSizeIteratorT>,
+                             ::cuda::std::integral_constant<int, block_threads>,
+                             ::cuda::std::integral_constant<int, buffers_per_thread>,
+                             ::cuda::std::integral_constant<BlockLoadAlgorithm, BLOCK_LOAD_STRIPED>,
+                             ::cuda::std::integral_constant<int, 1>,
+                             ::cuda::std::integral_constant<int, 1>>,
+      required_smem_layout_v<cub_algorithm::block_scan,
+                             size_class_counter_t,
+                             ::cuda::std::integral_constant<int, block_threads>,
+                             ::cuda::std::integral_constant<BlockScanAlgorithm, BLOCK_SCAN_RAKING>,
+                             ::cuda::std::integral_constant<int, 1>,
+                             ::cuda::std::integral_constant<int, 1>>,
+      required_smem_layout_v<cub_algorithm::tile_prefix_callback, BufferOffsetT>,
+      detail::struct_layout(detail::array_layout(type_layout<uint16_pair_t>, buffers_per_block),
+                            detail::union_layout(blev_storage, tlev_storage))),
+    type_layout<BufferOffsetT>));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

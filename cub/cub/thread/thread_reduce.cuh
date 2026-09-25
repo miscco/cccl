@@ -17,6 +17,7 @@
 #endif // no system header
 
 #include <cub/detail/array_utils.cuh> // to_array()
+#include <cub/detail/required_smem.cuh>
 #include <cub/detail/type_traits.cuh> // are_same()
 #include <cub/detail/unsafe_bitcast.cuh>
 #include <cub/thread/thread_load.cuh> // UnrolledCopy
@@ -522,5 +523,11 @@ ThreadReduce(const Input& input, ReductionOp reduction_op, PrefixT prefix)
 }
 
 #endif // !_CCCL_DOXYGEN_INVOKED
+
+namespace detail
+{
+template <>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::thread_reduce> = no_smem;
+} // namespace detail
 
 CUB_NAMESPACE_END

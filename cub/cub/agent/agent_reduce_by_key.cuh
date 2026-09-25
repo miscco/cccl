@@ -23,6 +23,7 @@
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_scan.cuh>
 #include <cub/block/block_store.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 
 #include <cuda/__functional/operator_properties.h>
@@ -752,5 +753,68 @@ struct AgentReduceByKey
   }
 };
 } // namespace detail::reduce_by_key
+
+namespace detail
+{
+template <typename AgentReduceByKeyPolicyT,
+          typename KeysInputIteratorT,
+          typename UniqueOutputIteratorT,
+          typename OffsetT,
+          typename AccumT>
+struct required_smem_layout<cub_algorithm::agent_reduce_by_key,
+                            AgentReduceByKeyPolicyT,
+                            KeysInputIteratorT,
+                            UniqueOutputIteratorT,
+                            OffsetT,
+                            AccumT>
+{
+private:
+  using key_input_t         = it_value_t<KeysInputIteratorT>;
+  using key_output_t        = non_void_value_t<UniqueOutputIteratorT, key_input_t>;
+  using offset_value_pair_t = KeyValuePair<OffsetT, AccumT>;
+  using key_value_pair_t    = KeyValuePair<key_output_t, AccumT>;
+
+  static constexpr int block_threads    = AgentReduceByKeyPolicyT::BLOCK_THREADS;
+  static constexpr int items_per_thread = AgentReduceByKeyPolicyT::ITEMS_PER_THREAD;
+  static constexpr int items_per_tile   = block_threads * items_per_thread;
+
+  template <typename T>
+  static constexpr smem_layout load_layout =
+    required_smem_layout_v<cub_algorithm::block_load,
+                           T,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockLoadAlgorithm, AgentReduceByKeyPolicyT::LOAD_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout scan_layout =
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           offset_value_pair_t,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, AgentReduceByKeyPolicyT::SCAN_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout prefix_layout =
+    required_smem_layout_v<cub_algorithm::tile_prefix_callback, offset_value_pair_t>;
+
+  static constexpr smem_layout discontinuity_layout =
+    required_smem_layout_v<cub_algorithm::block_discontinuity,
+                           key_output_t,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout scan_storage = detail::struct_layout(scan_layout, prefix_layout, discontinuity_layout);
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::union_layout(
+    scan_storage,
+    load_layout<key_output_t>,
+    load_layout<AccumT>,
+    detail::array_layout(type_layout<key_value_pair_t>, items_per_tile + 1)));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

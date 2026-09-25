@@ -19,6 +19,7 @@
 
 #include <cub/block/block_scan.cuh>
 #include <cub/block/radix_rank_sort_operations.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/thread/thread_reduce.cuh>
 #include <cub/thread/thread_scan.cuh>
 #include <cub/util_ptx.cuh>
@@ -1235,6 +1236,162 @@ using block_radix_rank_t = ::cuda::std::_If<
         RankAlgorithm == RADIX_RANK_MATCH_EARLY_COUNTS_ANY,
         BlockRadixRankMatchEarlyCounts<BlockDimX, RadixBits, IsDescending, ScanAlgorithm, WARP_MATCH_ANY>,
         BlockRadixRankMatchEarlyCounts<BlockDimX, RadixBits, IsDescending, ScanAlgorithm, WARP_MATCH_ATOMIC_OR>>>>>;
+
+template <int BlockDimX,
+          int RadixBits,
+          BlockScanAlgorithm InnerScanAlgorithm,
+          cudaSharedMemConfig SMemConfig,
+          int BlockDimY,
+          int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_radix_rank_basic,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, RadixBits>,
+                            ::cuda::std::integral_constant<BlockScanAlgorithm, InnerScanAlgorithm>,
+                            ::cuda::std::integral_constant<cudaSharedMemConfig, SMemConfig>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  using digit_counter_type = unsigned short;
+  using packed_counter_type =
+    ::cuda::std::_If<SMemConfig == cudaSharedMemBankSizeEightByte, unsigned long long, unsigned int>;
+
+  static constexpr int block_threads        = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int packing_ratio        = sizeof(packed_counter_type) / sizeof(digit_counter_type);
+  static constexpr int log_packing_ratio    = packing_ratio == 4 ? 2 : 1;
+  static constexpr int log_counter_lanes    = (::cuda::std::max) (RadixBits - log_packing_ratio, 0);
+  static constexpr int counter_lanes        = 1 << log_counter_lanes;
+  static constexpr int padded_counter_lanes = counter_lanes + 1;
+
+  static constexpr smem_layout aliasable_layout = detail::union_layout(
+    detail::array_layout(type_layout<digit_counter_type>, padded_counter_lanes * block_threads * packing_ratio),
+    detail::array_layout(type_layout<packed_counter_type>, block_threads* padded_counter_lanes));
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::aligned_layout<16>(detail::struct_layout(
+    aliasable_layout,
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           packed_counter_type,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, InnerScanAlgorithm>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>)));
+};
+
+template <int BlockDimX, int RadixBits, BlockScanAlgorithm InnerScanAlgorithm, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_radix_rank_match,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, RadixBits>,
+                            ::cuda::std::integral_constant<BlockScanAlgorithm, InnerScanAlgorithm>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  using digit_counter_type = ::cuda::std::int32_t;
+
+  static constexpr int block_threads = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int radix_digits  = 1 << RadixBits;
+  static constexpr int warps         = ::cuda::ceil_div(block_threads, detail::warp_threads);
+  static constexpr int padded_warps  = ((warps & 0x1) == 0) ? warps + 1 : warps;
+
+  static constexpr int counters              = padded_warps * radix_digits;
+  static constexpr int raking_segment        = ::cuda::ceil_div(counters, block_threads);
+  static constexpr int padded_raking_segment = ((raking_segment & 0x1) == 0) ? raking_segment + 1 : raking_segment;
+
+  static constexpr smem_layout aliasable_layout = detail::aligned_layout<16>(
+    detail::union_layout(detail::array_layout(type_layout<digit_counter_type>, radix_digits* padded_warps),
+                         detail::array_layout(type_layout<digit_counter_type>, block_threads* padded_raking_segment)));
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::aligned_layout<16>(detail::struct_layout(
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           digit_counter_type,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, InnerScanAlgorithm>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>,
+    aliasable_layout)));
+};
+
+// `BlockRadixRankMatchEarlyCounts::TempStorage` is a plain struct rather than an `Uninitialized` wrapper.
+template <int BlockDimX,
+          int RadixBits,
+          BlockScanAlgorithm InnerScanAlgorithm,
+          WarpMatchAlgorithm MatchAlgorithm,
+          int NumParts>
+struct required_smem_layout<cub_algorithm::block_radix_rank_match_early_counts,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, RadixBits>,
+                            ::cuda::std::integral_constant<BlockScanAlgorithm, InnerScanAlgorithm>,
+                            ::cuda::std::integral_constant<WarpMatchAlgorithm, MatchAlgorithm>,
+                            ::cuda::std::integral_constant<int, NumParts>>
+{
+private:
+  static constexpr int radix_digits           = 1 << RadixBits;
+  static constexpr int block_warps            = BlockDimX / detail::warp_threads;
+  static constexpr int num_match_masks        = MatchAlgorithm == WARP_MATCH_ATOMIC_OR ? block_warps : 0;
+  static constexpr int match_masks_alloc_size = num_match_masks < 1 ? 1 : num_match_masks;
+
+public:
+  static constexpr smem_layout value = detail::struct_layout(
+    detail::union_layout(detail::array_layout(type_layout<int>, block_warps* radix_digits),
+                         detail::array_layout(type_layout<int>, block_warps * radix_digits * NumParts)),
+    detail::array_layout(type_layout<::cuda::std::uint32_t>, match_masks_alloc_size* radix_digits),
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           int,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, InnerScanAlgorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>);
+};
+
+template <RadixRankAlgorithm RankAlgorithm, int BlockDimX, int RadixBits, BlockScanAlgorithm ScanAlgorithm>
+struct required_smem_layout<cub_algorithm::block_radix_rank,
+                            ::cuda::std::integral_constant<RadixRankAlgorithm, RankAlgorithm>,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, RadixBits>,
+                            ::cuda::std::integral_constant<BlockScanAlgorithm, ScanAlgorithm>>
+{
+private:
+  [[nodiscard]] _CCCL_HOST_DEVICE_API static constexpr smem_layout get()
+  {
+    if constexpr (RankAlgorithm == RADIX_RANK_BASIC || RankAlgorithm == RADIX_RANK_MEMOIZE)
+    {
+      return required_smem_layout_v<cub_algorithm::block_radix_rank_basic,
+                                    ::cuda::std::integral_constant<int, BlockDimX>,
+                                    ::cuda::std::integral_constant<int, RadixBits>,
+                                    ::cuda::std::integral_constant<BlockScanAlgorithm, ScanAlgorithm>,
+                                    ::cuda::std::integral_constant<cudaSharedMemConfig, cudaSharedMemBankSizeFourByte>,
+                                    ::cuda::std::integral_constant<int, 1>,
+                                    ::cuda::std::integral_constant<int, 1>>;
+    }
+    else if constexpr (RankAlgorithm == RADIX_RANK_MATCH)
+    {
+      return required_smem_layout_v<cub_algorithm::block_radix_rank_match,
+                                    ::cuda::std::integral_constant<int, BlockDimX>,
+                                    ::cuda::std::integral_constant<int, RadixBits>,
+                                    ::cuda::std::integral_constant<BlockScanAlgorithm, ScanAlgorithm>,
+                                    ::cuda::std::integral_constant<int, 1>,
+                                    ::cuda::std::integral_constant<int, 1>>;
+    }
+    else
+    {
+      static_assert(
+        RankAlgorithm == RADIX_RANK_MATCH_EARLY_COUNTS_ANY || RankAlgorithm == RADIX_RANK_MATCH_EARLY_COUNTS_ATOMIC_OR);
+      constexpr WarpMatchAlgorithm match_algorithm =
+        RankAlgorithm == RADIX_RANK_MATCH_EARLY_COUNTS_ATOMIC_OR ? WARP_MATCH_ATOMIC_OR : WARP_MATCH_ANY;
+      return required_smem_layout_v<cub_algorithm::block_radix_rank_match_early_counts,
+                                    ::cuda::std::integral_constant<int, BlockDimX>,
+                                    ::cuda::std::integral_constant<int, RadixBits>,
+                                    ::cuda::std::integral_constant<BlockScanAlgorithm, ScanAlgorithm>,
+                                    ::cuda::std::integral_constant<WarpMatchAlgorithm, match_algorithm>,
+                                    ::cuda::std::integral_constant<int, 1>>;
+    }
+  }
+
+public:
+  static constexpr smem_layout value = get();
+};
 } // namespace detail
 #endif // _CCCL_DOXYGEN_INVOKED
 

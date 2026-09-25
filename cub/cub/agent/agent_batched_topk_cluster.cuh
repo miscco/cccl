@@ -46,6 +46,7 @@
 #include <cub/agent/agent_topk.cuh>
 #include <cub/block/block_scan.cuh>
 #include <cub/block/radix_rank_sort_operations.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/detail/segmented_params.cuh>
 #include <cub/detail/warpspeed/optimize_smem_ptr.cuh>
 #include <cub/device/dispatch/dispatch_common.cuh>
@@ -1050,9 +1051,9 @@ private:
       // seed is the only runtime modulo left in these consume loops in release builds (the per-visit ones became the
       // rolling step; a debug-only assert still evaluates one): a runtime, not compile-time-constant, divisor, at most
       // once per pass and cold. Lowest priority. `consume_overflow_visit` then steps the pointer with compare-select.
-      int stage = stream_is_forward
-                  ? 0
-                  : static_cast<int>((layout.num_local_overflow_chunks - 1) % static_cast<offset_t>(num_stream_stages));
+      int stage       = stream_is_forward
+                        ? 0
+                        : static_cast<int>((layout.num_local_overflow_chunks - 1) % static_cast<offset_t>(num_stream_stages));
       bool is_stopped = false;
       const offset_t num_phase1_chunks =
         (::cuda::std::min) (static_cast<offset_t>(num_stream_stages), layout.num_local_overflow_chunks);
@@ -3400,5 +3401,43 @@ private:
   }
 };
 } // namespace detail::batched_topk_cluster
+
+namespace detail
+{
+template <typename PolicyGetter, typename KeyInputItItT>
+struct required_smem_layout<cub_algorithm::agent_batched_topk_cluster, PolicyGetter, KeyInputItItT>
+{
+private:
+  using key_type = it_value_t<it_value_t<KeyInputItItT>>;
+
+  static constexpr auto policy              = PolicyGetter{}();
+  static constexpr int num_buckets          = 1 << policy.bits_per_pass;
+  static constexpr int load_alignment_items = policy.load_align_bytes / int{sizeof(key_type)};
+
+  static constexpr smem_layout state_pair = detail::aligned_layout<8>(
+    detail::struct_layout(type_layout<::cuda::std::uint32_t>, type_layout<::cuda::std::uint32_t>));
+  static constexpr smem_layout state_layout = detail::struct_layout(state_pair, state_pair);
+
+  static constexpr smem_layout scan_layout =
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           ::cuda::std::uint32_t,
+                           ::cuda::std::integral_constant<int, policy.threads_per_block>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, BLOCK_SCAN_WARP_SCANS>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::struct_layout(
+    detail::array_layout(type_layout<::cuda::std::uint32_t>, num_buckets),
+    state_layout,
+    type_layout<::cuda::std::uint32_t>,
+    type_layout<::cuda::std::uint32_t>,
+    type_layout<::cuda::std::uint32_t>,
+    type_layout<::cuda::std::uint32_t>,
+    scan_layout,
+    detail::array_layout(type_layout<::cuda::std::uint64_t>, policy.pipeline_stages),
+    detail::array_layout(type_layout<key_type>, 2 * load_alignment_items)));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

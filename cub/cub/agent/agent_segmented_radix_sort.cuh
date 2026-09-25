@@ -15,7 +15,10 @@
 
 #include <cub/agent/agent_radix_sort_downsweep.cuh>
 #include <cub/agent/agent_radix_sort_upsweep.cuh>
+#include <cub/block/block_load.cuh>
 #include <cub/block/block_radix_sort.cuh>
+#include <cub/block/block_scan.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_namespace.cuh>
 #include <cub/util_type.cuh>
 
@@ -259,5 +262,54 @@ struct AgentSegmentedRadixSort
   }
 };
 } // namespace detail::radix_sort
+
+namespace detail
+{
+template <typename SegmentedPolicyT, typename KeyT, typename ValueT, typename OffsetT>
+struct required_smem_layout<cub_algorithm::agent_segmented_radix_sort, SegmentedPolicyT, KeyT, ValueT, OffsetT>
+{
+private:
+  static constexpr int block_threads    = SegmentedPolicyT::BLOCK_THREADS;
+  static constexpr int items_per_thread = SegmentedPolicyT::ITEMS_PER_THREAD;
+  static constexpr int radix_bits       = SegmentedPolicyT::RADIX_BITS;
+  static constexpr int radix_digits     = 1 << radix_bits;
+
+  template <typename T>
+  static constexpr smem_layout load_layout =
+    required_smem_layout_v<cub_algorithm::block_load,
+                           T,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockLoadAlgorithm, SegmentedPolicyT::LOAD_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::union_layout(
+    required_smem_layout_v<cub_algorithm::agent_radix_sort_upsweep, SegmentedPolicyT, OffsetT>,
+    required_smem_layout_v<cub_algorithm::agent_radix_sort_downsweep, SegmentedPolicyT, KeyT, ValueT, OffsetT>,
+    detail::struct_layout(
+      detail::array_layout(type_layout<OffsetT>, radix_digits),
+      detail::array_layout(type_layout<OffsetT>, radix_digits),
+      required_smem_layout_v<cub_algorithm::block_scan,
+                             OffsetT,
+                             ::cuda::std::integral_constant<int, block_threads>,
+                             ::cuda::std::integral_constant<BlockScanAlgorithm, BLOCK_SCAN_RAKING>,
+                             ::cuda::std::integral_constant<int, 1>,
+                             ::cuda::std::integral_constant<int, 1>>),
+    load_layout<KeyT>,
+    load_layout<ValueT>,
+    required_smem_layout_v<cub_algorithm::block_radix_sort,
+                           KeyT,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ValueT,
+                           ::cuda::std::integral_constant<int, radix_bits>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, SegmentedPolicyT::SCAN_ALGORITHM>,
+                           ::cuda::std::integral_constant<cudaSharedMemConfig, cudaSharedMemBankSizeFourByte>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

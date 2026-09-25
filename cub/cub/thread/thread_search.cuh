@@ -19,6 +19,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_namespace.cuh>
 #include <cub/util_type.cuh>
 
@@ -156,5 +157,11 @@ _CCCL_DEVICE _CCCL_FORCEINLINE OffsetT UpperBound(InputIteratorT input, OffsetT 
 
   return retval;
 }
+
+namespace detail
+{
+template <>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::thread_search> = no_smem;
+} // namespace detail
 
 CUB_NAMESPACE_END

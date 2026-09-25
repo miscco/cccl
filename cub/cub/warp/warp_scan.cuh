@@ -20,11 +20,13 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/thread/thread_operators.cuh>
 #include <cub/util_type.cuh>
 #include <cub/warp/specializations/warp_scan_shfl.cuh>
 #include <cub/warp/specializations/warp_scan_smem.cuh>
 
+#include <cuda/__cmath/ilog.h>
 #include <cuda/__ptx/instructions/get_sreg.h>
 #include <cuda/std/__functional/operations.h>
 #include <cuda/std/__type_traits/conditional.h>
@@ -1903,5 +1905,20 @@ public:
 
   //@}
 };
+
+namespace detail
+{
+template <typename T, int LogicalWarpThreads>
+struct required_smem_layout<cub_algorithm::warp_scan, T, ::cuda::std::integral_constant<int, LogicalWarpThreads>>
+{
+private:
+  static constexpr bool uses_smem = (LogicalWarpThreads & (LogicalWarpThreads - 1)) != 0;
+  static constexpr int elements =
+    LogicalWarpThreads + (uses_smem ? (1 << (::cuda::ceil_ilog2(LogicalWarpThreads) - 1)) : 0);
+
+public:
+  static constexpr smem_layout value = uses_smem ? detail::array_layout(type_layout<T>, elements) : no_smem;
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

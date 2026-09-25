@@ -72,6 +72,20 @@ public:
       .template select_keys<detail::topk::select::min, IsFullTile>(keys, k, num_valid);
   }
 };
+
+template <typename KeyT, int BlockDimX, int ItemsPerThread, typename ValueT>
+inline constexpr smem_layout required_smem_layout_v<
+  cub_algorithm::block_topk,
+  KeyT,
+  ::cuda::std::integral_constant<int, BlockDimX>,
+  ::cuda::std::integral_constant<int, ItemsPerThread>,
+  ValueT> =
+  required_smem_layout_v<cub_algorithm::block_topk_air,
+                         KeyT,
+                         ::cuda::std::integral_constant<int, BlockDimX>,
+                         ::cuda::std::integral_constant<int, ItemsPerThread>,
+                         ValueT,
+                         ::cuda::std::integral_constant<int, 8>>;
 } // namespace detail
 
 CUB_NAMESPACE_END

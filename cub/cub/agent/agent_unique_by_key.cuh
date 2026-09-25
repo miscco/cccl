@@ -23,6 +23,7 @@
 #include <cub/block/block_discontinuity.cuh>
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_scan.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/thread/thread_operators.cuh>
 
 CUB_NAMESPACE_BEGIN
@@ -582,5 +583,61 @@ struct AgentUniqueByKey
   }
 };
 } // namespace detail::unique_by_key
+
+namespace detail
+{
+template <typename AgentUniqueByKeyPolicyT, typename KeyInputIteratorT, typename ValueInputIteratorT, typename OffsetT>
+struct required_smem_layout<cub_algorithm::agent_unique_by_key,
+                            AgentUniqueByKeyPolicyT,
+                            KeyInputIteratorT,
+                            ValueInputIteratorT,
+                            OffsetT>
+{
+private:
+  using key_type   = it_value_t<KeyInputIteratorT>;
+  using value_type = it_value_t<ValueInputIteratorT>;
+
+  static constexpr int block_threads    = AgentUniqueByKeyPolicyT::BLOCK_THREADS;
+  static constexpr int items_per_thread = AgentUniqueByKeyPolicyT::ITEMS_PER_THREAD;
+  static constexpr int items_per_tile   = block_threads * items_per_thread;
+
+  template <typename T>
+  static constexpr smem_layout load_layout =
+    required_smem_layout_v<cub_algorithm::block_load,
+                           T,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockLoadAlgorithm, AgentUniqueByKeyPolicyT::LOAD_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout scan_layout =
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           OffsetT,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, AgentUniqueByKeyPolicyT::SCAN_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout prefix_layout = required_smem_layout_v<cub_algorithm::tile_prefix_callback, OffsetT>;
+
+  static constexpr smem_layout discontinuity_layout =
+    required_smem_layout_v<cub_algorithm::block_discontinuity,
+                           key_type,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout scan_storage = detail::struct_layout(scan_layout, prefix_layout, discontinuity_layout);
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::union_layout(
+    scan_storage,
+    load_layout<key_type>,
+    load_layout<value_type>,
+    detail::array_layout(type_layout<key_type>, items_per_tile),
+    detail::array_layout(type_layout<value_type>, items_per_tile)));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

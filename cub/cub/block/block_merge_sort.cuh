@@ -13,6 +13,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/thread/thread_sort.cuh>
 #include <cub/util_math.cuh>
 #include <cub/util_namespace.cuh>
@@ -1135,5 +1136,34 @@ private:
 
   friend BlockMergeSortStrategyT;
 };
+
+namespace detail
+{
+template <typename KeyT, typename ValueT, int NumThreads, int ItemsPerThread>
+inline constexpr smem_layout required_smem_layout_v<
+  cub_algorithm::block_merge_sort_strategy,
+  KeyT,
+  ValueT,
+  ::cuda::std::integral_constant<int, NumThreads>,
+  ::cuda::std::integral_constant<int, ItemsPerThread>> =
+  detail::uninitialized_layout(
+    detail::union_layout(detail::array_layout(type_layout<KeyT>, ItemsPerThread* NumThreads + 1),
+                         detail::array_layout(type_layout<ValueT>, ItemsPerThread* NumThreads + 1)));
+
+template <typename KeyT, int BlockDimX, int ItemsPerThread, typename ValueT, int BlockDimY, int BlockDimZ>
+inline constexpr smem_layout required_smem_layout_v<
+  cub_algorithm::block_merge_sort,
+  KeyT,
+  ::cuda::std::integral_constant<int, BlockDimX>,
+  ::cuda::std::integral_constant<int, ItemsPerThread>,
+  ValueT,
+  ::cuda::std::integral_constant<int, BlockDimY>,
+  ::cuda::std::integral_constant<int, BlockDimZ>> =
+  required_smem_layout_v<cub_algorithm::block_merge_sort_strategy,
+                         KeyT,
+                         ValueT,
+                         ::cuda::std::integral_constant<int, BlockDimX * BlockDimY * BlockDimZ>,
+                         ::cuda::std::integral_constant<int, ItemsPerThread>>;
+} // namespace detail
 
 CUB_NAMESPACE_END

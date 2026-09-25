@@ -13,6 +13,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 
@@ -52,5 +53,11 @@ struct agent_block_striped_t
   }
 };
 } // namespace detail::for_each
+
+namespace detail
+{
+template <>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::agent_for> = no_smem;
+} // namespace detail
 
 CUB_NAMESPACE_END

@@ -22,6 +22,7 @@
 
 #include <cub/block/block_load.cuh>
 #include <cub/block/radix_rank_sort_operations.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/thread/thread_load.cuh>
 #include <cub/thread/thread_reduce.cuh>
@@ -515,5 +516,28 @@ struct AgentRadixSortUpsweep
   }
 };
 } // namespace detail::radix_sort
+
+namespace detail
+{
+template <typename AgentRadixSortUpsweepPolicy, typename OffsetT>
+struct required_smem_layout<cub_algorithm::agent_radix_sort_upsweep, AgentRadixSortUpsweepPolicy, OffsetT>
+{
+private:
+  static constexpr int radix_bits        = AgentRadixSortUpsweepPolicy::RADIX_BITS;
+  static constexpr int block_threads     = AgentRadixSortUpsweepPolicy::BLOCK_THREADS;
+  static constexpr int packing_ratio     = sizeof(unsigned int) / sizeof(unsigned char);
+  static constexpr int log_counter_lanes = ::cuda::std::max(0, radix_bits - 2);
+  static constexpr int counter_lanes     = 1 << log_counter_lanes;
+  static constexpr int radix_digits      = 1 << radix_bits;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::aligned_layout<16>(detail::union_layout(
+    detail::array_layout(
+      detail::array_layout(detail::array_layout(type_layout<unsigned char>, packing_ratio), block_threads),
+      counter_lanes),
+    detail::array_layout(detail::array_layout(type_layout<unsigned int>, block_threads), counter_lanes),
+    detail::array_layout(detail::array_layout(type_layout<OffsetT>, radix_digits), warp_threads))));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

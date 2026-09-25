@@ -19,6 +19,7 @@
 
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_reduce.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/detail/type_traits.cuh>
 #include <cub/grid/grid_even_share.cuh>
 #include <cub/grid/grid_mapping.cuh>
@@ -606,5 +607,24 @@ struct AgentWarpReduce
   {}
 };
 } // namespace detail::reduce
+
+namespace detail
+{
+template <typename AgentReducePolicy, typename AccumT>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::agent_reduce, AgentReducePolicy, AccumT> =
+  required_smem_layout_v<cub_algorithm::block_reduce,
+                         AccumT,
+                         ::cuda::std::integral_constant<int, AgentReducePolicy::BLOCK_THREADS>,
+                         ::cuda::std::integral_constant<BlockReduceAlgorithm, AgentReducePolicy::BLOCK_ALGORITHM>,
+                         ::cuda::std::integral_constant<int, 1>,
+                         ::cuda::std::integral_constant<int, 1>>;
+
+template <typename AgentReducePolicy, typename AccumT>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::agent_warp_reduce, AgentReducePolicy, AccumT> =
+  detail::uninitialized_layout(detail::struct_layout(
+    required_smem_layout_v<cub_algorithm::warp_reduce,
+                           AccumT,
+                           ::cuda::std::integral_constant<int, AgentReducePolicy::WARP_THREADS>>));
+} // namespace detail
 
 CUB_NAMESPACE_END

@@ -15,6 +15,7 @@
 
 #include <cub/block/block_scan.cuh>
 #include <cub/block/radix_rank_sort_operations.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/device/dispatch/dispatch_common.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
@@ -598,6 +599,42 @@ public:
   {
     select_topk<SelectDirection, IsFullTile>(keys, values, k, valid_items);
   }
+};
+
+template <typename KeyT, int ThreadsPerBlock, int ItemsPerThread, typename ValueT, int RadixBits>
+struct required_smem_layout<cub_algorithm::block_topk_air,
+                            KeyT,
+                            ::cuda::std::integral_constant<int, ThreadsPerBlock>,
+                            ::cuda::std::integral_constant<int, ItemsPerThread>,
+                            ValueT,
+                            ::cuda::std::integral_constant<int, RadixBits>>
+{
+private:
+  static constexpr int tile_items  = ThreadsPerBlock * ItemsPerThread;
+  static constexpr int num_buckets = 1 << RadixBits;
+
+  static constexpr smem_layout scan_layout =
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           ::cuda::std::uint32_t,
+                           ::cuda::std::integral_constant<int, ThreadsPerBlock>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, BLOCK_SCAN_WARP_SCANS>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout passes_layout =
+    detail::struct_layout(detail::array_layout(type_layout<::cuda::std::uint32_t>, 2 * num_buckets), scan_layout);
+
+  static constexpr smem_layout exchange_layout = detail::union_layout(
+    detail::array_layout(type_layout<KeyT>, tile_items), detail::array_layout(type_layout<ValueT>, tile_items));
+
+  static constexpr smem_layout stage_layout = detail::union_layout(passes_layout, exchange_layout);
+
+  static constexpr smem_layout pass_state_layout =
+    detail::struct_layout(type_layout<::cuda::std::uint32_t>, type_layout<::cuda::std::uint32_t>, type_layout<int>);
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::struct_layout(
+    stage_layout, pass_state_layout, detail::array_layout(type_layout<::cuda::std::uint32_t>, 2)));
 };
 } // namespace detail
 CUB_NAMESPACE_END

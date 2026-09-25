@@ -22,6 +22,7 @@
 
 #include <cub/block/block_load.cuh>
 #include <cub/block/radix_rank_sort_operations.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/thread/thread_reduce.cuh>
 #include <cub/util_math.cuh>
 #include <cub/util_type.cuh>
@@ -284,5 +285,22 @@ struct AgentRadixSortHistogram
   }
 };
 } // namespace detail::radix_sort
+
+namespace detail
+{
+template <typename AgentRadixSortHistogramPolicy, typename KeyT>
+struct required_smem_layout<cub_algorithm::agent_radix_sort_histogram, AgentRadixSortHistogramPolicy, KeyT>
+{
+private:
+  static constexpr int radix_bits     = AgentRadixSortHistogramPolicy::RADIX_BITS;
+  static constexpr int radix_digits   = 1 << radix_bits;
+  static constexpr int num_parts      = AgentRadixSortHistogramPolicy::NUM_PARTS;
+  static constexpr int max_num_passes = ::cuda::ceil_div(int{sizeof(KeyT)} * 8, radix_bits);
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(
+    detail::array_layout(type_layout<::cuda::std::uint32_t>, max_num_passes * radix_digits * num_parts));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

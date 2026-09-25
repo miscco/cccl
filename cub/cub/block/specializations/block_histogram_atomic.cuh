@@ -20,6 +20,8 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
+
 CUB_NAMESPACE_BEGIN
 namespace detail
 {
@@ -57,6 +59,12 @@ struct BlockHistogramAtomic
     }
   }
 };
+} // namespace detail
+
+namespace detail
+{
+template <>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::block_histogram_atomic> = no_smem;
 } // namespace detail
 
 CUB_NAMESPACE_END

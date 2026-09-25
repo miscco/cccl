@@ -25,6 +25,7 @@
 #include <cub/block/block_radix_rank.cuh>
 #include <cub/block/block_store.cuh>
 #include <cub/block/radix_rank_sort_operations.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/thread/thread_load.cuh>
 #include <cub/util_device.cuh>
@@ -695,5 +696,46 @@ struct AgentRadixSortDownsweep
   }
 };
 } // namespace detail::radix_sort
+
+namespace detail
+{
+template <typename AgentRadixSortDownsweepPolicy, typename KeyT, typename ValueT, typename OffsetT>
+struct required_smem_layout<cub_algorithm::agent_radix_sort_downsweep, AgentRadixSortDownsweepPolicy, KeyT, ValueT, OffsetT>
+{
+private:
+  using bit_ordered_type = typename radix::traits_t<KeyT>::bit_ordered_type;
+
+  static constexpr int block_threads    = AgentRadixSortDownsweepPolicy::BLOCK_THREADS;
+  static constexpr int items_per_thread = AgentRadixSortDownsweepPolicy::ITEMS_PER_THREAD;
+  static constexpr int radix_bits       = AgentRadixSortDownsweepPolicy::RADIX_BITS;
+  static constexpr int radix_digits     = 1 << radix_bits;
+  static constexpr int tile_items       = block_threads * items_per_thread;
+
+  template <typename T>
+  static constexpr smem_layout load_layout = required_smem_layout_v<
+    cub_algorithm::block_load,
+    T,
+    ::cuda::std::integral_constant<int, block_threads>,
+    ::cuda::std::integral_constant<int, items_per_thread>,
+    ::cuda::std::integral_constant<BlockLoadAlgorithm, AgentRadixSortDownsweepPolicy::LOAD_ALGORITHM>,
+    ::cuda::std::integral_constant<int, 1>,
+    ::cuda::std::integral_constant<int, 1>>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::aligned_layout<16>(detail::union_layout(
+    load_layout<bit_ordered_type>,
+    load_layout<ValueT>,
+    required_smem_layout_v<
+      cub_algorithm::block_radix_rank,
+      ::cuda::std::integral_constant<RadixRankAlgorithm, AgentRadixSortDownsweepPolicy::RANK_ALGORITHM>,
+      ::cuda::std::integral_constant<int, block_threads>,
+      ::cuda::std::integral_constant<int, radix_bits>,
+      ::cuda::std::integral_constant<BlockScanAlgorithm, AgentRadixSortDownsweepPolicy::SCAN_ALGORITHM>>,
+    detail::struct_layout(detail::array_layout(type_layout<bit_ordered_type>, tile_items),
+                          detail::array_layout(type_layout<OffsetT>, radix_digits)),
+    detail::uninitialized_layout(detail::array_layout(type_layout<ValueT>, tile_items)),
+    detail::array_layout(type_layout<OffsetT>, radix_digits))));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

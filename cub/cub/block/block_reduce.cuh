@@ -21,6 +21,7 @@
 #include <cub/block/specializations/block_reduce_raking.cuh>
 #include <cub/block/specializations/block_reduce_raking_commutative_only.cuh>
 #include <cub/block/specializations/block_reduce_warp_reductions.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/thread/thread_operators.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
@@ -707,5 +708,46 @@ public:
 
   //! @}
 };
+
+namespace detail
+{
+template <typename T, int BlockDimX, BlockReduceAlgorithm Algorithm, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_reduce,
+                            T,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<BlockReduceAlgorithm, Algorithm>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  static constexpr bool uses_warp_reductions =
+    Algorithm == BLOCK_REDUCE_WARP_REDUCTIONS || Algorithm == BLOCK_REDUCE_WARP_REDUCTIONS_NONDETERMINISTIC;
+
+  static constexpr smem_layout warp_reductions_layout =
+    required_smem_layout_v<cub_algorithm::block_reduce_warp_reductions,
+                           T,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>;
+  static constexpr smem_layout commutative_only_layout =
+    required_smem_layout_v<cub_algorithm::block_reduce_raking_commutative_only,
+                           T,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>;
+  static constexpr smem_layout raking_layout =
+    required_smem_layout_v<cub_algorithm::block_reduce_raking,
+                           T,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(
+    uses_warp_reductions
+      ? warp_reductions_layout
+      : (Algorithm == BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY ? commutative_only_layout : raking_layout));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

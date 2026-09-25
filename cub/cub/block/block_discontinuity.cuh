@@ -20,6 +20,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 
@@ -1227,5 +1228,18 @@ public:
 
   //! @}
 };
+
+namespace detail
+{
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
+inline constexpr smem_layout required_smem_layout_v<
+  cub_algorithm::block_discontinuity,
+  T,
+  ::cuda::std::integral_constant<int, BlockDimX>,
+  ::cuda::std::integral_constant<int, BlockDimY>,
+  ::cuda::std::integral_constant<int, BlockDimZ>> =
+  detail::struct_layout(detail::array_layout(type_layout<T>, BlockDimX * BlockDimY * BlockDimZ),
+                        detail::array_layout(type_layout<T>, BlockDimX * BlockDimY * BlockDimZ));
+} // namespace detail
 
 CUB_NAMESPACE_END

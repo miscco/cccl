@@ -20,6 +20,7 @@
 
 #include <cub/block/specializations/block_scan_raking.cuh>
 #include <cub/block/specializations/block_scan_warp_scans.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 
@@ -2273,5 +2274,40 @@ public:
 
   //! @}
 };
+
+namespace detail
+{
+template <typename T, int BlockDimX, BlockScanAlgorithm Algorithm, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_scan,
+                            T,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<BlockScanAlgorithm, Algorithm>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  // Mirrors `BlockScan::SAFE_ALGORITHM`: warp scans require the block size to be a multiple of the warp size.
+  static constexpr int block_threads = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr BlockScanAlgorithm safe_algorithm =
+    (Algorithm == BLOCK_SCAN_WARP_SCANS) && (block_threads % detail::warp_threads != 0) ? BLOCK_SCAN_RAKING : Algorithm;
+
+  static constexpr smem_layout warp_scans_layout =
+    required_smem_layout_v<cub_algorithm::block_scan_warp_scans,
+                           T,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>;
+  static constexpr smem_layout raking_layout =
+    required_smem_layout_v<cub_algorithm::block_scan_raking,
+                           T,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>;
+
+public:
+  static constexpr smem_layout value =
+    detail::uninitialized_layout(safe_algorithm == BLOCK_SCAN_WARP_SCANS ? warp_scans_layout : raking_layout);
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

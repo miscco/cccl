@@ -17,6 +17,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_device.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
@@ -432,6 +433,10 @@ public:
     Wait(Commit());
   }
 };
+
+template <>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::block_load_to_shared> =
+  type_layout<::cuda::std::uint64_t>;
 } // namespace detail
 
 CUB_NAMESPACE_END

@@ -14,6 +14,7 @@
 #endif // no system header
 
 #include <cub/block/radix_rank_sort_operations.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/util_type.cuh>
 #include <cub/warp/warp_load.cuh>
@@ -345,5 +346,39 @@ private:
   }
 };
 } // namespace detail::sub_warp_merge_sort
+
+namespace detail
+{
+template <typename PolicyT, typename KeyT, typename ValueT>
+struct required_smem_layout<cub_algorithm::agent_sub_warp_merge_sort, PolicyT, KeyT, ValueT>
+{
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::union_layout(
+    required_smem_layout_v<cub_algorithm::warp_load,
+                           KeyT,
+                           ::cuda::std::integral_constant<int, PolicyT::ITEMS_PER_THREAD>,
+                           ::cuda::std::integral_constant<WarpLoadAlgorithm, PolicyT::LOAD_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, PolicyT::WARP_THREADS>>,
+    required_smem_layout_v<cub_algorithm::warp_load,
+                           ValueT,
+                           ::cuda::std::integral_constant<int, PolicyT::ITEMS_PER_THREAD>,
+                           ::cuda::std::integral_constant<WarpLoadAlgorithm, PolicyT::LOAD_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, PolicyT::WARP_THREADS>>,
+    required_smem_layout_v<cub_algorithm::warp_merge_sort,
+                           KeyT,
+                           ::cuda::std::integral_constant<int, PolicyT::ITEMS_PER_THREAD>,
+                           ::cuda::std::integral_constant<int, PolicyT::WARP_THREADS>,
+                           ValueT>,
+    required_smem_layout_v<cub_algorithm::warp_store,
+                           KeyT,
+                           ::cuda::std::integral_constant<int, PolicyT::ITEMS_PER_THREAD>,
+                           ::cuda::std::integral_constant<WarpStoreAlgorithm, PolicyT::STORE_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, PolicyT::WARP_THREADS>>,
+    required_smem_layout_v<cub_algorithm::warp_store,
+                           ValueT,
+                           ::cuda::std::integral_constant<int, PolicyT::ITEMS_PER_THREAD>,
+                           ::cuda::std::integral_constant<WarpStoreAlgorithm, PolicyT::STORE_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, PolicyT::WARP_THREADS>>));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

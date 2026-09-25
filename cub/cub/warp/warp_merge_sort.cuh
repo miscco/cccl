@@ -14,6 +14,7 @@
 #endif // no system header
 
 #include <cub/block/block_merge_sort.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 
@@ -141,5 +142,22 @@ private:
 
   friend BlockMergeSortStrategyT;
 };
+
+namespace detail
+{
+// WarpMergeSort stores the same tile as BlockMergeSortStrategy.
+template <typename KeyT, int ItemsPerThread, int LogicalWarpThreads, typename ValueT>
+inline constexpr smem_layout required_smem_layout_v<
+  cub_algorithm::warp_merge_sort,
+  KeyT,
+  ::cuda::std::integral_constant<int, ItemsPerThread>,
+  ::cuda::std::integral_constant<int, LogicalWarpThreads>,
+  ValueT> =
+  required_smem_layout_v<cub_algorithm::block_merge_sort_strategy,
+                         KeyT,
+                         ValueT,
+                         ::cuda::std::integral_constant<int, LogicalWarpThreads>,
+                         ::cuda::std::integral_constant<int, ItemsPerThread>>;
+} // namespace detail
 
 CUB_NAMESPACE_END

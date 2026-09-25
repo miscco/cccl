@@ -13,6 +13,7 @@
 #  pragma system_header
 #endif // no system header
 
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 
@@ -84,5 +85,11 @@ StableOddEvenSort(KeyT (&keys)[ItemsPerThread], ValueT (&items)[ItemsPerThread],
 {
   return detail::stable_odd_even_sort(keys, items, compare_op);
 }
+
+namespace detail
+{
+template <>
+inline constexpr smem_layout required_smem_layout_v<cub_algorithm::thread_sort> = no_smem;
+} // namespace detail
 
 CUB_NAMESPACE_END

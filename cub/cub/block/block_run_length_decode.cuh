@@ -14,6 +14,7 @@
 #endif // no system header
 
 #include <cub/block/block_scan.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/thread/thread_search.cuh>
 #include <cub/util_math.cuh>
 #include <cub/util_namespace.cuh>
@@ -432,5 +433,32 @@ public:
     RunLengthDecode(decoded_items, item_offsets, from_decoded_offset);
   }
 };
+
+namespace detail
+{
+template <typename ItemT, int BlockDimX, int RunsPerThread, typename DecodedOffsetT, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_run_length_decode,
+                            ItemT,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, RunsPerThread>,
+                            DecodedOffsetT,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  static constexpr int block_runs = BlockDimX * BlockDimY * BlockDimZ * RunsPerThread;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::union_layout(
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           DecodedOffsetT,
+                           ::cuda::std::integral_constant<int, BlockDimX>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, BLOCK_SCAN_RAKING_MEMOIZE>,
+                           ::cuda::std::integral_constant<int, BlockDimY>,
+                           ::cuda::std::integral_constant<int, BlockDimZ>>,
+    detail::struct_layout(detail::array_layout(type_layout<ItemT>, block_runs),
+                          detail::array_layout(type_layout<DecodedOffsetT>, block_runs))));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

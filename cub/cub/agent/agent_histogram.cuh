@@ -19,6 +19,7 @@
 #endif // no system header
 
 #include <cub/block/block_load.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/grid/grid_queue.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/util_type.cuh>
@@ -721,5 +722,51 @@ struct AgentHistogram
   }
 };
 } // namespace detail::histogram
+
+namespace detail
+{
+template <typename AgentHistogramPolicyT,
+          int PrivatizedSmemBins,
+          int NumChannels,
+          int NumActiveChannels,
+          typename SampleIteratorT,
+          typename CounterT>
+struct required_smem_layout<cub_algorithm::agent_histogram,
+                            AgentHistogramPolicyT,
+                            ::cuda::std::integral_constant<int, PrivatizedSmemBins>,
+                            ::cuda::std::integral_constant<int, NumChannels>,
+                            ::cuda::std::integral_constant<int, NumActiveChannels>,
+                            SampleIteratorT,
+                            CounterT>
+{
+private:
+  using sample_t = it_value_t<SampleIteratorT>;
+  using pixel_t  = typename CubVector<sample_t, NumChannels>::Type;
+  using vec_t    = typename CubVector<sample_t, AgentHistogramPolicyT::VEC_SIZE>::Type;
+
+  static constexpr int threads            = AgentHistogramPolicyT::BLOCK_THREADS;
+  static constexpr int pixels_per_thread  = AgentHistogramPolicyT::PIXELS_PER_THREAD;
+  static constexpr int samples_per_thread = pixels_per_thread * NumChannels;
+  static constexpr int vecs_per_thread    = samples_per_thread / AgentHistogramPolicyT::VEC_SIZE;
+
+  template <typename T, int ItemsPerThread>
+  static constexpr smem_layout load_layout =
+    required_smem_layout_v<cub_algorithm::block_load,
+                           T,
+                           ::cuda::std::integral_constant<int, threads>,
+                           ::cuda::std::integral_constant<int, ItemsPerThread>,
+                           ::cuda::std::integral_constant<BlockLoadAlgorithm, AgentHistogramPolicyT::LOAD_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::struct_layout(
+    detail::array_layout(detail::array_layout(type_layout<CounterT>, PrivatizedSmemBins + 1), NumActiveChannels),
+    type_layout<int>,
+    detail::union_layout(load_layout<sample_t, samples_per_thread>,
+                         load_layout<pixel_t, pixels_per_thread>,
+                         load_layout<vec_t, vecs_per_thread>)));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

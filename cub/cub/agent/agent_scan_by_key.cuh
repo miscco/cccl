@@ -24,6 +24,7 @@
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_scan.cuh>
 #include <cub/block/block_store.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/util_type.cuh>
 
@@ -460,5 +461,56 @@ struct AgentScanByKey
   }
 };
 } // namespace detail::scan_by_key
+
+namespace detail
+{
+template <typename AgentScanByKeyPolicyT, typename KeysInputIteratorT, typename AccumT>
+struct required_smem_layout<cub_algorithm::agent_scan_by_key, AgentScanByKeyPolicyT, KeysInputIteratorT, AccumT>
+{
+private:
+  using key_t             = it_value_t<KeysInputIteratorT>;
+  using flag_value_pair_t = KeyValuePair<int, AccumT>;
+
+  static constexpr int block_threads    = AgentScanByKeyPolicyT::BLOCK_THREADS;
+  static constexpr int items_per_thread = AgentScanByKeyPolicyT::ITEMS_PER_THREAD;
+
+  template <typename T>
+  static constexpr smem_layout load_layout =
+    required_smem_layout_v<cub_algorithm::block_load,
+                           T,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockLoadAlgorithm, AgentScanByKeyPolicyT::LOAD_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout store_layout =
+    required_smem_layout_v<cub_algorithm::block_store,
+                           AccumT,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, items_per_thread>,
+                           ::cuda::std::integral_constant<BlockStoreAlgorithm, AgentScanByKeyPolicyT::STORE_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout scan_storage = detail::struct_layout(
+    required_smem_layout_v<cub_algorithm::block_scan,
+                           flag_value_pair_t,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, AgentScanByKeyPolicyT::SCAN_ALGORITHM>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>,
+    required_smem_layout_v<cub_algorithm::tile_prefix_callback, flag_value_pair_t>,
+    required_smem_layout_v<cub_algorithm::block_discontinuity,
+                           key_t,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>);
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(
+    detail::union_layout(scan_storage, load_layout<key_t>, load_layout<AccumT>, store_layout));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

@@ -761,6 +761,27 @@ struct BlockScanRaking
     }
   }
 };
+
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_scan_raking,
+                            T,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+private:
+  static constexpr int block_threads  = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int raking_threads = detail::block_raking_threads(block_threads);
+
+  static constexpr smem_layout warp_scan_layout =
+    required_smem_layout_v<cub_algorithm::warp_scan, T, ::cuda::std::integral_constant<int, raking_threads>>;
+  static constexpr smem_layout raking_grid_layout =
+    required_smem_layout_v<cub_algorithm::block_raking_layout, T, ::cuda::std::integral_constant<int, block_threads>>;
+
+public:
+  static constexpr smem_layout value =
+    detail::uninitialized_layout(detail::struct_layout(warp_scan_layout, raking_grid_layout, type_layout<T>));
+};
 } // namespace detail
 
 CUB_NAMESPACE_END

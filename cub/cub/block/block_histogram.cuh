@@ -22,6 +22,7 @@
 
 #include <cub/block/specializations/block_histogram_atomic.cuh>
 #include <cub/block/specializations/block_histogram_sort.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 
 #include <cuda/std/__type_traits/conditional.h>
@@ -408,5 +409,38 @@ public:
     InternalBlockHistogram(temp_storage).Composite(items, histogram);
   }
 };
+
+namespace detail
+{
+// BlockHistogram wraps the selected specialization in another Uninitialized.
+template <typename T,
+          int BlockDimX,
+          int ItemsPerThread,
+          int Bins,
+          BlockHistogramAlgorithm Algorithm,
+          int BlockDimY,
+          int BlockDimZ>
+struct required_smem_layout<cub_algorithm::block_histogram,
+                            T,
+                            ::cuda::std::integral_constant<int, BlockDimX>,
+                            ::cuda::std::integral_constant<int, ItemsPerThread>,
+                            ::cuda::std::integral_constant<int, Bins>,
+                            ::cuda::std::integral_constant<BlockHistogramAlgorithm, Algorithm>,
+                            ::cuda::std::integral_constant<int, BlockDimY>,
+                            ::cuda::std::integral_constant<int, BlockDimZ>>
+{
+  static constexpr smem_layout value =
+    Algorithm == BLOCK_HISTO_SORT
+      ? detail::uninitialized_layout(
+          required_smem_layout_v<cub_algorithm::block_histogram_sort,
+                                 T,
+                                 ::cuda::std::integral_constant<int, BlockDimX>,
+                                 ::cuda::std::integral_constant<int, ItemsPerThread>,
+                                 ::cuda::std::integral_constant<int, Bins>,
+                                 ::cuda::std::integral_constant<int, BlockDimY>,
+                                 ::cuda::std::integral_constant<int, BlockDimZ>>)
+      : no_smem;
+};
+} // namespace detail
 
 CUB_NAMESPACE_END

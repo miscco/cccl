@@ -22,6 +22,7 @@
 #include <cub/block/block_radix_rank.cuh>
 #include <cub/block/block_store.cuh>
 #include <cub/block/radix_rank_sort_operations.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 
@@ -736,5 +737,60 @@ struct AgentRadixSortOnesweep
   }
 };
 } // namespace detail::radix_sort
+
+namespace detail
+{
+template <typename AgentRadixSortOnesweepPolicy, typename KeyT, typename ValueT, typename OffsetT, typename PortionOffsetT>
+struct required_smem_layout<cub_algorithm::agent_radix_sort_onesweep,
+                            AgentRadixSortOnesweepPolicy,
+                            KeyT,
+                            ValueT,
+                            OffsetT,
+                            PortionOffsetT>
+{
+private:
+  static constexpr int block_threads    = AgentRadixSortOnesweepPolicy::BLOCK_THREADS;
+  static constexpr int items_per_thread = AgentRadixSortOnesweepPolicy::ITEMS_PER_THREAD;
+  static constexpr int items_per_tile   = block_threads * items_per_thread;
+  static constexpr int radix_bits       = AgentRadixSortOnesweepPolicy::RADIX_BITS;
+  static constexpr int radix_digits     = 1 << radix_bits;
+  static constexpr int rank_num_parts   = AgentRadixSortOnesweepPolicy::RANK_NUM_PARTS;
+
+  static constexpr RadixRankAlgorithm rank_algorithm = AgentRadixSortOnesweepPolicy::RANK_ALGORITHM;
+  static constexpr BlockScanAlgorithm scan_algorithm = AgentRadixSortOnesweepPolicy::SCAN_ALGORITHM;
+
+  using bit_ordered_type = typename radix::traits_t<KeyT>::bit_ordered_type;
+
+  template <WarpMatchAlgorithm MatchAlgorithm>
+  static constexpr smem_layout early_counts_layout =
+    required_smem_layout_v<cub_algorithm::block_radix_rank_match_early_counts,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, radix_bits>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, scan_algorithm>,
+                           ::cuda::std::integral_constant<WarpMatchAlgorithm, MatchAlgorithm>,
+                           ::cuda::std::integral_constant<int, rank_num_parts>>;
+
+  static constexpr smem_layout match_layout =
+    required_smem_layout_v<cub_algorithm::block_radix_rank_match,
+                           ::cuda::std::integral_constant<int, block_threads>,
+                           ::cuda::std::integral_constant<int, radix_bits>,
+                           ::cuda::std::integral_constant<BlockScanAlgorithm, scan_algorithm>,
+                           ::cuda::std::integral_constant<int, 1>,
+                           ::cuda::std::integral_constant<int, 1>>;
+
+  static constexpr smem_layout rank_layout =
+    rank_algorithm == RADIX_RANK_MATCH_EARLY_COUNTS_ATOMIC_OR ? early_counts_layout<WARP_MATCH_ATOMIC_OR>
+    : rank_algorithm == RADIX_RANK_MATCH
+      ? match_layout
+      : early_counts_layout<WARP_MATCH_ANY>;
+
+public:
+  static constexpr smem_layout value = detail::uninitialized_layout(detail::struct_layout(
+    detail::union_layout(detail::array_layout(type_layout<bit_ordered_type>, items_per_tile),
+                         detail::array_layout(type_layout<ValueT>, items_per_tile),
+                         rank_layout),
+    detail::union_layout(detail::array_layout(type_layout<OffsetT>, radix_digits), type_layout<PortionOffsetT>)));
+};
+} // namespace detail
 
 CUB_NAMESPACE_END
