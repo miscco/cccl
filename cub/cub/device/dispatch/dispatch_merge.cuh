@@ -16,6 +16,7 @@
 #include <cub/agent/agent_merge.cuh>
 #include <cub/detail/cc_dispatch.cuh>
 #include <cub/detail/logging.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/device/dispatch/tuning/tuning_merge.cuh>
 #include <cub/util_arch.cuh>
 #include <cub/util_device.cuh>
@@ -34,51 +35,63 @@ inline constexpr int fallback_BLOCK_THREADS    = 64;
 inline constexpr int fallback_ITEMS_PER_THREAD = 1;
 
 // TODO(bgruber): we should choose the MergePolicy rather than the agent, but before C++20 this is more verbose
-template <typename PolicyGetter, class... Args>
+template <typename PolicyGetter, typename KeysIt1, typename ItemsIt1, class... Args>
 class choose_merge_agent
 {
   static constexpr MergePolicy active_policy = PolicyGetter{}();
 
-  using default_load2sh_agent_t =
-    agent_t<active_policy.threads_per_block,
-            active_policy.items_per_thread,
-            active_policy.load_modifier,
-            active_policy.store_algorithm,
-            active_policy.use_bulk_copy_for_keys,
-            active_policy.use_bulk_copy_for_values,
-            active_policy.unroll,
-            Args...>;
-  using default_noload2sh_agent_t =
-    agent_t<active_policy.threads_per_block,
-            active_policy.items_per_thread,
-            active_policy.load_modifier,
-            active_policy.store_algorithm,
-            /* UseBl2ShForKeys */ false,
-            /* UseBl2ShForItems */ false,
-            active_policy.unroll,
-            Args...>;
+  template <int ThreadsPerBlock, int ItemsPerThread, bool UseBl2ShForKeys, bool UseBl2ShForItems>
+  static constexpr ::cuda::std::size_t merge_required_smem =
+    required_smem_v<cub_algorithm::agent_merge,
+                    ::cuda::std::integral_constant<int, ThreadsPerBlock>,
+                    ::cuda::std::integral_constant<int, ItemsPerThread>,
+                    ::cuda::std::integral_constant<BlockStoreAlgorithm, active_policy.store_algorithm>,
+                    ::cuda::std::bool_constant<UseBl2ShForKeys>,
+                    ::cuda::std::bool_constant<UseBl2ShForItems>,
+                    KeysIt1,
+                    ItemsIt1>;
 
-  using fallback_agent_t =
-    agent_t<fallback_BLOCK_THREADS,
-            fallback_ITEMS_PER_THREAD,
-            active_policy.load_modifier,
-            active_policy.store_algorithm,
-            /* UseBl2ShForKeys */ false,
-            /* UseBl2ShForItems */ false,
-            active_policy.unroll,
-            Args...>;
+  static constexpr ::cuda::std::size_t default_load2sh_smem =
+    merge_required_smem<active_policy.threads_per_block,
+                        active_policy.items_per_thread,
+                        active_policy.use_bulk_copy_for_keys,
+                        active_policy.use_bulk_copy_for_values>;
+  static constexpr ::cuda::std::size_t default_noload2sh_smem =
+    merge_required_smem<active_policy.threads_per_block, active_policy.items_per_thread, false, false>;
+  static constexpr ::cuda::std::size_t fallback_smem =
+    merge_required_smem<fallback_BLOCK_THREADS, fallback_ITEMS_PER_THREAD, false, false>;
 
-  static constexpr bool use_default_load2sh =
-    sizeof(typename default_load2sh_agent_t::TempStorage) <= max_smem_per_block;
+  static constexpr bool use_default_load2sh = default_load2sh_smem <= max_smem_per_block;
   // Use fallback if merge agent exceeds maximum shared memory, but the fallback agent still fits, else use
   // vsmem-compatible version, so noload2sh
-  static constexpr bool use_fallback = sizeof(typename fallback_agent_t::TempStorage) <= max_smem_per_block;
+  static constexpr bool use_fallback = fallback_smem <= max_smem_per_block;
 
 public:
+  static constexpr int threads_per_block =
+    use_default_load2sh || !use_fallback ? active_policy.threads_per_block : fallback_BLOCK_THREADS;
+  static constexpr int items_per_thread =
+    use_default_load2sh || !use_fallback ? active_policy.items_per_thread : fallback_ITEMS_PER_THREAD;
+  static constexpr int items_per_tile        = threads_per_block * items_per_thread;
+  static constexpr bool use_bl2sh_for_keys   = use_default_load2sh ? active_policy.use_bulk_copy_for_keys : false;
+  static constexpr bool use_bl2sh_for_values = use_default_load2sh ? active_policy.use_bulk_copy_for_values : false;
+  static constexpr CacheLoadModifier load_modifier     = active_policy.load_modifier;
+  static constexpr BlockStoreAlgorithm store_algorithm = active_policy.store_algorithm;
+  static constexpr bool unroll                         = active_policy.unroll;
+
   using type =
-    ::cuda::std::conditional_t<use_default_load2sh,
-                               default_load2sh_agent_t,
-                               ::cuda::std::conditional_t<use_fallback, fallback_agent_t, default_noload2sh_agent_t>>;
+    agent_t<threads_per_block,
+            items_per_thread,
+            load_modifier,
+            store_algorithm,
+            use_bl2sh_for_keys,
+            use_bl2sh_for_values,
+            unroll,
+            KeysIt1,
+            ItemsIt1,
+            Args...>;
+
+  static constexpr ::cuda::std::size_t required_smem =
+    use_default_load2sh ? default_load2sh_smem : (use_fallback ? fallback_smem : default_noload2sh_smem);
 };
 
 // Computes the merge path intersections at equally wide intervals. The approach is outlined in the paper:
@@ -113,7 +126,7 @@ _CCCL_KERNEL_ATTRIBUTES void device_partition_merge_path_kernel(
                        KeyIt3,
                        ValueIt3,
                        Offset,
-                       CompareOp>::type::items_per_tile;
+                       CompareOp>::items_per_tile;
   const Offset diagonal_idx =
     static_cast<Offset>(blockDim.x * blockIdx.x + threadIdx.x); // NOLINT(bugprone-misplaced-widening-cast)
   if (diagonal_idx < num_diagonals)
@@ -141,7 +154,7 @@ __launch_bounds__(
                      KeyIt3,
                      ValueIt3,
                      Offset,
-                     CompareOp>::type::threads_per_block)
+                     CompareOp>::threads_per_block)
   _CCCL_KERNEL_ATTRIBUTES void device_merge_kernel(
     const KeyIt1 keys1,
     const ValueIt1 items1,
@@ -160,18 +173,18 @@ __launch_bounds__(
   static_assert(::cuda::std::is_convertible_v<::cuda::std::invoke_result_t<CompareOp, key_t, key_t>, bool>,
                 "Comparison operator must be convertible to bool");
 
-  using MergeAgent = typename choose_merge_agent<
-    device_policy_getter<PolicySelector, current_tuning_cc().get()>,
-    KeyIt1,
-    ValueIt1,
-    KeyIt2,
-    ValueIt2,
-    KeyIt3,
-    ValueIt3,
-    Offset,
-    CompareOp>::type;
-
-  using vsmem_helper_t = vsmem_helper_impl<MergeAgent>;
+  using merge_chooser =
+    choose_merge_agent<device_policy_getter<PolicySelector, current_tuning_cc().get()>,
+                       KeyIt1,
+                       ValueIt1,
+                       KeyIt2,
+                       ValueIt2,
+                       KeyIt3,
+                       ValueIt3,
+                       Offset,
+                       CompareOp>;
+  using MergeAgent     = typename merge_chooser::type;
+  using vsmem_helper_t = agent_block_smem<typename MergeAgent::TempStorage, merge_chooser::required_smem>;
   __shared__ typename vsmem_helper_t::static_temp_storage_t shared_temp_storage;
   auto& temp_storage = vsmem_helper_t::get_temp_storage(shared_temp_storage, global_temp_storage);
   MergeAgent{
@@ -228,22 +241,14 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
     detail::log_dispatch("DeviceMerge", cc, policy_getter());
 
     static_assert(::cuda::std::is_empty_v<decltype(policy_getter)>);
-    using AgentT = typename choose_merge_agent<
-      decltype(policy_getter),
-      KeyIt1,
-      ValueIt1,
-      KeyIt2,
-      ValueIt2,
-      KeyIt3,
-      ValueIt3,
-      Offset,
-      CompareOp>::type;
+    using agent_chooser =
+      choose_merge_agent<decltype(policy_getter), KeyIt1, ValueIt1, KeyIt2, ValueIt2, KeyIt3, ValueIt3, Offset, CompareOp>;
 
-    const auto num_tiles = ::cuda::ceil_div(num_items1 + num_items2, AgentT::items_per_tile);
+    const auto num_tiles = ::cuda::ceil_div(num_items1 + num_items2, agent_chooser::items_per_tile);
     void* allocations[2] = {nullptr, nullptr};
     {
       const size_t key1_beg_offsets_size      = (1 + num_tiles) * sizeof(Offset);
-      const size_t virtual_shared_memory_size = num_tiles * vsmem_helper_impl<AgentT>::vsmem_per_block;
+      const size_t virtual_shared_memory_size = num_tiles * vsmem_bytes_per_block(agent_chooser::required_smem);
       const size_t allocation_sizes[2]        = {key1_beg_offsets_size, virtual_shared_memory_size};
       if (const auto error =
             CubDebug(detail::alias_temporaries(d_temp_storage, temp_storage_bytes, allocations, allocation_sizes)))
@@ -298,7 +303,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
     {
       if (const auto error = CubDebug(
             THRUST_NS_QUALIFIER::cuda_cub::detail::triple_chevron(
-              static_cast<int>(num_tiles), static_cast<int>(AgentT::threads_per_block), 0, stream)
+              static_cast<int>(num_tiles), static_cast<int>(agent_chooser::threads_per_block), 0, stream)
               .doit(
                 device_merge_kernel<PolicySelector, KeyIt1, ValueIt1, KeyIt2, ValueIt2, KeyIt3, ValueIt3, Offset, CompareOp>,
                 d_keys1,

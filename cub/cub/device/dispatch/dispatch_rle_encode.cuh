@@ -22,6 +22,7 @@
 #include <cub/util_debug.cuh>
 #include <cub/util_device.cuh>
 #include <cub/util_temporary_storage.cuh>
+#include <cub/util_vsmem.cuh>
 
 #include <thrust/type_traits/is_contiguous_iterator.h>
 #include <thrust/type_traits/unwrap_contiguous_iterator.h>
@@ -113,9 +114,16 @@ __launch_bounds__(int(current_policy<PolicySelector>().lookback.threads_per_bloc
                           policy.lookback.lookback_delay.delay,
                           policy.lookback.lookback_delay.l2_write_latency>>;
 
-    using vsmem_helper_t = vsmem_helper_default_fallback_policy_t<
-      AgentReduceByKeyPolicyT,
-      reduce_by_key::AgentReduceByKey,
+    using smem_traits_t =
+      smem_default_fallback_traits<cub_algorithm::agent_reduce_by_key,
+                                   AgentReduceByKeyPolicyT,
+                                   KeysInputIteratorT,
+                                   UniqueOutputIteratorT,
+                                   OffsetT,
+                                   AccumT>;
+
+    using agent_reduce_by_key_t = reduce_by_key::AgentReduceByKey<
+      typename smem_traits_t::agent_policy_t,
       KeysInputIteratorT,
       UniqueOutputIteratorT,
       ValuesInputIteratorT,
@@ -126,8 +134,7 @@ __launch_bounds__(int(current_policy<PolicySelector>().lookback.threads_per_bloc
       OffsetT,
       AccumT,
       StreamingContextT>;
-
-    using agent_reduce_by_key_t = typename vsmem_helper_t::agent_t;
+    using vsmem_helper_t = agent_block_smem<typename agent_reduce_by_key_t::TempStorage, smem_traits_t::required_smem>;
 
     __shared__ typename vsmem_helper_t::static_temp_storage_t static_temp_storage;
 

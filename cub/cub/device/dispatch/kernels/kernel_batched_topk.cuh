@@ -20,6 +20,7 @@
 #include <cub/agent/agent_batched_topk_cluster.cuh>
 #include <cub/block/block_load.cuh>
 #include <cub/block/block_radix_sort.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/device/dispatch/tuning/tuning_batched_topk.cuh>
 #include <cub/util_arch.cuh>
 #include <cub/util_device.cuh>
@@ -29,8 +30,10 @@
 #include <cuda/__execution/determinism.h>
 #include <cuda/__execution/tie_break.h>
 #include <cuda/argument>
+#include <cuda/std/__algorithm/max.h>
 #include <cuda/std/__algorithm/min.h>
 #include <cuda/std/__type_traits/is_same.h>
+#include <cuda/std/__utility/integer_sequence.h>
 #include <cuda/std/cstdint>
 
 #include <nv/target>
@@ -47,42 +50,79 @@ union sort_temp_storage
   typename BlockRadixSort<KeyT, ThreadsPerBlock, ItemsPerThread, ValueT>::TempStorage sort;
 };
 
+template <typename KeyT, typename ValueT, int ThreadsPerBlock, int ItemsPerThread>
+inline constexpr smem_layout sort_temp_storage_layout = union_layout(
+  required_smem_layout_v<cub_algorithm::block_load,
+                         KeyT,
+                         ::cuda::std::integral_constant<int, ThreadsPerBlock>,
+                         ::cuda::std::integral_constant<int, ItemsPerThread>,
+                         ::cuda::std::integral_constant<BlockLoadAlgorithm, BLOCK_LOAD_WARP_TRANSPOSE>,
+                         ::cuda::std::integral_constant<int, 1>,
+                         ::cuda::std::integral_constant<int, 1>>,
+  required_smem_layout_v<cub_algorithm::block_load,
+                         ValueT,
+                         ::cuda::std::integral_constant<int, ThreadsPerBlock>,
+                         ::cuda::std::integral_constant<int, ItemsPerThread>,
+                         ::cuda::std::integral_constant<BlockLoadAlgorithm, BLOCK_LOAD_WARP_TRANSPOSE>,
+                         ::cuda::std::integral_constant<int, 1>,
+                         ::cuda::std::integral_constant<int, 1>>,
+  required_smem_layout_v<cub_algorithm::block_radix_sort,
+                         KeyT,
+                         ::cuda::std::integral_constant<int, ThreadsPerBlock>,
+                         ::cuda::std::integral_constant<int, ItemsPerThread>,
+                         ValueT,
+                         ::cuda::std::integral_constant<int, 4>,
+                         ::cuda::std::integral_constant<BlockScanAlgorithm, BLOCK_SCAN_WARP_SCANS>,
+                         ::cuda::std::integral_constant<cudaSharedMemConfig, cudaSharedMemBankSizeFourByte>,
+                         ::cuda::std::integral_constant<int, 1>,
+                         ::cuda::std::integral_constant<int, 1>>);
+
+[[nodiscard]] _CCCL_HOST_DEVICE_API constexpr bool sorted_output_policies_fit_radix_sort_tile()
+{
+  for (int i = 0; i < sorted_output_policy_count; ++i)
+  {
+    const auto tile =
+      ::cuda::std::int64_t{sorted_output_policies[i].threads_per_block} * sorted_output_policies[i].items_per_thread;
+    if (tile > 65535)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+static_assert(sorted_output_policies_fit_radix_sort_tile(), "BlockRadixSort supports at most 65535 items per block.");
+
+template <typename KeyT, typename ValueT, int Index>
+[[nodiscard]] _CCCL_HOST_DEVICE_API constexpr bool sorted_output_policy_fits_smem()
+{
+  constexpr sort_policy candidate = sorted_output_policies[Index];
+  return sort_temp_storage_layout<KeyT, ValueT, candidate.threads_per_block, candidate.items_per_thread>.size
+      <= max_smem_per_block;
+}
+
+template <typename KeyT, typename ValueT, ::cuda::std::int64_t StaticMaxOut, int Index>
+[[nodiscard]] _CCCL_HOST_DEVICE_API constexpr bool sorted_output_policy_covers()
+{
+  constexpr sort_policy candidate = sorted_output_policies[Index];
+  constexpr auto tile_size        = ::cuda::std::int64_t{candidate.threads_per_block} * candidate.items_per_thread;
+  return tile_size >= StaticMaxOut && sorted_output_policy_fits_smem<KeyT, ValueT, Index>();
+}
+
+template <typename KeyT, typename ValueT, ::cuda::std::int64_t StaticMaxOut, ::cuda::std::size_t... Is>
+[[nodiscard]] _CCCL_HOST_DEVICE_API constexpr int find_sort_policy_index_impl(::cuda::std::index_sequence<Is...>)
+{
+  int found = -1;
+  ((found =
+      sorted_output_policy_covers<KeyT, ValueT, StaticMaxOut, static_cast<int>(Is)>() ? static_cast<int>(Is) : found),
+   ...);
+  return found;
+}
+
 template <typename KeyT, typename ValueT, ::cuda::std::int64_t StaticMaxOut>
 struct find_sort_policy_index
 {
-private:
-  template <int Index>
-  [[nodiscard]] static constexpr int find_index()
-  {
-    if constexpr (Index >= sorted_output_policy_count)
-    {
-      return -1;
-    }
-    else
-    {
-      constexpr sort_policy candidate = sorted_output_policies[Index];
-      constexpr ::cuda::std::int64_t tile_size =
-        ::cuda::std::int64_t{candidate.threads_per_block} * candidate.items_per_thread;
-      static_assert(tile_size <= 65535, "BlockRadixSort supports at most 65535 items per block.");
-      constexpr bool covers = tile_size >= StaticMaxOut;
-      constexpr bool fits_smem =
-        sizeof(sort_temp_storage<KeyT, ValueT, candidate.threads_per_block, candidate.items_per_thread>)
-        <= max_smem_per_block;
-      constexpr int next = find_index<Index + 1>();
-
-      if constexpr (covers && fits_smem)
-      {
-        return next >= 0 ? next : Index;
-      }
-      else
-      {
-        return next;
-      }
-    }
-  }
-
-public:
-  static constexpr int value = find_index<0>();
+  static constexpr int value = find_sort_policy_index_impl<KeyT, ValueT, StaticMaxOut>(
+    ::cuda::std::make_index_sequence<sorted_output_policy_count>{});
 };
 
 template <typename KeyT, typename ValueT, ::cuda::std::int64_t StaticMaxOut>
@@ -98,44 +138,37 @@ struct find_smallest_sort_policy
   static constexpr sort_policy policy = sorted_output_policies[index];
 };
 
-template <typename KeyT, typename ValueT, int Index = 0>
-[[nodiscard]] _CCCL_HOST_DEVICE_API constexpr ::cuda::std::int64_t sort_covered_max()
+template <typename KeyT, typename ValueT, ::cuda::std::size_t... Is>
+[[nodiscard]] _CCCL_HOST_DEVICE_API constexpr ::cuda::std::int64_t
+  sort_covered_max_impl(::cuda::std::index_sequence<Is...>)
 {
-  if constexpr (Index >= sorted_output_policy_count)
-  {
-    return 0;
-  }
-  else
-  {
-    constexpr sort_policy candidate = sorted_output_policies[Index];
-    constexpr ::cuda::std::int64_t tile_size =
-      ::cuda::std::int64_t{candidate.threads_per_block} * candidate.items_per_thread;
-    constexpr bool fits_smem =
-      sizeof(sort_temp_storage<KeyT, ValueT, candidate.threads_per_block, candidate.items_per_thread>)
-      <= max_smem_per_block;
-    constexpr ::cuda::std::int64_t next = sort_covered_max<KeyT, ValueT, Index + 1>();
-    return fits_smem && tile_size > next ? tile_size : next;
-  }
+  ::cuda::std::int64_t best = 0;
+  ((best = sorted_output_policy_fits_smem<KeyT, ValueT, static_cast<int>(Is)>()
+           ? (::cuda::std::max) (best,
+                                 ::cuda::std::int64_t{sorted_output_policies[Is].threads_per_block}
+                                   * sorted_output_policies[Is].items_per_thread)
+           : best),
+   ...);
+  return best;
 }
 
-struct sixteen_byte_value
+template <typename KeyT, typename ValueT>
+[[nodiscard]] _CCCL_HOST_DEVICE_API constexpr ::cuda::std::int64_t sort_covered_max()
 {
-  ::cuda::std::int64_t first;
-  ::cuda::std::int64_t second;
-};
-
-static_assert(sort_covered_max<::cuda::std::int32_t, ::cuda::std::int32_t>() >= 2048);
-static_assert(sort_covered_max<::cuda::std::int64_t, ::cuda::std::int32_t>() >= 2048);
-static_assert(sort_covered_max<::cuda::std::int64_t, ::cuda::std::int64_t>() >= 2048);
-static_assert(sort_covered_max<float, ::cuda::std::int32_t>() >= 2048);
-static_assert(sort_covered_max<::cuda::std::int64_t, sixteen_byte_value>() >= 2048);
+  return sort_covered_max_impl<KeyT, ValueT>(::cuda::std::make_index_sequence<sorted_output_policy_count>{});
+}
 
 // Assert-free search shared by `find_smallest_covering_policy_device` and the backend coverage predicate. Returns the
-// index of the smallest worker policy whose tile size still covers the upper bound on segment size AND whose
-// instantiated agent's shared memory usage fits within the static shared memory limit (max_smem_per_block), or -1 if
-// none does. Kept separate from `find_smallest_covering_policy_device` so callers can query coverage as a bool without
-// tripping that trait's hard `static_assert`.
-template <typename PolicyGetter, typename SegmentSizeParameterT, typename... AgentParamsT>
+// index of the smallest worker policy whose tile size still covers the upper bound on segment size AND whose agent's
+// shared memory usage fits within the static shared memory limit (max_smem_per_block), or -1 if none does. Kept
+// separate from `find_smallest_covering_policy_device` so callers can query coverage as a bool without tripping that
+// trait's hard `static_assert`.
+template <typename PolicyGetter,
+          typename SegmentSizeParameterT,
+          typename KeyInputItItT,
+          typename KeyOutputItItT,
+          typename ValueInputItItT,
+          typename... AgentParamsT>
 struct find_covering_policy_index
 {
 private:
@@ -167,10 +200,15 @@ private:
                           active_policy.baseline.multi_worker_per_segment_policy};
         }
       };
-      using candidate_agent_t  = agent_batched_topk_worker_per_segment<policy_getter_17, AgentParamsT...>;
-      constexpr bool covers    = tile_size >= max_segment_size;
-      constexpr bool fits_smem = sizeof(typename candidate_agent_t::TempStorage) <= max_smem_per_block;
-      constexpr int next       = find_index<Index + 1>();
+      constexpr bool covers = tile_size >= max_segment_size;
+      constexpr bool fits_smem =
+        required_smem_v<cub_algorithm::agent_batched_topk,
+                        policy_getter_17,
+                        KeyInputItItT,
+                        ValueInputItItT,
+                        SegmentSizeParameterT>
+        <= max_smem_per_block;
+      constexpr int next = find_index<Index + 1>();
       if constexpr (covers && fits_smem)
       {
         return next >= 0 ? next : Index;
@@ -227,7 +265,8 @@ public:
       return policy;
     }
   };
-  using agent_t = agent_batched_topk_worker_per_segment<policy_getter_17, AgentParamsT...>;
+  using policy_getter_t = policy_getter_17;
+  using agent_t         = agent_batched_topk_worker_per_segment<policy_getter_17, AgentParamsT...>;
 };
 
 // `PolicySelector`-based form: resolves the policy for this compilation's CC via `current_policy<PolicySelector>()`
@@ -254,6 +293,7 @@ private:
 
 public:
   static constexpr auto policy = impl_t::policy;
+  using policy_getter_t        = typename impl_t::policy_getter_t;
   using agent_t                = typename impl_t::agent_t;
 };
 
@@ -416,7 +456,7 @@ device_batched_topk_kernel(
 
   if constexpr (policy.backend == topk_algorithm::baseline)
   {
-    using agent_t = typename find_smallest_covering_policy_device<
+    using covering_policy_t = find_smallest_covering_policy_device<
       PolicySelector,
       SegmentSizeParameterT,
       KeyInputItItT,
@@ -427,12 +467,19 @@ device_batched_topk_kernel(
       KParameterT,
       SelectDirectionParameterT,
       NumSegmentsParameterT,
-      LargeSegmentTileOffsetT>::agent_t;
+      LargeSegmentTileOffsetT>;
+    using agent_t = typename covering_policy_t::agent_t;
 
     static_assert(agent_t::tile_size >= ::cuda::args::__traits<SegmentSizeParameterT>::highest,
                   "Block size exceeds maximum segment size supported by SegmentSizeParameterT");
-    static_assert(sizeof(typename agent_t::TempStorage) <= max_smem_per_block,
-                  "Static shared memory per block must not exceed 48KB limit.");
+    static_assert(
+      required_smem_v<cub_algorithm::agent_batched_topk,
+                      typename covering_policy_t::policy_getter_t,
+                      KeyInputItItT,
+                      ValueInputItItT,
+                      SegmentSizeParameterT>
+        <= max_smem_per_block,
+      "Static shared memory per block must not exceed 48KB limit.");
 
     __shared__ typename agent_t::TempStorage temp_storage;
 
@@ -472,8 +519,10 @@ device_batched_topk_kernel(
        // A `tune`d override with an oversized static footprint (e.g. a large `bits_per_pass` histogram) fails here
        // rather than as an opaque ptxas error. Only the static footprint is checked: the dynamic block-tile slots may
        // exceed the static shared-memory cap via opt-in.
-       static_assert(sizeof(typename agent_t::TempStorage) <= max_smem_per_block,
-                     "Static shared memory per block must not exceed 48KB limit.");
+       static_assert(
+         required_smem_v<cub_algorithm::agent_batched_topk_cluster, cluster_policy_getter<PolicySelector>, KeyInputItItT>
+           <= max_smem_per_block,
+         "Static shared memory per block must not exceed 48KB limit.");
 
        __shared__ typename agent_t::TempStorage temp_storage;
        extern __shared__ char topk_cluster_smem[];

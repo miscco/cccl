@@ -69,10 +69,13 @@ struct policy_selector
   }
 };
 
+// Answering the query below must not instantiate either agent, so the shared memory requirements are taken from
+// `required_smem_v` rather than from the agents' `TempStorage`.
 template <typename KeyT, typename ValueT, typename OffsetT, cub::SortOrder SortOrder>
-constexpr std::size_t max_onesweep_temp_storage_size()
+constexpr std::size_t max_onesweep_required_smem()
 {
-  using portion_offset = int;
+  using portion_offset         = int;
+  constexpr bool is_descending = SortOrder == cub::SortOrder::Descending;
 
   constexpr auto active_policy = policy_selector<KeyT, ValueT, OffsetT>{}(cuda::compute_capability{});
 
@@ -88,14 +91,6 @@ constexpr std::size_t max_onesweep_temp_storage_size()
     onesweep.radix_bits,
     cub::detail::NoScaling<onesweep.threads_per_block, onesweep.items_per_thread>>;
 
-  using agent_radix_sort_onesweep_t = cub::detail::radix_sort::AgentRadixSortOnesweep<
-    onesweep_policy_t,
-    SortOrder == cub::SortOrder::Descending,
-    KeyT,
-    ValueT,
-    OffsetT,
-    portion_offset>;
-
   constexpr auto histogram = active_policy.histogram;
   using histogram_policy_t = cub::detail::agent_radix_sort_histogram_policy<
     histogram.threads_per_block,
@@ -103,26 +98,24 @@ constexpr std::size_t max_onesweep_temp_storage_size()
     histogram.private_partitions,
     void,
     histogram.radix_bits>;
-  using hist_agent = cub::detail::radix_sort::
-    AgentRadixSortHistogram<histogram_policy_t, SortOrder == cub::SortOrder::Descending, KeyT, OffsetT>;
 
-  return cuda::std::max(sizeof(typename agent_radix_sort_onesweep_t::TempStorage),
-                        sizeof(typename hist_agent::TempStorage));
-}
-
-template <typename KeyT, typename ValueT, typename OffsetT, cub::SortOrder SortOrder>
-constexpr std::size_t max_temp_storage_size()
-{
-  using offset_t               = cub::detail::choose_offset_t<OffsetT>;
-  constexpr auto active_policy = policy_selector<KeyT, ValueT, offset_t>{}(cuda::compute_capability{});
-  static_assert(active_policy.algorithm == cub::RadixSortAlgorithm::onesweep);
-  return max_onesweep_temp_storage_size<KeyT, ValueT, offset_t, SortOrder>();
+  return cuda::std::max(
+    cub::detail::required_smem_v<cub::detail::cub_algorithm::agent_radix_sort_onesweep,
+                                 onesweep_policy_t,
+                                 KeyT,
+                                 ValueT,
+                                 OffsetT,
+                                 portion_offset>,
+    cub::detail::required_smem_v<cub::detail::cub_algorithm::agent_radix_sort_histogram, histogram_policy_t, KeyT>);
 }
 
 template <typename KeyT, typename ValueT, typename OffsetT, cub::SortOrder SortOrder>
 constexpr bool fits_in_default_shared_memory()
 {
-  return max_temp_storage_size<KeyT, ValueT, OffsetT, SortOrder>() < cub::detail::max_smem_per_block;
+  using offset_t               = cub::detail::choose_offset_t<OffsetT>;
+  constexpr auto active_policy = policy_selector<KeyT, ValueT, offset_t>{}(cuda::compute_capability{});
+  static_assert(active_policy.algorithm == cub::RadixSortAlgorithm::onesweep);
+  return max_onesweep_required_smem<KeyT, ValueT, offset_t, SortOrder>() < cub::detail::max_smem_per_block;
 }
 #else // TUNE_BASE
 template <typename, typename, typename, auto>

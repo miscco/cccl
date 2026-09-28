@@ -16,6 +16,7 @@
 #include <cub/agent/agent_unique_by_key.cuh>
 #include <cub/detail/cc_dispatch.cuh>
 #include <cub/detail/delay_constructor.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/device/dispatch/tuning/tuning_unique_by_key.cuh>
 #include <cub/util_arch.cuh>
 #include <cub/util_vsmem.cuh>
@@ -105,34 +106,27 @@ class unique_by_key_vsmem_helper_impl
                         fallback_policy.lookback_delay.delay,
                         fallback_policy.lookback_delay.l2_write_latency>>;
 
-  using default_agent_t =
-    AgentUniqueByKey<selected_policy_t,
-                     KeyInputIteratorT,
-                     ValueInputIteratorT,
-                     KeyOutputIteratorT,
-                     ValueOutputIteratorT,
-                     EqualityOpT,
-                     OffsetT>;
-  using fallback_agent_t =
-    AgentUniqueByKey<fallback_policy_t,
-                     KeyInputIteratorT,
-                     ValueInputIteratorT,
-                     KeyOutputIteratorT,
-                     ValueOutputIteratorT,
-                     EqualityOpT,
-                     OffsetT>;
-
-  static constexpr ::cuda::std::size_t max_default_size  = sizeof(typename default_agent_t::TempStorage);
-  static constexpr ::cuda::std::size_t max_fallback_size = sizeof(typename fallback_agent_t::TempStorage);
-  static constexpr bool uses_fallback_policy =
-    (max_default_size > max_smem_per_block) && (max_fallback_size <= max_smem_per_block);
+  static constexpr ::cuda::std::size_t max_default_size =
+    required_smem_v<cub_algorithm::agent_unique_by_key, selected_policy_t, KeyInputIteratorT, ValueInputIteratorT, OffsetT>;
+  static constexpr ::cuda::std::size_t max_fallback_size =
+    required_smem_v<cub_algorithm::agent_unique_by_key, fallback_policy_t, KeyInputIteratorT, ValueInputIteratorT, OffsetT>;
+  static constexpr bool uses_fallback_policy = use_fallback_smem(max_default_size, max_fallback_size);
 
 public:
   static constexpr UniqueByKeyPolicy policy       = uses_fallback_policy ? fallback_policy : selected_policy;
-  static constexpr bool selected_policy_fits_smem = max_default_size <= max_smem_per_block;
-
-  using selected_agent_t = default_agent_t;
-  using agent_t          = ::cuda::std::_If<uses_fallback_policy, fallback_agent_t, default_agent_t>;
+  static constexpr bool selected_policy_fits_smem = !needs_vsmem(max_default_size);
+  using agent_policy_t = ::cuda::std::_If<uses_fallback_policy, fallback_policy_t, selected_policy_t>;
+  static constexpr ::cuda::std::size_t required_smem   = uses_fallback_policy ? max_fallback_size : max_default_size;
+  static constexpr ::cuda::std::size_t vsmem_per_block = vsmem_bytes_per_block(required_smem);
+  // Selected agent only. The sweep kernel aliases this so its body does not respecialize AgentUniqueByKey.
+  using agent_t =
+    AgentUniqueByKey<agent_policy_t,
+                     KeyInputIteratorT,
+                     ValueInputIteratorT,
+                     KeyOutputIteratorT,
+                     ValueOutputIteratorT,
+                     EqualityOpT,
+                     OffsetT>;
 };
 
 template <typename PolicyGetter,
@@ -265,7 +259,8 @@ __launch_bounds__(
     EqualityOpT,
     OffsetT>;
   using agent_unique_by_key_t = typename vsmem_adapted_agents::agent_t;
-  using vsmem_helper_t        = vsmem_helper_impl<agent_unique_by_key_t>;
+  using vsmem_helper_t =
+    agent_block_smem<typename agent_unique_by_key_t::TempStorage, vsmem_adapted_agents::required_smem>;
 
   // Static shared memory allocation
   __shared__ typename vsmem_helper_t::static_temp_storage_t static_temp_storage;

@@ -145,9 +145,9 @@ template <typename KeyT,
 struct policy_selector_from_types
 {
   // TODO(bgruber): to let the baseline policy vary per CC, move this coverage check into operator() and evaluate it for
-  // the passed CC. Only the check is hard: it instantiates the agent for sizeof(TempStorage), so it needs the CC as a
-  // compile-time constant, whereas operator()'s `cc` is a runtime parameter (building the policy itself is just the
-  // value make_baseline_policy(cc)). Recover the compile-time CC by folding over
+  // the passed CC. Only the check is hard: the agent's required shared memory is a compile-time query, so it needs the
+  // CC as a compile-time constant, whereas operator()'s `cc` is a runtime parameter (building the policy itself is
+  // just the value make_baseline_policy(cc)). Recover the compile-time CC by folding over
   // ::cuda::__target_compute_capabilities() (as detail::dispatch_to_cc_list does) and evaluate baseline_can_cover_v for
   // the matching CC. That also removes the invariant below, since coverage and the returned baseline would then derive
   // from the same cc.

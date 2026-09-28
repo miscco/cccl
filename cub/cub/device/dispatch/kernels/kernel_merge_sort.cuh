@@ -15,6 +15,7 @@
 
 #include <cub/agent/agent_merge_sort.cuh>
 #include <cub/detail/cc_dispatch.cuh>
+#include <cub/detail/required_smem.cuh>
 #include <cub/device/dispatch/tuning/tuning_merge_sort.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/util_arch.cuh>
@@ -53,32 +54,40 @@ template <typename DefaultPolicyGetter,
           typename ValueT>
 class merge_sort_vsmem_helper_impl
 {
-  using default_block_sort_agent_t =
-    AgentBlockSort<DefaultPolicyGetter, KeyInIt, ValInIt, KeyOutIt, ValOutIt, OffsetT, CompareOpT, KeyT, ValueT>;
-  using fallback_block_sort_agent_t =
-    AgentBlockSort<FallbackPolicyGetter, KeyInIt, ValInIt, KeyOutIt, ValOutIt, OffsetT, CompareOpT, KeyT, ValueT>;
-
-  using default_merge_agent_t = AgentMerge<DefaultPolicyGetter, KeyOutIt, ValOutIt, OffsetT, CompareOpT, KeyT, ValueT>;
-  using fallback_merge_agent_t =
-    AgentMerge<FallbackPolicyGetter, KeyOutIt, ValOutIt, OffsetT, CompareOpT, KeyT, ValueT>;
-
   // Use fallback if either (a) the default block sort or (b) the block merge agent exceed the maximum shared memory
   // available per block and both (1) the fallback block sort and (2) the fallback merge agent would not exceed the
   // available shared memory
-  static constexpr auto max_default_size =
-    (::cuda::std::max) (sizeof(typename default_block_sort_agent_t::TempStorage),
-                        sizeof(typename default_merge_agent_t::TempStorage));
-  static constexpr auto max_fallback_size =
-    (::cuda::std::max) (sizeof(typename fallback_block_sort_agent_t::TempStorage),
-                        sizeof(typename fallback_merge_agent_t::TempStorage));
-  static constexpr bool uses_fallback_policy =
-    (max_default_size > max_smem_per_block) && (max_fallback_size <= max_smem_per_block);
+  template <typename PolicyGetter>
+  static constexpr auto required_smem =
+    (::cuda::std::
+       max) (required_smem_v<cub_algorithm::agent_block_sort, PolicyGetter, KeyInIt, ValInIt, KeyOutIt, ValOutIt, KeyT, ValueT>,
+             required_smem_v<cub_algorithm::agent_merge_sort_merge, PolicyGetter, KeyOutIt, ValOutIt, KeyT, ValueT>);
+
+  static constexpr auto max_default_size     = required_smem<DefaultPolicyGetter>;
+  static constexpr auto max_fallback_size    = required_smem<FallbackPolicyGetter>;
+  static constexpr bool uses_fallback_policy = use_fallback_smem(max_default_size, max_fallback_size);
 
 public:
+  using active_policy_getter_t = ::cuda::std::_If<uses_fallback_policy, FallbackPolicyGetter, DefaultPolicyGetter>;
+
   static constexpr MergeSortPolicy policy = uses_fallback_policy ? FallbackPolicyGetter{}() : DefaultPolicyGetter{}();
+
+  static constexpr ::cuda::std::size_t block_sort_required_smem =
+    required_smem_v<cub_algorithm::agent_block_sort,
+                    active_policy_getter_t,
+                    KeyInIt,
+                    ValInIt,
+                    KeyOutIt,
+                    ValOutIt,
+                    KeyT,
+                    ValueT>;
+  static constexpr ::cuda::std::size_t merge_required_smem =
+    required_smem_v<cub_algorithm::agent_merge_sort_merge, active_policy_getter_t, KeyOutIt, ValOutIt, KeyT, ValueT>;
+
+  // The selected agent only. Kernels alias these types so the function body does not respecialize them.
   using block_sort_agent_t =
-    ::cuda::std::_If<uses_fallback_policy, fallback_block_sort_agent_t, default_block_sort_agent_t>;
-  using merge_agent_t = ::cuda::std::_If<uses_fallback_policy, fallback_merge_agent_t, default_merge_agent_t>;
+    AgentBlockSort<active_policy_getter_t, KeyInIt, ValInIt, KeyOutIt, ValOutIt, OffsetT, CompareOpT, KeyT, ValueT>;
+  using merge_agent_t = AgentMerge<active_policy_getter_t, KeyOutIt, ValOutIt, OffsetT, CompareOpT, KeyT, ValueT>;
 };
 
 template <typename PolicyGetter,
@@ -168,7 +177,8 @@ __launch_bounds__(
 
   static constexpr MergeSortPolicy active_policy = vsmem_adapted_agents::policy;
   using agent_block_sort_t                       = typename vsmem_adapted_agents::block_sort_agent_t;
-  using vsmem_helper_t                           = vsmem_helper_impl<agent_block_sort_t>;
+  using vsmem_helper_t =
+    agent_block_smem<typename agent_block_sort_t::TempStorage, vsmem_adapted_agents::block_sort_required_smem>;
 
   // Static shared memory allocation
   __shared__ typename vsmem_helper_t::static_temp_storage_t static_temp_storage;
@@ -270,7 +280,8 @@ __launch_bounds__(
 
   static constexpr MergeSortPolicy active_policy = vsmem_adapted_agents::policy;
   using agent_merge_t                            = typename vsmem_adapted_agents::merge_agent_t;
-  using vsmem_helper_t                           = vsmem_helper_impl<agent_merge_t>;
+  using vsmem_helper_t =
+    agent_block_smem<typename agent_merge_t::TempStorage, vsmem_adapted_agents::merge_required_smem>;
 
   // Static shared memory allocation
   __shared__ typename vsmem_helper_t::static_temp_storage_t static_temp_storage;

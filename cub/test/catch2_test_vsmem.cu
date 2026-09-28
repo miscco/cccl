@@ -106,17 +106,29 @@ struct agent_dummy_algorithm_t
 };
 
 //----------------------------------------------------------------------------
+// Policy choice using sizeof as the shared-memory oracle for this dummy agent
+//----------------------------------------------------------------------------
+template <typename DefaultPolicyT,
+          typename FallbackPolicyT,
+          typename InputIteratorT,
+          typename OutputIteratorT,
+          typename OffsetT>
+using dummy_smem_choice_t = cub::detail::smem_policy_choice<
+  DefaultPolicyT,
+  FallbackPolicyT,
+  sizeof(typename agent_dummy_algorithm_t<DefaultPolicyT, InputIteratorT, OutputIteratorT, OffsetT>::TempStorage),
+  sizeof(typename agent_dummy_algorithm_t<FallbackPolicyT, InputIteratorT, OutputIteratorT, OffsetT>::TempStorage)>;
+
+//----------------------------------------------------------------------------
 // Kernel template definition
 //----------------------------------------------------------------------------
 template <typename ChainedPolicyT, typename InputIteratorT, typename OutputIteratorT, typename OffsetT>
 void __global__ __launch_bounds__(
-  cub::detail::vsmem_helper_fallback_policy_t<
-    typename ChainedPolicyT::ActivePolicy::DummyAlgorithmPolicy,
-    typename ChainedPolicyT::ActivePolicy::FallbackDummyAlgorithmPolicy,
-    agent_dummy_algorithm_t,
-    InputIteratorT,
-    OutputIteratorT,
-    OffsetT>::agent_policy_t::BLOCK_THREADS)
+  dummy_smem_choice_t<typename ChainedPolicyT::ActivePolicy::DummyAlgorithmPolicy,
+                      typename ChainedPolicyT::ActivePolicy::FallbackDummyAlgorithmPolicy,
+                      InputIteratorT,
+                      OutputIteratorT,
+                      OffsetT>::agent_policy_t::BLOCK_THREADS)
   dummy_algorithm_kernel(
     InputIteratorT d_in,
     OutputIteratorT d_out,
@@ -129,15 +141,11 @@ void __global__ __launch_bounds__(
   using fallback_policy_t = typename active_policy_t::FallbackDummyAlgorithmPolicy;
   using fallback_agent_t  = agent_dummy_algorithm_t<fallback_policy_t, InputIteratorT, OutputIteratorT, OffsetT>;
 
-  using vsmem_helper_t = cub::detail::vsmem_helper_fallback_policy_t<
-    default_policy_t,
-    fallback_policy_t,
-    agent_dummy_algorithm_t,
-    InputIteratorT,
-    OutputIteratorT,
-    OffsetT>;
-
-  using agent_t = typename vsmem_helper_t::agent_t;
+  using smem_choice_t =
+    dummy_smem_choice_t<default_policy_t, fallback_policy_t, InputIteratorT, OutputIteratorT, OffsetT>;
+  using agent_t =
+    agent_dummy_algorithm_t<typename smem_choice_t::agent_policy_t, InputIteratorT, OutputIteratorT, OffsetT>;
+  using vsmem_helper_t = cub::detail::agent_block_smem<typename agent_t::TempStorage, smem_choice_t::required_smem>;
 
   // Static shared memory allocation
   __shared__ typename vsmem_helper_t::static_temp_storage_t static_temp_storage;
@@ -149,9 +157,9 @@ void __global__ __launch_bounds__(
   kernel_test_info->uses_vsmem_ptr =
     (reinterpret_cast<char*>(&temp_storage)
      == (static_cast<char*>(vsmem.gmem_ptr) + (blockIdx.x * vsmem_helper_t::vsmem_per_block)));
-  kernel_test_info->uses_fallback_agent = cuda::std::is_same_v<typename vsmem_helper_t::agent_t, fallback_agent_t>;
+  kernel_test_info->uses_fallback_agent = cuda::std::is_same_v<agent_t, fallback_agent_t>;
   kernel_test_info->uses_fallback_policy =
-    cuda::std::is_same_v<typename vsmem_helper_t::agent_policy_t, fallback_policy_t>;
+    cuda::std::is_same_v<typename smem_choice_t::agent_policy_t, fallback_policy_t>;
 
   // Instantiate the algorithm's agent
   agent_t agent(temp_storage, d_in, d_out);
@@ -250,13 +258,12 @@ struct dispatch_dummy_algorithm_t
   template <typename ActivePolicyT>
   CUB_RUNTIME_FUNCTION __forceinline__ cudaError_t Invoke()
   {
-    using vsmem_helper_t = cub::detail::vsmem_helper_fallback_policy_t<
-      typename ActivePolicyT::DummyAlgorithmPolicy,
-      typename ActivePolicyT::FallbackDummyAlgorithmPolicy,
-      agent_dummy_algorithm_t,
-      InputIteratorT,
-      OutputIteratorT,
-      OffsetT>;
+    using vsmem_helper_t =
+      dummy_smem_choice_t<typename ActivePolicyT::DummyAlgorithmPolicy,
+                          typename ActivePolicyT::FallbackDummyAlgorithmPolicy,
+                          InputIteratorT,
+                          OutputIteratorT,
+                          OffsetT>;
 
     // Empty problem size
     if (num_items == 0)

@@ -226,9 +226,15 @@ struct make_vsmem_helper
                         active_policy.lookback.lookback_delay.delay,
                         active_policy.lookback.lookback_delay.l2_write_latency>,
     active_policy.lookback._load_prefetch>;
-  using type = vsmem_helper_default_fallback_policy_t<
-    agent_policy_t,
-    bind_selection_opt<SelectionOpt>::template agent_t,
+  using type =
+    smem_default_fallback_traits<cub_algorithm::agent_select_if,
+                                 agent_policy_t,
+                                 InputIteratorT,
+                                 FlagsInputIteratorT,
+                                 OffsetT>;
+  // Selected agent only. The sweep kernel aliases this so its body does not respecialize AgentSelectIf.
+  using agent_t = typename bind_selection_opt<SelectionOpt>::template agent_t<
+    typename type::agent_policy_t,
     InputIteratorT,
     FlagsInputIteratorT,
     SelectedOutputIteratorT,
@@ -360,19 +366,19 @@ __launch_bounds__(int(
     _CCCL_GRID_CONSTANT const StreamingContextT streaming_context,
     vsmem_t vsmem)
 {
-  using VsmemHelperT = typename make_vsmem_helper<
-    device_policy_getter<PolicySelectorT, current_tuning_cc().get()>,
-    SelectionOpt,
-    InputIteratorT,
-    FlagsInputIteratorT,
-    SelectedOutputIteratorT,
-    SelectOpT,
-    EqualityOpT,
-    OffsetT,
-    StreamingContextT>::type;
-
-  // Thread block type for selecting data from input tiles
-  using AgentSelectIfT = typename VsmemHelperT::agent_t;
+  using smem_helper_t =
+    make_vsmem_helper<device_policy_getter<PolicySelectorT, current_tuning_cc().get()>,
+                      SelectionOpt,
+                      InputIteratorT,
+                      FlagsInputIteratorT,
+                      SelectedOutputIteratorT,
+                      SelectOpT,
+                      EqualityOpT,
+                      OffsetT,
+                      StreamingContextT>;
+  using smem_traits_t  = typename smem_helper_t::type;
+  using AgentSelectIfT = typename smem_helper_t::agent_t;
+  using VsmemHelperT   = agent_block_smem<typename AgentSelectIfT::TempStorage, smem_traits_t::required_smem>;
 
   // Static shared memory allocation
   __shared__ typename VsmemHelperT::static_temp_storage_t static_temp_storage;
@@ -594,16 +600,12 @@ struct CCCL_DEPRECATED_BECAUSE("Use the tuning API for DeviceSelect/DevicePartit
   {
     using Policy = typename ActivePolicyT::SelectIfPolicyT;
 
-    using VsmemHelperT = cub::detail::vsmem_helper_default_fallback_policy_t<
+    using VsmemHelperT = cub::detail::smem_default_fallback_traits<
+      cub::detail::cub_algorithm::agent_select_if,
       Policy,
-      detail::select::bind_selection_opt<SelectionOpt>::template agent_t,
       InputIteratorT,
       FlagsInputIteratorT,
-      SelectedOutputIteratorT,
-      SelectOpT,
-      EqualityOpT,
-      per_partition_offset_t,
-      streaming_context_t>;
+      per_partition_offset_t>;
     cudaError error = cudaSuccess;
 
     constexpr auto threads_per_block = VsmemHelperT::agent_policy_t::BLOCK_THREADS;

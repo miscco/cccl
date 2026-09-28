@@ -209,18 +209,26 @@ __launch_bounds__(int(current_policy<PolicySelector>().lookback.threads_per_bloc
 {
   static constexpr ReduceByKeyPolicy policy = current_policy<PolicySelector>();
   using AgentReduceByKeyPolicyT             = agent_reduce_by_key_policy<
-    policy.lookback.threads_per_block,
-    policy.lookback.items_per_thread,
-    policy.lookback.load_algorithm,
-    policy.lookback.load_modifier,
-    policy.lookback.scan_algorithm,
-    delay_constructor_t<policy.lookback.lookback_delay.kind,
-                        policy.lookback.lookback_delay.delay,
-                        policy.lookback.lookback_delay.l2_write_latency>>;
+                policy.lookback.threads_per_block,
+                policy.lookback.items_per_thread,
+                policy.lookback.load_algorithm,
+                policy.lookback.load_modifier,
+                policy.lookback.scan_algorithm,
+                delay_constructor_t<policy.lookback.lookback_delay.kind,
+                                    policy.lookback.lookback_delay.delay,
+                                    policy.lookback.lookback_delay.l2_write_latency>>;
 
-  using vsmem_helper_t = vsmem_helper_default_fallback_policy_t<
-    AgentReduceByKeyPolicyT,
-    AgentReduceByKey,
+  using smem_traits_t =
+    smem_default_fallback_traits<cub_algorithm::agent_reduce_by_key,
+                                 AgentReduceByKeyPolicyT,
+                                 KeysInputIteratorT,
+                                 UniqueOutputIteratorT,
+                                 OffsetT,
+                                 AccumT>;
+
+  // Thread block type for reducing tiles of value segments
+  using agent_reduce_by_key_t = AgentReduceByKey<
+    typename smem_traits_t::agent_policy_t,
     KeysInputIteratorT,
     UniqueOutputIteratorT,
     ValuesInputIteratorT,
@@ -231,9 +239,7 @@ __launch_bounds__(int(current_policy<PolicySelector>().lookback.threads_per_bloc
     OffsetT,
     AccumT,
     StreamingContextT>;
-
-  // Thread block type for reducing tiles of value segments
-  using agent_reduce_by_key_t = typename vsmem_helper_t::agent_t;
+  using vsmem_helper_t = agent_block_smem<typename agent_reduce_by_key_t::TempStorage, smem_traits_t::required_smem>;
 
   // Static shared memory allocation
   __shared__ typename vsmem_helper_t::static_temp_storage_t static_temp_storage;
@@ -375,19 +381,13 @@ struct CCCL_DEPRECATED_BECAUSE("Use the tuning API for DeviceReduce::ReduceByKey
   CUB_RUNTIME_FUNCTION _CCCL_VISIBILITY_HIDDEN _CCCL_FORCEINLINE cudaError_t
   Invoke(ScanInitKernelT init_kernel, ReduceByKeyKernelT reduce_by_key_kernel)
   {
-    using vsmem_helper_t = detail::vsmem_helper_default_fallback_policy_t<
+    using vsmem_helper_t = detail::smem_default_fallback_traits<
+      detail::cub_algorithm::agent_reduce_by_key,
       typename ActivePolicyT::ReduceByKeyPolicyT,
-      detail::reduce_by_key::AgentReduceByKey,
       KeysInputIteratorT,
       UniqueOutputIteratorT,
-      ValuesInputIteratorT,
-      AggregatesOutputIteratorT,
-      NumRunsOutputIteratorT,
-      EqualityOpT,
-      ReductionOpT,
       OffsetT,
-      AccumT,
-      streaming_context_t>;
+      AccumT>;
 
     constexpr int threads_per_block = vsmem_helper_t::agent_policy_t::BLOCK_THREADS;
     constexpr int items_per_thread  = vsmem_helper_t::agent_policy_t::ITEMS_PER_THREAD;
@@ -655,21 +655,31 @@ struct CCCL_DEPRECATED_BECAUSE("Use the tuning API for DeviceReduce::ReduceByKey
 namespace detail::reduce_by_key
 {
 // we move the conversion of the policy to the agent policy and its use out of the lambda below, so MSVC does not ICE
-template <typename PolicyGetter, typename... Args>
+template <typename PolicyGetter,
+          typename KeysInputIteratorT,
+          typename UniqueOutputIteratorT,
+          typename OffsetT,
+          typename AccumT>
 _CCCL_HOST_DEVICE_API auto determine_threads_items_vsmem(PolicyGetter policy_getter)
 {
   // TODO(bgruber): refactor this in the future
   constexpr ReduceByKeyPolicy policy = policy_getter();
   using Policy                       = agent_reduce_by_key_policy<
-    policy.lookback.threads_per_block,
-    policy.lookback.items_per_thread,
-    policy.lookback.load_algorithm,
-    policy.lookback.load_modifier,
-    policy.lookback.scan_algorithm,
-    delay_constructor_t<policy.lookback.lookback_delay.kind,
-                        policy.lookback.lookback_delay.delay,
-                        policy.lookback.lookback_delay.l2_write_latency>>;
-  using vsmem_helper_t = vsmem_helper_default_fallback_policy_t<Policy, AgentReduceByKey, Args...>;
+                          policy.lookback.threads_per_block,
+                          policy.lookback.items_per_thread,
+                          policy.lookback.load_algorithm,
+                          policy.lookback.load_modifier,
+                          policy.lookback.scan_algorithm,
+                          delay_constructor_t<policy.lookback.lookback_delay.kind,
+                                              policy.lookback.lookback_delay.delay,
+                                              policy.lookback.lookback_delay.l2_write_latency>>;
+  using vsmem_helper_t =
+    smem_default_fallback_traits<cub_algorithm::agent_reduce_by_key,
+                                 Policy,
+                                 KeysInputIteratorT,
+                                 UniqueOutputIteratorT,
+                                 OffsetT,
+                                 AccumT>;
   return ::cuda::std::tuple{vsmem_helper_t::agent_policy_t::BLOCK_THREADS,
                             vsmem_helper_t::agent_policy_t::ITEMS_PER_THREAD,
                             vsmem_helper_t::vsmem_per_block};
@@ -716,18 +726,9 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
   return detail::dispatch_compute_cap(policy_selector, cc, [&](auto policy_getter) {
     detail::log_dispatch("DeviceReduceByKey", cc, policy_getter());
 
-    const auto [threads_per_block, items_per_thread, vsmem_per_block] = determine_threads_items_vsmem<
-      decltype(policy_getter),
-      KeysInputIteratorT,
-      UniqueOutputIteratorT,
-      ValuesInputIteratorT,
-      AggregatesOutputIteratorT,
-      NumRunsOutputIteratorT,
-      EqualityOpT,
-      ReductionOpT,
-      OffsetT,
-      AccumT,
-      streaming_context_t>(policy_getter);
+    const auto [threads_per_block, items_per_thread, vsmem_per_block] =
+      determine_threads_items_vsmem<decltype(policy_getter), KeysInputIteratorT, UniqueOutputIteratorT, OffsetT, AccumT>(
+        policy_getter);
 
     // Number of input tiles
     const int tile_size = threads_per_block * items_per_thread;

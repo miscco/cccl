@@ -386,8 +386,7 @@ struct CCCL_DEPRECATED_BECAUSE("Use the tuning API for DeviceSelect::UniqueByKey
       EqualityOpT,
       OffsetT>;
 
-    return __invoke(vsmem_adapted_agents::policy,
-                    detail::vsmem_helper_impl<typename vsmem_adapted_agents::agent_t>::vsmem_per_block);
+    return __invoke(vsmem_adapted_agents::policy, detail::vsmem_bytes_per_block(vsmem_adapted_agents::required_smem));
 #endif
   }
 
@@ -530,7 +529,7 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
       EqualityOpT,
       OffsetT>;
     constexpr UniqueByKeyPolicy active_policy = vsmem_adapted_agents::policy;
-    const ::cuda::std::size_t vsmem_per_block = vsmem_helper_impl<typename vsmem_adapted_agents::agent_t>::vsmem_per_block;
+    const ::cuda::std::size_t vsmem_per_block = vsmem_bytes_per_block(vsmem_adapted_agents::required_smem);
 #endif
 
     detail::log_dispatch("DeviceSelect (unique by key)", cc, active_policy);

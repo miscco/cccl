@@ -223,10 +223,6 @@ __launch_bounds__(int(current_policy<PolicySelector>().multi_tile.threads_per_bl
   // Thread block type for reducing input tiles
   using AgentReduceT = AgentReduce<agent_policy_t, InputIteratorT, OffsetT, ReductionOpT, AccumT, TransformOpT>;
 
-  static_assert(sizeof(typename AgentReduceT::TempStorage) <= max_smem_per_block,
-                "cub::DeviceReduce ran out of CUDA shared memory, which we judged to be extremely unlikely. Please "
-                "file an issue at: https://github.com/NVIDIA/cccl/issues");
-
   // Shared memory storage
   __shared__ typename AgentReduceT::TempStorage temp_storage;
 
@@ -331,10 +327,6 @@ _CCCL_KERNEL_ATTRIBUTES __launch_bounds__(
   // Thread block type for reducing input tiles
   using AgentReduceT = AgentReduce<agent_policy_t, InputIteratorT, OffsetT, ReductionOpT, AccumT, TransformOpT>;
 
-  static_assert(sizeof(typename AgentReduceT::TempStorage) <= max_smem_per_block,
-                "cub::DeviceReduce ran out of CUDA shared memory, which we judged to be extremely unlikely. Please "
-                "file an issue at: https://github.com/NVIDIA/cccl/issues");
-
   // Shared memory storage
   __shared__ typename AgentReduceT::TempStorage temp_storage;
 
@@ -408,10 +400,6 @@ _CCCL_KERNEL_ATTRIBUTES __launch_bounds__(
 
   // Thread block type for reducing input tiles
   using AgentReduceT = AgentReduce<agent_policy_t, InputIteratorT, int, ReductionOpT, AccumT, TransformOpT>;
-
-  static_assert(sizeof(typename AgentReduceT::TempStorage) <= max_smem_per_block,
-                "cub::DeviceReduce ran out of CUDA shared memory, which we judged to be extremely unlikely. Please "
-                "file an issue at: https://github.com/NVIDIA/cccl/issues");
 
   // Shared memory storage
   __shared__ typename AgentReduceT::TempStorage temp_storage;
