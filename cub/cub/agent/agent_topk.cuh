@@ -226,6 +226,44 @@ enum class candidate_class
 //! @tparam OutOffsetT
 //!   Type of variable k
 //!
+template <typename AgentTopKPolicyT, typename KeyInputIteratorT, typename OffsetT>
+struct AgentTopKTempStorage
+{
+  using key_in_t = it_value_t<KeyInputIteratorT>;
+
+  static constexpr int threads_per_block = AgentTopKPolicyT::threads_per_block;
+  static constexpr int items_per_thread  = AgentTopKPolicyT::items_per_thread;
+  static constexpr int bits_per_pass     = AgentTopKPolicyT::bits_per_pass;
+  static constexpr int num_buckets       = 1 << bits_per_pass;
+  static constexpr int bins_per_thread   = ::cuda::ceil_div(num_buckets, threads_per_block);
+
+  // Shared memory
+  struct _TempStorage
+  {
+    union
+    {
+      // Smem needed for loading
+      typename BlockLoadTempStorage<key_in_t,
+                                    threads_per_block,
+                                    items_per_thread,
+                                    AgentTopKPolicyT::load_algorithm,
+                                    1,
+                                    1>::TempStorage load_input;
+      typename BlockLoadTempStorage<OffsetT, threads_per_block, bins_per_thread, BLOCK_LOAD_TRANSPOSE, 1, 1>::TempStorage
+        load_trans;
+      // Smem needed for scan
+      typename BlockScanTempStorage<OffsetT, threads_per_block, AgentTopKPolicyT::SCAN_ALGORITHM, 1, 1>::TempStorage scan;
+      // Smem needed for storing
+      typename BlockStoreTempStorage<OffsetT, threads_per_block, bins_per_thread, BLOCK_STORE_TRANSPOSE, 1, 1>::TempStorage
+        store_trans;
+    };
+    OffsetT histogram[num_buckets];
+  };
+  /// Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename AgentTopKPolicyT,
           typename KeyInputIteratorT,
           typename KeyOutputIteratorT,
@@ -235,8 +273,12 @@ template <typename AgentTopKPolicyT,
           typename IdentifyCandidatesOpT,
           typename OffsetT,
           typename OutOffsetT>
-struct AgentTopK
+struct AgentTopK : public AgentTopKTempStorage<AgentTopKPolicyT, KeyInputIteratorT, OffsetT>
 {
+  using storage_t   = AgentTopKTempStorage<AgentTopKPolicyT, KeyInputIteratorT, OffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Types and constants
   //---------------------------------------------------------------------
@@ -260,25 +302,6 @@ struct AgentTopK
   using block_scan_t = BlockScan<OffsetT, threads_per_block, AgentTopKPolicyT::SCAN_ALGORITHM>;
   // Parameterized BlockStore type
   using block_store_trans_t = BlockStore<OffsetT, threads_per_block, bins_per_thread, BLOCK_STORE_TRANSPOSE>;
-
-  // Shared memory
-  struct _TempStorage
-  {
-    union
-    {
-      // Smem needed for loading
-      typename block_load_input_t::TempStorage load_input;
-      typename block_load_trans_t::TempStorage load_trans;
-      // Smem needed for scan
-      typename block_scan_t::TempStorage scan;
-      // Smem needed for storing
-      typename block_store_trans_t::TempStorage store_trans;
-    };
-    OffsetT histogram[num_buckets];
-  };
-  /// Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   //---------------------------------------------------------------------
   // Per-thread fields

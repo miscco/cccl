@@ -42,6 +42,48 @@ namespace detail::radix_sort
  * @tparam OffsetT
  *   Signed integer type for global offsets
  */
+template <bool IsDescending, typename SegmentedPolicyT, typename KeyT, typename ValueT, typename OffsetT>
+struct AgentSegmentedRadixSortTempStorage
+{
+  static constexpr int ITEMS_PER_THREAD = SegmentedPolicyT::ITEMS_PER_THREAD;
+  static constexpr int BLOCK_THREADS    = SegmentedPolicyT::BLOCK_THREADS;
+  static constexpr int RADIX_BITS       = SegmentedPolicyT::RADIX_BITS;
+  static constexpr int RADIX_DIGITS     = 1 << RADIX_BITS;
+
+  union _TempStorage
+  {
+    // Huge segment handlers
+    typename AgentRadixSortUpsweepTempStorage<SegmentedPolicyT, OffsetT>::TempStorage upsweep;
+    typename AgentRadixSortDownsweepTempStorage<SegmentedPolicyT, IsDescending, KeyT, ValueT, OffsetT>::TempStorage
+      downsweep;
+
+    struct UnboundBlockSort
+    {
+      OffsetT reverse_counts_in[RADIX_DIGITS];
+      OffsetT reverse_counts_out[RADIX_DIGITS];
+      typename BlockScanTempStorage<OffsetT, BLOCK_THREADS, BLOCK_SCAN_RAKING, 1, 1>::TempStorage scan;
+    } unbound_sort;
+
+    // Small segment handlers
+    typename BlockLoadTempStorage<KeyT, BLOCK_THREADS, ITEMS_PER_THREAD, SegmentedPolicyT::LOAD_ALGORITHM, 1, 1>::
+      TempStorage keys_load;
+    typename BlockLoadTempStorage<ValueT, BLOCK_THREADS, ITEMS_PER_THREAD, SegmentedPolicyT::LOAD_ALGORITHM, 1, 1>::
+      TempStorage values_load;
+    typename BlockRadixSortTempStorage<KeyT,
+                                       BLOCK_THREADS,
+                                       ITEMS_PER_THREAD,
+                                       ValueT,
+                                       RADIX_BITS,
+                                       (SegmentedPolicyT::RANK_ALGORITHM == RADIX_RANK_MEMOIZE),
+                                       SegmentedPolicyT::SCAN_ALGORITHM,
+                                       cudaSharedMemBankSizeFourByte,
+                                       1,
+                                       1>::TempStorage sort;
+  };
+
+  using TempStorage = Uninitialized<_TempStorage>;
+};
+
 template <bool IsDescending,
           typename SegmentedPolicyT,
           typename KeyT,
@@ -49,7 +91,12 @@ template <bool IsDescending,
           typename OffsetT,
           typename DecomposerT = identity_decomposer_t>
 struct AgentSegmentedRadixSort
+    : public AgentSegmentedRadixSortTempStorage<IsDescending, SegmentedPolicyT, KeyT, ValueT, OffsetT>
 {
+  using storage_t = AgentSegmentedRadixSortTempStorage<IsDescending, SegmentedPolicyT, KeyT, ValueT, OffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   OffsetT num_items;
 
   static constexpr int ITEMS_PER_THREAD = SegmentedPolicyT::ITEMS_PER_THREAD;
@@ -83,26 +130,6 @@ struct AgentSegmentedRadixSort
 
   using BlockValueLoadT = BlockLoad<ValueT, BLOCK_THREADS, ITEMS_PER_THREAD, SegmentedPolicyT::LOAD_ALGORITHM>;
 
-  union _TempStorage
-  {
-    // Huge segment handlers
-    typename BlockUpsweepT::TempStorage upsweep;
-    typename BlockDownsweepT::TempStorage downsweep;
-
-    struct UnboundBlockSort
-    {
-      OffsetT reverse_counts_in[RADIX_DIGITS];
-      OffsetT reverse_counts_out[RADIX_DIGITS];
-      typename DigitScanT::TempStorage scan;
-    } unbound_sort;
-
-    // Small segment handlers
-    typename BlockKeyLoadT::TempStorage keys_load;
-    typename BlockValueLoadT::TempStorage values_load;
-    typename BlockRadixSortT::TempStorage sort;
-  };
-
-  using TempStorage = Uninitialized<_TempStorage>;
   _TempStorage& temp_storage;
 
   DecomposerT decomposer;

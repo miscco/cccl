@@ -121,6 +121,41 @@ namespace detail::scan_by_key
  * @tparam AccumT
  *   The type of intermediate accumulator (according to P2322R6)
  */
+template <typename AgentScanByKeyPolicyT, typename KeysInputIteratorT, typename AccumT>
+struct AgentScanByKeyTempStorage
+{
+  using KeyT           = it_value_t<KeysInputIteratorT>;
+  using FlagValuePairT = KeyValuePair<int, AccumT>;
+
+  static constexpr int BLOCK_THREADS    = AgentScanByKeyPolicyT::BLOCK_THREADS;
+  static constexpr int ITEMS_PER_THREAD = AgentScanByKeyPolicyT::ITEMS_PER_THREAD;
+
+  union TempStorage_
+  {
+    struct ScanStorage
+    {
+      typename BlockScanTempStorage<FlagValuePairT, BLOCK_THREADS, AgentScanByKeyPolicyT::SCAN_ALGORITHM, 1, 1>::
+        TempStorage scan;
+      typename TilePrefixCallbackOpTempStorage<FlagValuePairT>::TempStorage prefix;
+      typename BlockDiscontinuityTempStorage<KeyT, BLOCK_THREADS, 1, 1>::TempStorage discontinuity;
+    } scan_storage;
+
+    typename BlockLoadTempStorage<KeyT, BLOCK_THREADS, ITEMS_PER_THREAD, AgentScanByKeyPolicyT::LOAD_ALGORITHM, 1, 1>::
+      TempStorage load_keys;
+    typename BlockLoadTempStorage<AccumT, BLOCK_THREADS, ITEMS_PER_THREAD, AgentScanByKeyPolicyT::LOAD_ALGORITHM, 1, 1>::
+      TempStorage load_values;
+    typename BlockStoreTempStorage<AccumT,
+                                   BLOCK_THREADS,
+                                   ITEMS_PER_THREAD,
+                                   AgentScanByKeyPolicyT::STORE_ALGORITHM,
+                                   1,
+                                   1>::TempStorage store_values;
+  };
+
+  struct TempStorage : cub::Uninitialized<TempStorage_>
+  {};
+};
+
 template <typename AgentScanByKeyPolicyT,
           typename KeysInputIteratorT,
           typename ValuesInputIteratorT,
@@ -130,8 +165,12 @@ template <typename AgentScanByKeyPolicyT,
           typename InitValueT,
           typename OffsetT,
           typename AccumT>
-struct AgentScanByKey
+struct AgentScanByKey : public AgentScanByKeyTempStorage<AgentScanByKeyPolicyT, KeysInputIteratorT, AccumT>
 {
+  using storage_t   = AgentScanByKeyTempStorage<AgentScanByKeyPolicyT, KeysInputIteratorT, AccumT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using TempStorage_ = typename storage_t::TempStorage_;
+
   //---------------------------------------------------------------------
   // Types and constants
   //---------------------------------------------------------------------
@@ -173,23 +212,6 @@ struct AgentScanByKey
     TilePrefixCallbackOp<FlagValuePairT, ReduceBySegmentOpT, ScanTileStateT, DelayConstructorT>;
 
   using BlockScanT = BlockScan<FlagValuePairT, BLOCK_THREADS, AgentScanByKeyPolicyT::SCAN_ALGORITHM, 1, 1>;
-
-  union TempStorage_
-  {
-    struct ScanStorage
-    {
-      typename BlockScanT::TempStorage scan;
-      typename TilePrefixCallbackT::TempStorage prefix;
-      typename BlockDiscontinuityKeysT::TempStorage discontinuity;
-    } scan_storage;
-
-    typename BlockLoadKeysT::TempStorage load_keys;
-    typename BlockLoadValuesT::TempStorage load_values;
-    typename BlockStoreValuesT::TempStorage store_values;
-  };
-
-  struct TempStorage : cub::Uninitialized<TempStorage_>
-  {};
 
   //---------------------------------------------------------------------
   // Per-thread fields

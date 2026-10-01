@@ -25,7 +25,13 @@ CUB_NAMESPACE_BEGIN
 namespace detail
 {
 template <typename InputT, int ItemsPerThread, int LogicalWarpThreads = warp_threads>
-class WarpExchangeShfl
+struct WarpExchangeShflTempStorage
+{
+  using TempStorage = NullType;
+};
+
+template <typename InputT, int ItemsPerThread, int LogicalWarpThreads = warp_threads>
+class WarpExchangeShfl : public WarpExchangeShflTempStorage<InputT, ItemsPerThread, LogicalWarpThreads>
 {
   static_assert(::cuda::is_power_of_two(LogicalWarpThreads), "LogicalWarpThreads must be a power of two");
 
@@ -223,7 +229,7 @@ class WarpExchangeShfl
   const unsigned int member_mask;
 
 public:
-  using TempStorage = NullType;
+  using TempStorage = typename WarpExchangeShflTempStorage<InputT, ItemsPerThread, LogicalWarpThreads>::TempStorage;
 
   WarpExchangeShfl() = delete;
 

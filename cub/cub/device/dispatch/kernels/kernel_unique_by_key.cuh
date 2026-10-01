@@ -105,6 +105,11 @@ class unique_by_key_vsmem_helper_impl
                         fallback_policy.lookback_delay.delay,
                         fallback_policy.lookback_delay.l2_write_latency>>;
 
+  using default_storage_t =
+    AgentUniqueByKeyTempStorage<selected_policy_t, KeyInputIteratorT, ValueInputIteratorT, OffsetT>;
+  using fallback_storage_t =
+    AgentUniqueByKeyTempStorage<fallback_policy_t, KeyInputIteratorT, ValueInputIteratorT, OffsetT>;
+
   using default_agent_t =
     AgentUniqueByKey<selected_policy_t,
                      KeyInputIteratorT,
@@ -122,8 +127,8 @@ class unique_by_key_vsmem_helper_impl
                      EqualityOpT,
                      OffsetT>;
 
-  static constexpr ::cuda::std::size_t max_default_size  = sizeof(typename default_agent_t::TempStorage);
-  static constexpr ::cuda::std::size_t max_fallback_size = sizeof(typename fallback_agent_t::TempStorage);
+  static constexpr ::cuda::std::size_t max_default_size  = sizeof(typename default_storage_t::TempStorage);
+  static constexpr ::cuda::std::size_t max_fallback_size = sizeof(typename fallback_storage_t::TempStorage);
   static constexpr bool uses_fallback_policy =
     (max_default_size > max_smem_per_block) && (max_fallback_size <= max_smem_per_block);
 
@@ -132,6 +137,7 @@ public:
   static constexpr bool selected_policy_fits_smem = max_default_size <= max_smem_per_block;
 
   using selected_agent_t = default_agent_t;
+  using storage_t        = ::cuda::std::_If<uses_fallback_policy, fallback_storage_t, default_storage_t>;
   using agent_t          = ::cuda::std::_If<uses_fallback_policy, fallback_agent_t, default_agent_t>;
 };
 
@@ -265,7 +271,7 @@ __launch_bounds__(
     EqualityOpT,
     OffsetT>;
   using agent_unique_by_key_t = typename vsmem_adapted_agents::agent_t;
-  using vsmem_helper_t        = vsmem_helper_impl<agent_unique_by_key_t>;
+  using vsmem_helper_t        = vsmem_helper_impl<typename vsmem_adapted_agents::storage_t>;
 
   // Static shared memory allocation
   __shared__ typename vsmem_helper_t::static_temp_storage_t static_temp_storage;

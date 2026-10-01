@@ -111,12 +111,49 @@ namespace detail::radix_sort
  * @tparam DecomposerT = identity_decomposer_t
  *   Signed integer type for global offsets
  */
+template <typename AgentRadixSortUpsweepPolicy, typename OffsetT>
+struct AgentRadixSortUpsweepTempStorage
+{
+  using DigitCounter  = unsigned char;
+  using PackedCounter = unsigned int;
+
+  static constexpr int RADIX_BITS    = AgentRadixSortUpsweepPolicy::RADIX_BITS;
+  static constexpr int BLOCK_THREADS = AgentRadixSortUpsweepPolicy::BLOCK_THREADS;
+  static constexpr int RADIX_DIGITS  = 1 << RADIX_BITS;
+
+  static constexpr int LOG_WARP_THREADS = log2_warp_threads;
+  static constexpr int WARP_THREADS     = 1 << LOG_WARP_THREADS;
+
+  static constexpr int PACKING_RATIO     = sizeof(PackedCounter) / sizeof(DigitCounter);
+  static constexpr int LOG_PACKING_RATIO = Log2<PACKING_RATIO>::VALUE;
+  static constexpr int LOG_COUNTER_LANES = ::cuda::std::max(0, int(RADIX_BITS) - int(LOG_PACKING_RATIO));
+  static constexpr int COUNTER_LANES     = 1 << LOG_COUNTER_LANES;
+
+  /**
+   * Shared memory storage layout
+   */
+  union __align__(16) _TempStorage
+  {
+    DigitCounter thread_counters[COUNTER_LANES][BLOCK_THREADS][PACKING_RATIO];
+    PackedCounter packed_thread_counters[COUNTER_LANES][BLOCK_THREADS];
+    OffsetT block_counters[WARP_THREADS][RADIX_DIGITS];
+  };
+
+  /// Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename AgentRadixSortUpsweepPolicy,
           typename KeyT,
           typename OffsetT,
           typename DecomposerT = identity_decomposer_t>
-struct AgentRadixSortUpsweep
+struct AgentRadixSortUpsweep : public AgentRadixSortUpsweepTempStorage<AgentRadixSortUpsweepPolicy, OffsetT>
 {
+  using storage_t   = AgentRadixSortUpsweepTempStorage<AgentRadixSortUpsweepPolicy, OffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Type definitions and constants
   //---------------------------------------------------------------------
@@ -169,20 +206,6 @@ struct AgentRadixSortUpsweep
   // Digit extractor type
   using fundamental_digit_extractor_t = BFEDigitExtractor<KeyT>;
   using digit_extractor_t = typename traits::template digit_extractor_t<fundamental_digit_extractor_t, DecomposerT>;
-
-  /**
-   * Shared memory storage layout
-   */
-  union __align__(16) _TempStorage
-  {
-    DigitCounter thread_counters[COUNTER_LANES][BLOCK_THREADS][PACKING_RATIO];
-    PackedCounter packed_thread_counters[COUNTER_LANES][BLOCK_THREADS];
-    OffsetT block_counters[WARP_THREADS][RADIX_DIGITS];
-  };
-
-  /// Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   //---------------------------------------------------------------------
   // Thread fields (aggregate state bundle)

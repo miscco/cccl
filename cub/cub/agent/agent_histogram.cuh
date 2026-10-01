@@ -192,12 +192,72 @@ template <typename AgentHistogramPolicyT,
           int NumChannels,
           int NumActiveChannels,
           typename SampleIteratorT,
+          typename CounterT>
+struct AgentHistogramTempStorage
+{
+  static constexpr int vec_size           = AgentHistogramPolicyT::VEC_SIZE;
+  static constexpr int threads_per_block  = AgentHistogramPolicyT::BLOCK_THREADS;
+  static constexpr int pixels_per_thread  = AgentHistogramPolicyT::PIXELS_PER_THREAD;
+  static constexpr int samples_per_thread = pixels_per_thread * NumChannels;
+  static constexpr int vecs_per_thread    = samples_per_thread / vec_size;
+
+  using SampleT = it_value_t<SampleIteratorT>;
+  using PixelT  = typename CubVector<SampleT, NumChannels>::Type;
+  using VecT    = typename CubVector<SampleT, vec_size>::Type;
+
+  struct _TempStorage
+  {
+    // Smem needed for block-privatized smem histogram (with 1 word of padding)
+    CounterT histograms[NumActiveChannels][PrivatizedSmemBins + 1];
+    int tile_idx;
+
+    union
+    {
+      typename BlockLoadTempStorage<SampleT,
+                                    threads_per_block,
+                                    samples_per_thread,
+                                    AgentHistogramPolicyT::LOAD_ALGORITHM,
+                                    1,
+                                    1>::TempStorage sample_load;
+      typename BlockLoadTempStorage<PixelT,
+                                    threads_per_block,
+                                    pixels_per_thread,
+                                    AgentHistogramPolicyT::LOAD_ALGORITHM,
+                                    1,
+                                    1>::TempStorage pixel_load;
+      typename BlockLoadTempStorage<VecT, threads_per_block, vecs_per_thread, AgentHistogramPolicyT::LOAD_ALGORITHM, 1, 1>::
+        TempStorage vec_load;
+    };
+  };
+
+  using TempStorage = Uninitialized<_TempStorage>;
+};
+
+template <typename AgentHistogramPolicyT,
+          int PrivatizedSmemBins,
+          int NumChannels,
+          int NumActiveChannels,
+          typename SampleIteratorT,
           typename CounterT,
           typename PrivatizedDecodeOpT,
           typename OutputDecodeOpT,
           typename OffsetT>
-struct AgentHistogram
+struct AgentHistogram : public AgentHistogramTempStorage<AgentHistogramPolicyT,
+                                                         PrivatizedSmemBins,
+                                                         NumChannels,
+                                                         NumActiveChannels,
+                                                         SampleIteratorT,
+                                                         CounterT>
 {
+  using storage_t = AgentHistogramTempStorage<AgentHistogramPolicyT,
+                                              PrivatizedSmemBins,
+                                              NumChannels,
+                                              NumActiveChannels,
+                                              SampleIteratorT,
+                                              CounterT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   static constexpr int vec_size                    = AgentHistogramPolicyT::VEC_SIZE;
   static constexpr int threads_per_block           = AgentHistogramPolicyT::BLOCK_THREADS;
   static constexpr int pixels_per_thread           = AgentHistogramPolicyT::PIXELS_PER_THREAD;
@@ -229,22 +289,6 @@ struct AgentHistogram
   using BlockLoadPixelT =
     BlockLoad<PixelT, threads_per_block, pixels_per_thread, AgentHistogramPolicyT::LOAD_ALGORITHM>;
   using BlockLoadVecT = BlockLoad<VecT, threads_per_block, vecs_per_thread, AgentHistogramPolicyT::LOAD_ALGORITHM>;
-
-  struct _TempStorage
-  {
-    // Smem needed for block-privatized smem histogram (with 1 word of padding)
-    CounterT histograms[NumActiveChannels][PrivatizedSmemBins + 1];
-    int tile_idx;
-
-    union
-    {
-      typename BlockLoadSampleT::TempStorage sample_load;
-      typename BlockLoadPixelT::TempStorage pixel_load;
-      typename BlockLoadVecT::TempStorage vec_load;
-    };
-  };
-
-  using TempStorage = Uninitialized<_TempStorage>;
 
   _TempStorage& temp_storage;
   WrappedSampleIteratorT d_wrapped_samples; // with cache modifier applied, if possible

@@ -689,14 +689,55 @@ CUB_NAMESPACE_BEGIN
 //! @tparam BlockDimZ
 //!   **[optional]** The thread block length in threads along the Z dimension (default: 1)
 //!
+namespace detail
+{
+template <typename T, int BlockDimX, int ItemsPerThread, BlockStoreAlgorithm Algorithm, int BlockDimY, int BlockDimZ>
+struct BlockStoreTempStorage
+{
+  using block_exchange_storage_t =
+    BlockExchangeTempStorage<T,
+                             BlockDimX,
+                             ItemsPerThread,
+                             Algorithm == BLOCK_STORE_WARP_TRANSPOSE_TIMESLICED,
+                             BlockDimY,
+                             BlockDimZ>;
+
+  // Direct, striped, and vectorize share NullType. Each transpose algorithm keeps its own derived guard type.
+  _CCCL_HOST_DEVICE_API static constexpr auto temp_storage_helper()
+  {
+    if constexpr (Algorithm == BLOCK_STORE_DIRECT || Algorithm == BLOCK_STORE_STRIPED
+                  || Algorithm == BLOCK_STORE_VECTORIZE)
+    {
+      return NullType{};
+    }
+    else if constexpr (Algorithm == BLOCK_STORE_TRANSPOSE || Algorithm == BLOCK_STORE_WARP_TRANSPOSE
+                       || Algorithm == BLOCK_STORE_WARP_TRANSPOSE_TIMESLICED)
+    {
+      struct _TempStorage : block_exchange_storage_t::TempStorage
+      {
+        volatile int valid_items; // Temporary storage for partially-full block guard
+      };
+      return _TempStorage{};
+    }
+  }
+
+  using _TempStorage = decltype(temp_storage_helper());
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
 template <typename T,
           int BlockDimX,
           int ItemsPerThread,
           BlockStoreAlgorithm Algorithm = BLOCK_STORE_DIRECT,
           int BlockDimY                 = 1,
           int BlockDimZ                 = 1>
-class BlockStore
+class BlockStore : private detail::BlockStoreTempStorage<T, BlockDimX, ItemsPerThread, Algorithm, BlockDimY, BlockDimZ>
 {
+  using storage_t = detail::BlockStoreTempStorage<T, BlockDimX, ItemsPerThread, Algorithm, BlockDimY, BlockDimZ>;
+
   /// The thread block size in threads
   static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
 
@@ -708,25 +749,7 @@ class BlockStore
                   || (BLOCK_THREADS % detail::warp_threads == 0),
                 "Threads per block must be a multiple of warp_threads for this BlockStoreAlgorithm");
 
-  _CCCL_HOST_DEVICE_API static constexpr auto temp_storage_helper()
-  {
-    if constexpr (Algorithm == BLOCK_STORE_DIRECT || Algorithm == BLOCK_STORE_STRIPED
-                  || Algorithm == BLOCK_STORE_VECTORIZE)
-    {
-      return NullType{};
-    }
-    else if constexpr (Algorithm == BLOCK_STORE_TRANSPOSE || Algorithm == BLOCK_STORE_WARP_TRANSPOSE
-                       || Algorithm == BLOCK_STORE_WARP_TRANSPOSE_TIMESLICED)
-    {
-      struct _TempStorage : block_exchange::TempStorage
-      {
-        volatile int valid_items; // Temporary storage for partially-full block guard
-      };
-      return _TempStorage{};
-    }
-  }
-
-  using _TempStorage = decltype(temp_storage_helper());
+  using _TempStorage = typename storage_t::_TempStorage;
 
   _CCCL_DEVICE _CCCL_FORCEINLINE _TempStorage& PrivateStorage()
   {
@@ -740,8 +763,7 @@ class BlockStore
 
 public:
   //! @smemstorage{BlockStore}
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{

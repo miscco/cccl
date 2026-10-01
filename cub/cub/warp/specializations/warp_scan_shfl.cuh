@@ -48,8 +48,16 @@ namespace detail
  *   Number of threads per logical warp (must be a power-of-two)
  */
 template <typename T, int LogicalWarpThreads>
-struct WarpScanShfl
+struct WarpScanShflTempStorage
 {
+  using TempStorage = NullType;
+};
+
+template <typename T, int LogicalWarpThreads>
+struct WarpScanShfl : WarpScanShflTempStorage<T, LogicalWarpThreads>
+{
+  using TempStorage = typename WarpScanShflTempStorage<T, LogicalWarpThreads>::TempStorage;
+
   //---------------------------------------------------------------------
   // Constants and type definitions
   //---------------------------------------------------------------------
@@ -71,9 +79,6 @@ struct WarpScanShfl
     static constexpr bool IS_SMALL_UNSIGNED =
       ::cuda::std::is_integral_v<S> && ::cuda::std::is_unsigned_v<S> && (sizeof(S) <= sizeof(unsigned int));
   };
-
-  /// Shared memory storage layout type
-  using TempStorage = NullType;
 
   //---------------------------------------------------------------------
   // Thread fields

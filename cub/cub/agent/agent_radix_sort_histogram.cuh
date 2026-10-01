@@ -88,13 +88,38 @@ using AgentRadixSortExclusiveSumPolicy CCCL_DEPRECATED_BECAUSE("Use the tuning A
 
 namespace detail::radix_sort
 {
+template <typename AgentRadixSortHistogramPolicy, typename KeyT>
+struct AgentRadixSortHistogramTempStorage
+{
+  static constexpr int RADIX_BITS     = AgentRadixSortHistogramPolicy::RADIX_BITS;
+  static constexpr int RADIX_DIGITS   = 1 << RADIX_BITS;
+  static constexpr int MAX_NUM_PASSES = (sizeof(KeyT) * 8 + RADIX_BITS - 1) / RADIX_BITS;
+  static constexpr int NUM_PARTS      = AgentRadixSortHistogramPolicy::NUM_PARTS;
+
+  using ShmemCounterT       = uint32_t;
+  using ShmemAtomicCounterT = ShmemCounterT;
+
+  struct _TempStorage
+  {
+    ShmemAtomicCounterT bins[MAX_NUM_PASSES][RADIX_DIGITS][NUM_PARTS];
+  };
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename AgentRadixSortHistogramPolicy,
           bool IsDescending,
           typename KeyT,
           typename OffsetT,
           typename DecomposerT = identity_decomposer_t>
 struct AgentRadixSortHistogram
+    : public AgentRadixSortHistogramTempStorage<AgentRadixSortHistogramPolicy, KeyT>
 {
+  using storage_t   = AgentRadixSortHistogramTempStorage<AgentRadixSortHistogramPolicy, KeyT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   // constants
   static constexpr int ITEMS_PER_THREAD = AgentRadixSortHistogramPolicy::ITEMS_PER_THREAD;
   static constexpr int BLOCK_THREADS    = AgentRadixSortHistogramPolicy::BLOCK_THREADS;
@@ -114,14 +139,6 @@ struct AgentRadixSortHistogram
 
   using fundamental_digit_extractor_t = ShiftDigitExtractor<KeyT>;
   using digit_extractor_t = typename traits::template digit_extractor_t<fundamental_digit_extractor_t, DecomposerT>;
-
-  struct _TempStorage
-  {
-    ShmemAtomicCounterT bins[MAX_NUM_PASSES][RADIX_DIGITS][NUM_PARTS];
-  };
-
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   // thread fields
   // shared memory storage

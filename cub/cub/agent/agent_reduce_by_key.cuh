@@ -120,8 +120,93 @@ template <typename AgentReduceByKeyPolicyT,
           typename OffsetT,
           typename AccumT,
           typename StreamingContextT>
-struct AgentReduceByKey
+struct AgentReduceByKeyTempStorage
 {
+  using KeyInputT  = it_value_t<KeysInputIteratorT>;
+  using KeyOutputT = non_void_value_t<UniqueOutputIteratorT, KeyInputT>;
+
+  using OffsetValuePairT = KeyValuePair<OffsetT, AccumT>;
+  using KeyValuePairT    = KeyValuePair<KeyOutputT, AccumT>;
+
+  static constexpr int BLOCK_THREADS    = AgentReduceByKeyPolicyT::BLOCK_THREADS;
+  static constexpr int ITEMS_PER_THREAD = AgentReduceByKeyPolicyT::ITEMS_PER_THREAD;
+  static constexpr int TILE_ITEMS       = BLOCK_THREADS * ITEMS_PER_THREAD;
+
+  // Shared memory type for this thread block
+  union _TempStorage
+  {
+    struct ScanStorage
+    {
+      // Smem needed for tile scanning
+      typename BlockScanTempStorage<OffsetValuePairT, BLOCK_THREADS, AgentReduceByKeyPolicyT::SCAN_ALGORITHM, 1, 1>::
+        TempStorage scan;
+
+      // Smem needed for cooperative prefix callback
+      typename TilePrefixCallbackOpTempStorage<OffsetValuePairT>::TempStorage prefix;
+
+      // Smem needed for discontinuity detection
+      typename BlockDiscontinuityTempStorage<KeyOutputT, BLOCK_THREADS, 1, 1>::TempStorage discontinuity;
+    } scan_storage;
+
+    // Smem needed for loading keys
+    typename BlockLoadTempStorage<KeyOutputT,
+                                  BLOCK_THREADS,
+                                  ITEMS_PER_THREAD,
+                                  AgentReduceByKeyPolicyT::LOAD_ALGORITHM,
+                                  1,
+                                  1>::TempStorage load_keys;
+
+    // Smem needed for loading values
+    typename BlockLoadTempStorage<AccumT, BLOCK_THREADS, ITEMS_PER_THREAD, AgentReduceByKeyPolicyT::LOAD_ALGORITHM, 1, 1>::
+      TempStorage load_values;
+
+    // Smem needed for compacting key value pairs(allows non POD items in this
+    // union)
+    Uninitialized<KeyValuePairT[TILE_ITEMS + 1]> raw_exchange;
+  };
+
+  // Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
+template <typename AgentReduceByKeyPolicyT,
+          typename KeysInputIteratorT,
+          typename UniqueOutputIteratorT,
+          typename ValuesInputIteratorT,
+          typename AggregatesOutputIteratorT,
+          typename NumRunsOutputIteratorT,
+          typename EqualityOpT,
+          typename ReductionOpT,
+          typename OffsetT,
+          typename AccumT,
+          typename StreamingContextT>
+struct AgentReduceByKey : public AgentReduceByKeyTempStorage<AgentReduceByKeyPolicyT,
+                                                             KeysInputIteratorT,
+                                                             UniqueOutputIteratorT,
+                                                             ValuesInputIteratorT,
+                                                             AggregatesOutputIteratorT,
+                                                             NumRunsOutputIteratorT,
+                                                             EqualityOpT,
+                                                             ReductionOpT,
+                                                             OffsetT,
+                                                             AccumT,
+                                                             StreamingContextT>
+{
+  using storage_t = AgentReduceByKeyTempStorage<AgentReduceByKeyPolicyT,
+                                                KeysInputIteratorT,
+                                                UniqueOutputIteratorT,
+                                                ValuesInputIteratorT,
+                                                AggregatesOutputIteratorT,
+                                                NumRunsOutputIteratorT,
+                                                EqualityOpT,
+                                                ReductionOpT,
+                                                OffsetT,
+                                                AccumT,
+                                                StreamingContextT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   // Whether or not this is a streaming invocation (i.e., multiple kernel invocations over partitions of the input)
   static constexpr bool is_streaming_invocation = !::cuda::std::is_same_v<StreamingContextT, NullType>;
 
@@ -234,36 +319,6 @@ struct AgentReduceByKey
   // Key and value exchange types
   using KeyExchangeT   = KeyOutputT[TILE_ITEMS + 1];
   using ValueExchangeT = AccumT[TILE_ITEMS + 1];
-
-  // Shared memory type for this thread block
-  union _TempStorage
-  {
-    struct ScanStorage
-    {
-      // Smem needed for tile scanning
-      typename BlockScanT::TempStorage scan;
-
-      // Smem needed for cooperative prefix callback
-      typename TilePrefixCallbackOpT::TempStorage prefix;
-
-      // Smem needed for discontinuity detection
-      typename BlockDiscontinuityKeys::TempStorage discontinuity;
-    } scan_storage;
-
-    // Smem needed for loading keys
-    typename BlockLoadKeysT::TempStorage load_keys;
-
-    // Smem needed for loading values
-    typename BlockLoadValuesT::TempStorage load_values;
-
-    // Smem needed for compacting key value pairs(allows non POD items in this
-    // union)
-    Uninitialized<KeyValuePairT[TILE_ITEMS + 1]> raw_exchange;
-  };
-
-  // Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   //---------------------------------------------------------------------
   // Per-thread fields

@@ -74,16 +74,8 @@ struct upper_bound_mode
   }
 };
 
-template <int ThreadsPerBlock,
-          int ItemsPerThread,
-          CacheLoadModifier LoadModifier,
-          typename Mode,
-          typename HaystackIt,
-          typename NeedlesIt,
-          typename OutputIt,
-          typename Offset,
-          typename CompareOp>
-struct agent_t
+template <int ThreadsPerBlock, int ItemsPerThread, typename HaystackIt, typename NeedlesIt>
+struct AgentTTempStorage
 {
   static constexpr int tile_size = ThreadsPerBlock * ItemsPerThread;
 
@@ -98,6 +90,27 @@ struct agent_t
   };
 
   using TempStorage = Uninitialized<_TempStorage>;
+};
+
+template <int ThreadsPerBlock,
+          int ItemsPerThread,
+          CacheLoadModifier LoadModifier,
+          typename Mode,
+          typename HaystackIt,
+          typename NeedlesIt,
+          typename OutputIt,
+          typename Offset,
+          typename CompareOp>
+struct agent_t : public AgentTTempStorage<ThreadsPerBlock, ItemsPerThread, HaystackIt, NeedlesIt>
+{
+  using storage_t   = AgentTTempStorage<ThreadsPerBlock, ItemsPerThread, HaystackIt, NeedlesIt>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
+  static constexpr int tile_size = ThreadsPerBlock * ItemsPerThread;
+
+  using haystack_type = it_value_t<HaystackIt>;
+  using needles_type  = it_value_t<NeedlesIt>;
 
   _TempStorage& storage;
   HaystackIt d_range;
@@ -107,6 +120,25 @@ struct agent_t
   Offset values_count;
   Offset* range_beg_offsets;
   CompareOp compare_op;
+
+  _CCCL_DEVICE _CCCL_FORCEINLINE agent_t(
+    _TempStorage& storage,
+    HaystackIt d_range,
+    NeedlesIt d_values,
+    OutputIt d_output,
+    Offset range_count,
+    Offset values_count,
+    Offset* range_beg_offsets,
+    CompareOp compare_op)
+      : storage(storage)
+      , d_range(d_range)
+      , d_values(d_values)
+      , d_output(d_output)
+      , range_count(range_count)
+      , values_count(values_count)
+      , range_beg_offsets(range_beg_offsets)
+      , compare_op(compare_op)
+  {}
 
   template <bool IsFullTile>
   _CCCL_DEVICE_API _CCCL_FORCEINLINE void consume_tile(int tile_idx, Offset diag0, int total_in_tile)

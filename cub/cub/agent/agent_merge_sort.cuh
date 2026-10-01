@@ -31,12 +31,86 @@ template <typename PolicyGetter,
           typename ValueInputIteratorT,
           typename KeyIteratorT,
           typename ValueIteratorT,
+          typename KeyT,
+          typename ValueT>
+struct AgentBlockSortTempStorage
+{
+  static constexpr MergeSortPolicy policy = PolicyGetter{}();
+  static constexpr int BLOCK_THREADS      = policy.threads_per_block;
+  static constexpr int ITEMS_PER_THREAD   = policy.items_per_thread;
+
+  using KeysLoadIt  = try_make_cache_modified_iterator_t<policy.load_modifier, KeyInputIteratorT>;
+  using ItemsLoadIt = try_make_cache_modified_iterator_t<policy.load_modifier, ValueInputIteratorT>;
+
+  union _TempStorage
+  {
+    typename BlockLoadTempStorage<it_value_t<KeysLoadIt>,
+                                  BLOCK_THREADS,
+                                  ITEMS_PER_THREAD,
+                                  policy.load_algorithm,
+                                  1,
+                                  1>::TempStorage load_keys;
+    typename BlockLoadTempStorage<it_value_t<ItemsLoadIt>,
+                                  BLOCK_THREADS,
+                                  ITEMS_PER_THREAD,
+                                  policy.load_algorithm,
+                                  1,
+                                  1>::TempStorage load_items;
+    typename BlockStoreTempStorage<it_value_t<KeyIteratorT>,
+                                   BLOCK_THREADS,
+                                   ITEMS_PER_THREAD,
+                                   policy.store_algorithm,
+                                   1,
+                                   1>::TempStorage store_keys_it;
+    typename BlockStoreTempStorage<it_value_t<ValueIteratorT>,
+                                   BLOCK_THREADS,
+                                   ITEMS_PER_THREAD,
+                                   policy.store_algorithm,
+                                   1,
+                                   1>::TempStorage store_items_it;
+    typename BlockStoreTempStorage<KeyT, BLOCK_THREADS, ITEMS_PER_THREAD, policy.store_algorithm, 1, 1>::TempStorage
+      store_keys_raw;
+    typename BlockStoreTempStorage<ValueT, BLOCK_THREADS, ITEMS_PER_THREAD, policy.store_algorithm, 1, 1>::TempStorage
+      store_items_raw;
+    typename BlockMergeSortStrategyTempStorage<KeyT,
+                                              ValueT,
+                                              BLOCK_THREADS,
+                                              ITEMS_PER_THREAD,
+                                              BlockMergeSort<KeyT, BLOCK_THREADS, ITEMS_PER_THREAD, ValueT, 1, 1, policy.unroll>,
+                                              policy.unroll>::TempStorage block_merge;
+  };
+
+  /// Alias wrapper allowing storage to be unioned
+  using TempStorage = Uninitialized<_TempStorage>;
+};
+
+template <typename PolicyGetter,
+          typename KeyInputIteratorT,
+          typename ValueInputIteratorT,
+          typename KeyIteratorT,
+          typename ValueIteratorT,
           typename OffsetT,
           typename CompareOpT,
           typename KeyT,
           typename ValueT>
-struct AgentBlockSort
+struct AgentBlockSort : public AgentBlockSortTempStorage<PolicyGetter,
+                                                         KeyInputIteratorT,
+                                                         ValueInputIteratorT,
+                                                         KeyIteratorT,
+                                                         ValueIteratorT,
+                                                         KeyT,
+                                                         ValueT>
 {
+  using storage_t = AgentBlockSortTempStorage<PolicyGetter,
+                                              KeyInputIteratorT,
+                                              ValueInputIteratorT,
+                                              KeyIteratorT,
+                                              ValueIteratorT,
+                                              KeyT,
+                                              ValueT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Types and constants
   //---------------------------------------------------------------------
@@ -62,20 +136,6 @@ struct AgentBlockSort
     BlockStore<it_value_t<ValueIteratorT>, BLOCK_THREADS, ITEMS_PER_THREAD, policy.store_algorithm>;
   using BlockStoreKeysRaw  = BlockStore<KeyT, BLOCK_THREADS, ITEMS_PER_THREAD, policy.store_algorithm>;
   using BlockStoreItemsRaw = BlockStore<ValueT, BLOCK_THREADS, ITEMS_PER_THREAD, policy.store_algorithm>;
-
-  union _TempStorage
-  {
-    typename BlockLoadKeys::TempStorage load_keys;
-    typename BlockLoadItems::TempStorage load_items;
-    typename BlockStoreKeysIt::TempStorage store_keys_it;
-    typename BlockStoreItemsIt::TempStorage store_items_it;
-    typename BlockStoreKeysRaw::TempStorage store_keys_raw;
-    typename BlockStoreItemsRaw::TempStorage store_items_raw;
-    typename BlockMergeSortT::TempStorage block_merge;
-  };
-
-  /// Alias wrapper allowing storage to be unioned
-  using TempStorage = Uninitialized<_TempStorage>;
 
   //---------------------------------------------------------------------
   // Per thread data
@@ -365,6 +425,54 @@ _CCCL_DEVICE _CCCL_FORCEINLINE void reg_to_shared(It output, T (&input)[ItemsPer
 }
 
 /// \brief The agent is responsible for merging N consecutive sorted arrays into N/2 sorted arrays.
+template <typename PolicyGetter, typename KeyIteratorT, typename ValueIteratorT, typename KeyT, typename ValueT>
+struct AgentMergeTempStorage
+{
+  static constexpr MergeSortPolicy policy = PolicyGetter{}();
+  static constexpr int BLOCK_THREADS      = policy.threads_per_block;
+  static constexpr int ITEMS_PER_THREAD   = policy.items_per_thread;
+  static constexpr int ITEMS_PER_TILE     = BLOCK_THREADS * ITEMS_PER_THREAD;
+
+  using KeysOutputPongIt  = KeyIteratorT;
+  using ItemsOutputPongIt = ValueIteratorT;
+  using KeysOutputPingIt  = KeyT*;
+  using ItemsOutputPingIt = ValueT*;
+
+  union _TempStorage
+  {
+    typename BlockStoreTempStorage<it_value_t<KeysOutputPingIt>,
+                                   BLOCK_THREADS,
+                                   ITEMS_PER_THREAD,
+                                   policy.store_algorithm,
+                                   1,
+                                   1>::TempStorage store_keys_ping;
+    typename BlockStoreTempStorage<it_value_t<ItemsOutputPingIt>,
+                                   BLOCK_THREADS,
+                                   ITEMS_PER_THREAD,
+                                   policy.store_algorithm,
+                                   1,
+                                   1>::TempStorage store_items_ping;
+    typename BlockStoreTempStorage<it_value_t<KeysOutputPongIt>,
+                                   BLOCK_THREADS,
+                                   ITEMS_PER_THREAD,
+                                   policy.store_algorithm,
+                                   1,
+                                   1>::TempStorage store_keys_pong;
+    typename BlockStoreTempStorage<it_value_t<ItemsOutputPongIt>,
+                                   BLOCK_THREADS,
+                                   ITEMS_PER_THREAD,
+                                   policy.store_algorithm,
+                                   1,
+                                   1>::TempStorage store_items_pong;
+
+    KeyT keys_shared[ITEMS_PER_TILE + 1];
+    ValueT items_shared[ITEMS_PER_TILE + 1];
+  };
+
+  /// Alias wrapper allowing storage to be unioned
+  using TempStorage = Uninitialized<_TempStorage>;
+};
+
 template <typename PolicyGetter, // TODO(bgruber): pass policy as NTTP in C++20
           typename KeyIteratorT,
           typename ValueIteratorT,
@@ -372,8 +480,12 @@ template <typename PolicyGetter, // TODO(bgruber): pass policy as NTTP in C++20
           typename CompareOpT,
           typename KeyT,
           typename ValueT>
-struct AgentMerge
+struct AgentMerge : public AgentMergeTempStorage<PolicyGetter, KeyIteratorT, ValueIteratorT, KeyT, ValueT>
 {
+  using storage_t   = AgentMergeTempStorage<PolicyGetter, KeyIteratorT, ValueIteratorT, KeyT, ValueT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Types and constants
   //---------------------------------------------------------------------
@@ -406,20 +518,6 @@ struct AgentMerge
     BlockStore<it_value_t<ItemsOutputPingIt>, BLOCK_THREADS, ITEMS_PER_THREAD, policy.store_algorithm>;
 
   /// Parameterized BlockReduce primitive
-
-  union _TempStorage
-  {
-    typename BlockStoreKeysPing::TempStorage store_keys_ping;
-    typename BlockStoreItemsPing::TempStorage store_items_ping;
-    typename BlockStoreKeysPong::TempStorage store_keys_pong;
-    typename BlockStoreItemsPong::TempStorage store_items_pong;
-
-    KeyT keys_shared[ITEMS_PER_TILE + 1];
-    ValueT items_shared[ITEMS_PER_TILE + 1];
-  };
-
-  /// Alias wrapper allowing storage to be unioned
-  using TempStorage = Uninitialized<_TempStorage>;
 
   //---------------------------------------------------------------------
   // Per thread data

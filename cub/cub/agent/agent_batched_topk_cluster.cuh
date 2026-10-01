@@ -168,46 +168,16 @@ struct smem_block_tile_layout
 // deterministic guarantee selects the cluster-wide, index-ordered tie-break scan (and the blocked chunk partition it
 // depends on) over the nondeterministic racing atomics; `not_guaranteed` keeps the atomics. On the deterministic path
 // `prefer_larger_index` reverses the scan order so the largest-index ties win (else the smallest).
-template <typename PolicyGetter, // TODO(bgruber): pass cluster_topk_policy as NTTP in C++20
-          ::cuda::execution::determinism::__determinism_t Determinism,
-          ::cuda::execution::tie_break::__tie_break_t TieBreak,
-          typename KeyInputItItT,
-          typename KeyOutputItItT,
-          typename ValueInputItItT,
-          typename ValueOutputItItT,
-          typename SegmentSizeParameterT,
-          typename KParameterT,
-          typename SelectDirectionParameterT,
-          typename NumSegmentsParameterT>
-struct agent_batched_topk_cluster
+template <typename PolicyGetter, typename KeyInputItItT>
+struct AgentBatchedTopkClusterTempStorage
 {
-  // ---------------------------------------------------------------------------
-  // Types / constants
-  // ---------------------------------------------------------------------------
   static constexpr auto policy = PolicyGetter{}();
 
-  using key_it_t   = it_value_t<KeyInputItItT>;
-  using key_t      = it_value_t<key_it_t>;
-  using value_it_t = it_value_t<ValueInputItItT>;
-  using value_t    = it_value_t<value_it_t>;
+  using key_it_t = it_value_t<KeyInputItItT>;
+  using key_t    = it_value_t<key_it_t>;
 
-  // Keys-only when the value payload type is `cub::NullType` (mirrors the baseline batched top-k agent). The value
-  // iterators are then never dereferenced and the final filter's value writes are compiled out.
-  static constexpr bool is_keys_only = ::cuda::std::is_same_v<value_t, cub::NullType>;
-
-  // Segment-size type: the smallest unsigned offset type (>= 32-bit) covering the parameter's declared upper bound. The
-  // public entry caps that bound at 2^21, so this is always 32-bit.
-  using segment_size_val_t = detail::params::bounded_offset_t<SegmentSizeParameterT>;
-
-  // Fixed 32-bit: the segment (grid) index is a CUDA cluster id, and dispatch rejects `num_segments` > INT_MAX before
-  // launch. Not derived from the caller's `num_segments` type, so a wide type does not widen the grid math.
-  using num_segments_val_t = ::cuda::std::uint32_t;
-
-  // Unsigned because all offsets, ranks, and block counts are non-negative (segment sizes are clamped to >= 0
-  // upstream).
   using offset_t     = ::cuda::std::uint32_t;
   using out_offset_t = ::cuda::std::uint32_t;
-  using key_prefix_t = detail::topk::key_prefix_storage_t<key_t>;
 
   // Cluster-shared state: lives in the leader block's shared memory and is reached from every block of the cluster
   // through DSMEM. Nested here so its counters reuse the kernel's fixed 32-bit `offset_t`/`out_offset_t` directly.
@@ -239,6 +209,94 @@ struct agent_batched_topk_cluster
     size_state size;
     pass_result result;
   };
+
+  static constexpr int num_buckets = 1 << policy.bits_per_pass;
+  using smem_layout_t              = smem_block_tile_layout<key_t, policy.chunk_bytes, policy.load_align_bytes>;
+  static constexpr int num_load_align_items = smem_layout_t::num_load_align_items;
+
+  // The same layout is allocated by every block of the cluster so that any
+  // block can reach the leader's fields at a known offset via DSMEM. Each
+  // block populates its own `hist` block-locally; after the first cluster
+  // sync the non-leader blocks reduce their bucket counts into the leader's
+  // `hist` through DSMEM atomics. `state` is meaningful only in the leader
+  // block; the other blocks reach it exclusively through the DSMEM mapping.
+  // `selected_offset_counter`/`tie_offset_counter` are the final-filter output-slot counters, but they first serve as
+  // the cross-CTA scan accumulators: peers add their selected/tied counts into them through DSMEM
+  // (`add_remote_prefix`) while this block seeds its own tie base locally, leaving each counter primed with this
+  // block's absolute region base (selected = `selected_prefix`, tie = `num_cluster_selected + tie_prefix`). Because
+  // peers reach them over DSMEM they must sit at an identical offset in every block's storage.
+  // `num_local_strictly_selected` accumulates this block's strictly-selected count across passes, and
+  // `num_local_candidates` holds the last pass's splitter-bucket count.
+  struct _TempStorage
+  {
+    offset_t hist[num_buckets];
+    state_t state;
+    offset_t selected_offset_counter;
+    offset_t tie_offset_counter;
+    offset_t num_local_strictly_selected;
+    offset_t num_local_candidates;
+    typename BlockScanTempStorage<offset_t, policy.threads_per_block, BLOCK_SCAN_WARP_SCANS, 1, 1>::TempStorage
+      scan_storage;
+    // One mbarrier handle per pipeline stage, shared by the resident load and the overflow stream and reused
+    // (ping-ponged) across radix passes; all are initialized once up front by `init_load_barriers`.
+    ::cuda::std::uint64_t load_mbar[policy.pipeline_stages];
+    // Persistent unaligned boundary edges (block-load path only): the head prefix (`[0, num_load_align_items)`, on rank
+    // 0) and the peeled tail suffix (`[num_load_align_items, 2 * num_load_align_items)`, on the tail owner whenever it
+    // is unaligned), each strictly `< num_load_align_items` keys. Loaded once in the first pass and consumed into every
+    // pass + the final filter. Block-local (never reached through DSMEM).
+    key_t edge_keys[2 * num_load_align_items];
+  };
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
+template <typename PolicyGetter, // TODO(bgruber): pass cluster_topk_policy as NTTP in C++20
+          ::cuda::execution::determinism::__determinism_t Determinism,
+          ::cuda::execution::tie_break::__tie_break_t TieBreak,
+          typename KeyInputItItT,
+          typename KeyOutputItItT,
+          typename ValueInputItItT,
+          typename ValueOutputItItT,
+          typename SegmentSizeParameterT,
+          typename KParameterT,
+          typename SelectDirectionParameterT,
+          typename NumSegmentsParameterT>
+struct agent_batched_topk_cluster : public AgentBatchedTopkClusterTempStorage<PolicyGetter, KeyInputItItT>
+{
+  using storage_t    = AgentBatchedTopkClusterTempStorage<PolicyGetter, KeyInputItItT>;
+  using TempStorage  = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+  using state_t      = typename storage_t::state_t;
+
+  // ---------------------------------------------------------------------------
+  // Types / constants
+  // ---------------------------------------------------------------------------
+  static constexpr auto policy = PolicyGetter{}();
+
+  using key_it_t   = it_value_t<KeyInputItItT>;
+  using key_t      = it_value_t<key_it_t>;
+  using value_it_t = it_value_t<ValueInputItItT>;
+  using value_t    = it_value_t<value_it_t>;
+
+  // Keys-only when the value payload type is `cub::NullType` (mirrors the baseline batched top-k agent). The value
+  // iterators are then never dereferenced and the final filter's value writes are compiled out.
+  static constexpr bool is_keys_only = ::cuda::std::is_same_v<value_t, cub::NullType>;
+
+  // Segment-size type: the smallest unsigned offset type (>= 32-bit) covering the parameter's declared upper bound. The
+  // public entry caps that bound at 2^21, so this is always 32-bit.
+  using segment_size_val_t = detail::params::bounded_offset_t<SegmentSizeParameterT>;
+
+  // Fixed 32-bit: the segment (grid) index is a CUDA cluster id, and dispatch rejects `num_segments` > INT_MAX before
+  // launch. Not derived from the caller's `num_segments` type, so a wide type does not widen the grid math.
+  using num_segments_val_t = ::cuda::std::uint32_t;
+
+  // Unsigned because all offsets, ranks, and block counts are non-negative (segment sizes are clamped to >= 0
+  // upstream).
+  using offset_t     = ::cuda::std::uint32_t;
+  using out_offset_t = ::cuda::std::uint32_t;
+  using key_prefix_t = detail::topk::key_prefix_storage_t<key_t>;
+
   using size_state_t  = typename state_t::size_state;
   using pass_result_t = typename state_t::pass_result;
 
@@ -376,41 +434,6 @@ struct agent_batched_topk_cluster
   // longer constrained to be `<= policy.threads_per_block`.
   static constexpr int buckets_per_thread = ::cuda::ceil_div(num_buckets, policy.threads_per_block);
   using block_scan_t                      = BlockScan<offset_t, policy.threads_per_block, BLOCK_SCAN_WARP_SCANS>;
-
-  // ---------------------------------------------------------------------------
-  // Shared memory storage
-  // ---------------------------------------------------------------------------
-  // The same layout is allocated by every block of the cluster so that any
-  // block can reach the leader's fields at a known offset via DSMEM. Each
-  // block populates its own `hist` block-locally; after the first cluster
-  // sync the non-leader blocks reduce their bucket counts into the leader's
-  // `hist` through DSMEM atomics. `state` is meaningful only in the leader
-  // block; the other blocks reach it exclusively through the DSMEM mapping.
-  // `selected_offset_counter`/`tie_offset_counter` are the final-filter output-slot counters, but they first serve as
-  // the cross-CTA scan accumulators: peers add their selected/tied counts into them through DSMEM
-  // (`add_remote_prefix`) while this block seeds its own tie base locally, leaving each counter primed with this
-  // block's absolute region base (selected = `selected_prefix`, tie = `num_cluster_selected + tie_prefix`). Because
-  // peers reach them over DSMEM they must sit at an identical offset in every block's storage.
-  // `num_local_strictly_selected` accumulates this block's strictly-selected count across passes, and
-  // `num_local_candidates` holds the last pass's splitter-bucket count.
-  struct _TempStorage
-  {
-    offset_t hist[num_buckets];
-    state_t state;
-    offset_t selected_offset_counter;
-    offset_t tie_offset_counter;
-    offset_t num_local_strictly_selected;
-    offset_t num_local_candidates;
-    typename block_scan_t::TempStorage scan_storage;
-    // One mbarrier handle per pipeline stage, shared by the resident load and the overflow stream and reused
-    // (ping-ponged) across radix passes; all are initialized once up front by `init_load_barriers`.
-    ::cuda::std::uint64_t load_mbar[policy.pipeline_stages];
-    // Persistent unaligned boundary edges (block-load path only): the head prefix (`[0, num_load_align_items)`, on rank
-    // 0) and the peeled tail suffix (`[num_load_align_items, 2 * num_load_align_items)`, on the tail owner whenever it
-    // is unaligned), each strictly `< num_load_align_items` keys. Loaded once in the first pass and consumed into every
-    // pass + the final filter. Block-local (never reached through DSMEM).
-    key_t edge_keys[2 * num_load_align_items];
-  };
 
   struct chunk_desc
   {
@@ -616,9 +639,6 @@ struct agent_batched_topk_cluster
     }
     load_phase ^= (::cuda::std::uint32_t{1} << stage);
   }
-
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   // Per-segment, per-rank geometry computed once by `compute_segment_layout` at the top of `run`: the head-aligned
   // chunking, the logical (non-idle) cluster width and this rank's partition of it, the leader/idle roles, and the

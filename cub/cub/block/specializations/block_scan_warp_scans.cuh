@@ -43,13 +43,8 @@ namespace detail
  *   The thread block length in threads along the Z dimension
  */
 template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
-struct BlockScanWarpScans
+struct BlockScanWarpScansTempStorage
 {
-  //---------------------------------------------------------------------
-  // Types and constants
-  //---------------------------------------------------------------------
-
-  /// Constants
   /// Number of warp threads
   static constexpr int WARP_THREADS = warp_threads;
 
@@ -59,20 +54,12 @@ struct BlockScanWarpScans
   /// Number of active warps
   static constexpr int WARPS = ::cuda::ceil_div(BLOCK_THREADS, WARP_THREADS);
 
-  ///  WarpScan utility type
-  using WarpScanT = WarpScan<T, WARP_THREADS>;
-
-  ///  WarpScan utility type
-  using WarpAggregateScan = WarpScan<T, WARPS>;
-
-  /// Shared memory storage layout type
-
   struct __align__(32) _TempStorage
   {
     T warp_aggregates[WARPS];
 
     /// Buffer for warp-synchronous scans
-    typename WarpScanT::TempStorage warp_scan[WARPS];
+    typename WarpScanTempStorage<T, WARP_THREADS>::TempStorage warp_scan[WARPS];
 
     /// Shared prefix for the entire thread block
     T block_prefix;
@@ -81,6 +68,28 @@ struct BlockScanWarpScans
   /// Alias wrapper allowing storage to be unioned
   struct TempStorage : Uninitialized<_TempStorage>
   {};
+};
+
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
+struct BlockScanWarpScans : public BlockScanWarpScansTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>
+{
+  using base_t       = BlockScanWarpScansTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>;
+  using TempStorage  = typename base_t::TempStorage;
+  using _TempStorage = typename base_t::_TempStorage;
+
+  //---------------------------------------------------------------------
+  // Types and constants
+  //---------------------------------------------------------------------
+
+  static constexpr int WARP_THREADS  = base_t::WARP_THREADS;
+  static constexpr int BLOCK_THREADS = base_t::BLOCK_THREADS;
+  static constexpr int WARPS         = base_t::WARPS;
+
+  ///  WarpScan utility type
+  using WarpScanT = WarpScan<T, WARP_THREADS>;
+
+  ///  WarpScan utility type
+  using WarpAggregateScan = WarpScan<T, WARPS>;
 
   //---------------------------------------------------------------------
   // Per-thread fields

@@ -23,16 +23,24 @@ namespace detail
 {
 // TODO (elstehle): Add documentation
 template <typename KeyT, int BlockDimX, int ItemsPerThread, typename ValueT = NullType>
-class block_topk
+struct BlockTopkTempStorage
 {
+  struct TempStorage
+  {
+    typename BlockTopkAirTempStorage<KeyT, BlockDimX, ItemsPerThread, ValueT, 8, true, true>::TempStorage topk_storage;
+  };
+};
+
+template <typename KeyT, int BlockDimX, int ItemsPerThread, typename ValueT = NullType>
+class block_topk : public BlockTopkTempStorage<KeyT, BlockDimX, ItemsPerThread, ValueT>
+{
+  using base_t = BlockTopkTempStorage<KeyT, BlockDimX, ItemsPerThread, ValueT>;
+
 private:
   using internal_block_topk_t = block_topk_air<KeyT, BlockDimX, ItemsPerThread, ValueT>;
 
 public:
-  struct TempStorage
-  {
-    typename internal_block_topk_t::TempStorage topk_storage;
-  };
+  using TempStorage = typename base_t::TempStorage;
 
 private:
   TempStorage& storage;

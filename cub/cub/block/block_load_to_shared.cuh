@@ -73,10 +73,23 @@ namespace detail
 //! - By guaranteeing 16 byte alignment and size multiple for the global span, a faster path is taken and less shared
 //!   memory is needed for the destination buffer.
 //! @endrst
+template <int BlockDimX, int BlockDimY, int BlockDimZ>
+struct BlockLoadToSharedTempStorage
+{
+  struct _TempStorage
+  {
+    ::cuda::std::uint64_t mbarrier_handle;
+  };
+
+  using TempStorage = cub::Uninitialized<_TempStorage>;
+};
+
 template <int BlockDimX, int BlockDimY = 1, int BlockDimZ = 1>
-struct BlockLoadToShared
+struct BlockLoadToShared : public BlockLoadToSharedTempStorage<BlockDimX, BlockDimY, BlockDimZ>
 {
 private:
+  using base_t       = BlockLoadToSharedTempStorage<BlockDimX, BlockDimY, BlockDimZ>;
+  using _TempStorage = typename base_t::_TempStorage;
   /// Constants
   static constexpr int threads_per_block = BlockDimX * BlockDimY * BlockDimZ;
 
@@ -84,11 +97,6 @@ private:
   struct alignas(detail::bulk_copy_min_align) vec_load_t
   {
     char c_array[detail::bulk_copy_min_align];
-  };
-
-  struct _TempStorage
-  {
-    ::cuda::std::uint64_t mbarrier_handle;
   };
 
 #ifdef CCCL_ENABLE_DEVICE_ASSERTIONS
@@ -249,7 +257,7 @@ private:
 
 public:
   /// @smemstorage{BlockLoadToShared}
-  using TempStorage = cub::Uninitialized<_TempStorage>;
+  using TempStorage = typename base_t::TempStorage;
 
   //! Token type used to enforce correct call order between Commit() and Wait()
   //! member functions. Returned by Commit() and required by Wait() as a usage

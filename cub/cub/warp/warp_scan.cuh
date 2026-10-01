@@ -31,6 +31,23 @@
 
 CUB_NAMESPACE_BEGIN
 
+namespace detail
+{
+template <typename T, int LogicalWarpThreads>
+struct WarpScanTempStorage
+{
+  static constexpr bool is_power_of_two = ((LogicalWarpThreads & (LogicalWarpThreads - 1)) == 0);
+
+  using internal_t =
+    ::cuda::std::_If<is_power_of_two,
+                     WarpScanShflTempStorage<T, LogicalWarpThreads>,
+                     WarpScanSmemTempStorage<T, LogicalWarpThreads>>;
+
+  using _TempStorage = typename internal_t::TempStorage;
+  using TempStorage  = Uninitialized<_TempStorage>;
+};
+} // namespace detail
+
 //! @rst
 //! The WarpScan class provides :ref:`collective <collective-primitives>` methods for computing a
 //! parallel prefix scan of items partitioned across a CUDA thread warp.
@@ -137,8 +154,10 @@ CUB_NAMESPACE_BEGIN
 //!   targeted by the compiler (e.g., 32 threads for SM20).
 //!
 template <typename T, int LogicalWarpThreads = detail::warp_threads>
-class WarpScan
+class WarpScan : private detail::WarpScanTempStorage<T, LogicalWarpThreads>
 {
+  using storage_t = detail::WarpScanTempStorage<T, LogicalWarpThreads>;
+
 private:
   /******************************************************************************
    * Constants and type definitions
@@ -148,7 +167,7 @@ private:
   static constexpr bool IS_ARCH_WARP = (LogicalWarpThreads == detail::warp_threads);
 
   /// Whether the logical warp size is a power-of-two
-  static constexpr bool IS_POW_OF_TWO = ((LogicalWarpThreads & (LogicalWarpThreads - 1)) == 0);
+  static constexpr bool IS_POW_OF_TWO = storage_t::is_power_of_two;
 
   /// Whether the data type is an integer (which has fully-associative addition)
   static constexpr bool IS_INTEGER = cuda::std::is_integral_v<T>;
@@ -159,7 +178,7 @@ private:
     _If<IS_POW_OF_TWO, detail::WarpScanShfl<T, LogicalWarpThreads>, detail::WarpScanSmem<T, LogicalWarpThreads>>;
 
   /// Shared memory storage layout type for WarpScan
-  using _TempStorage = typename InternalWarpScan::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /******************************************************************************
    * Thread fields
@@ -175,7 +194,7 @@ private:
 
 public:
   /// @smemstorage{WarpScan}
-  using TempStorage = Uninitialized<_TempStorage>;
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{

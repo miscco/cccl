@@ -116,14 +116,94 @@ namespace detail::rle
  */
 template <typename AgentRlePolicyT,
           typename InputIteratorT,
+          typename LengthsOutputIteratorT,
+          typename OffsetT,
+          typename GlobalOffsetT>
+struct AgentRleTempStorage
+{
+  using T       = cub::detail::it_value_t<InputIteratorT>;
+  using LengthT = cub::detail::non_void_value_t<LengthsOutputIteratorT, GlobalOffsetT>;
+  using LengthOffsetPair = KeyValuePair<OffsetT, LengthT>;
+
+  static constexpr int WARP_THREADS     = warp_threads;
+  static constexpr int BLOCK_THREADS    = AgentRlePolicyT::BLOCK_THREADS;
+  static constexpr int ITEMS_PER_THREAD = AgentRlePolicyT::ITEMS_PER_THREAD;
+  static constexpr int WARPS            = (BLOCK_THREADS + WARP_THREADS - 1) / WARP_THREADS;
+  static constexpr bool STORE_WARP_TIME_SLICING = AgentRlePolicyT::STORE_WARP_TIME_SLICING;
+  static constexpr int ACTIVE_EXCHANGE_WARPS    = (STORE_WARP_TIME_SLICING) ? 1 : WARPS;
+
+  using WarpExchangePairsStorage = ::cuda::std::_If<
+    STORE_WARP_TIME_SLICING,
+    typename WarpExchangeTempStorage<LengthOffsetPair, ITEMS_PER_THREAD, warp_threads, WARP_EXCHANGE_SMEM>::TempStorage,
+    NullType>;
+
+  // Shared memory type for this thread block
+  struct _TempStorage
+  {
+    // Aliasable storage layout
+    union Aliasable
+    {
+      struct ScanStorage
+      {
+        // Smem needed for discontinuity detection
+        typename BlockDiscontinuityTempStorage<T, BLOCK_THREADS, 1, 1>::TempStorage discontinuity;
+
+        // Smem needed for warp-synchronous scans
+        typename WarpScanTempStorage<LengthOffsetPair, warp_threads>::TempStorage warp_scan[WARPS];
+
+        // Smem needed for sharing warp-wide aggregates
+        Uninitialized<LengthOffsetPair[WARPS]> warp_aggregates;
+
+        // Smem needed for cooperative prefix callback
+        typename TilePrefixCallbackOpTempStorage<LengthOffsetPair>::TempStorage prefix;
+      } scan_storage;
+
+      // Smem needed for input loading
+      typename BlockLoadTempStorage<T,
+                                    AgentRlePolicyT::BLOCK_THREADS,
+                                    AgentRlePolicyT::ITEMS_PER_THREAD,
+                                    AgentRlePolicyT::LOAD_ALGORITHM,
+                                    1,
+                                    1>::TempStorage load;
+
+      // Aliasable layout needed for two-phase scatter
+      union ScatterAliasable
+      {
+        unsigned long long align;
+        WarpExchangePairsStorage exchange_pairs[ACTIVE_EXCHANGE_WARPS];
+        typename WarpExchangeTempStorage<OffsetT, ITEMS_PER_THREAD, warp_threads, WARP_EXCHANGE_SMEM>::TempStorage
+          exchange_offsets[ACTIVE_EXCHANGE_WARPS];
+        typename WarpExchangeTempStorage<LengthT, ITEMS_PER_THREAD, warp_threads, WARP_EXCHANGE_SMEM>::TempStorage
+          exchange_lengths[ACTIVE_EXCHANGE_WARPS];
+      } scatter_aliasable;
+
+    } aliasable;
+
+    OffsetT tile_idx; // Shared tile index
+    LengthOffsetPair tile_inclusive; // Inclusive tile prefix
+    LengthOffsetPair tile_exclusive; // Exclusive tile prefix
+  };
+
+  // Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
+template <typename AgentRlePolicyT,
+          typename InputIteratorT,
           typename OffsetsOutputIteratorT,
           typename LengthsOutputIteratorT,
           typename EqualityOpT,
           typename OffsetT,
           typename GlobalOffsetT,
           typename StreamingContextT>
-struct AgentRle
+struct AgentRle : public AgentRleTempStorage<AgentRlePolicyT, InputIteratorT, LengthsOutputIteratorT, OffsetT, GlobalOffsetT>
 {
+  using storage_t =
+    AgentRleTempStorage<AgentRlePolicyT, InputIteratorT, LengthsOutputIteratorT, OffsetT, GlobalOffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   // Whether or not this is a streaming invocation (i.e., multiple kernel invocations over partitions of the input)
   static constexpr bool is_streaming_invocation = !::cuda::std::is_same_v<StreamingContextT, NullType>;
 
@@ -219,57 +299,10 @@ struct AgentRle
   // Warp exchange types
   using WarpExchangePairs = WarpExchange<LengthOffsetPair, ITEMS_PER_THREAD>;
 
-  using WarpExchangePairsStorage =
-    ::cuda::std::_If<STORE_WARP_TIME_SLICING, typename WarpExchangePairs::TempStorage, NullType>;
-
   using WarpExchangeOffsets = WarpExchange<OffsetT, ITEMS_PER_THREAD>;
   using WarpExchangeLengths = WarpExchange<LengthT, ITEMS_PER_THREAD>;
 
   using WarpAggregates = LengthOffsetPair[WARPS];
-
-  // Shared memory type for this thread block
-  struct _TempStorage
-  {
-    // Aliasable storage layout
-    union Aliasable
-    {
-      struct ScanStorage
-      {
-        // Smem needed for discontinuity detection
-        typename BlockDiscontinuityT::TempStorage discontinuity;
-
-        // Smem needed for warp-synchronous scans
-        typename WarpScanPairs::TempStorage warp_scan[WARPS];
-
-        // Smem needed for sharing warp-wide aggregates
-        Uninitialized<LengthOffsetPair[WARPS]> warp_aggregates;
-
-        // Smem needed for cooperative prefix callback
-        typename TilePrefixCallbackOpT::TempStorage prefix;
-      } scan_storage;
-
-      // Smem needed for input loading
-      typename BlockLoadT::TempStorage load;
-
-      // Aliasable layout needed for two-phase scatter
-      union ScatterAliasable
-      {
-        unsigned long long align;
-        WarpExchangePairsStorage exchange_pairs[ACTIVE_EXCHANGE_WARPS];
-        typename WarpExchangeOffsets::TempStorage exchange_offsets[ACTIVE_EXCHANGE_WARPS];
-        typename WarpExchangeLengths::TempStorage exchange_lengths[ACTIVE_EXCHANGE_WARPS];
-      } scatter_aliasable;
-
-    } aliasable;
-
-    OffsetT tile_idx; // Shared tile index
-    LengthOffsetPair tile_inclusive; // Inclusive tile prefix
-    LengthOffsetPair tile_exclusive; // Exclusive tile prefix
-  };
-
-  // Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   //---------------------------------------------------------------------
   // Per-thread fields

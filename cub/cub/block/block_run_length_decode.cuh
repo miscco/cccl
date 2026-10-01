@@ -122,6 +122,36 @@ CUB_NAMESPACE_BEGIN
 //!
 //! @tparam BlockDimZ
 //!   The thread block length in threads along the Z dimension
+namespace detail
+{
+template <typename ItemT,
+          int BlockDimX,
+          int RunsPerThread,
+          int DecodedItemsPerThread,
+          typename DecodedOffsetT,
+          int BlockDimY,
+          int BlockDimZ>
+struct BlockRunLengthDecodeTempStorage
+{
+  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int BLOCK_RUNS    = BLOCK_THREADS * RunsPerThread;
+
+  union _TempStorage
+  {
+    typename BlockScanTempStorage<DecodedOffsetT, BlockDimX, BLOCK_SCAN_RAKING_MEMOIZE, BlockDimY, BlockDimZ>::TempStorage
+      offset_scan;
+    struct
+    {
+      ItemT run_values[BLOCK_RUNS];
+      DecodedOffsetT run_offsets[BLOCK_RUNS];
+    } runs;
+  };
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
 template <typename ItemT,
           int BlockDimX,
           int RunsPerThread,
@@ -130,17 +160,34 @@ template <typename ItemT,
           int BlockDimY           = 1,
           int BlockDimZ           = 1>
 class BlockRunLengthDecode
+    : private detail::BlockRunLengthDecodeTempStorage<
+        ItemT,
+        BlockDimX,
+        RunsPerThread,
+        DecodedItemsPerThread,
+        DecodedOffsetT,
+        BlockDimY,
+        BlockDimZ>
 {
+  using storage_t = detail::BlockRunLengthDecodeTempStorage<
+    ItemT,
+    BlockDimX,
+    RunsPerThread,
+    DecodedItemsPerThread,
+    DecodedOffsetT,
+    BlockDimY,
+    BlockDimZ>;
+
   //---------------------------------------------------------------------
   // CONFIGS & TYPE ALIASES
   //---------------------------------------------------------------------
 
 private:
   /// The thread block size in threads
-  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int BLOCK_THREADS = storage_t::BLOCK_THREADS;
 
   /// The number of runs that the block decodes (out-of-bounds items may be padded with run lengths of '0')
-  static constexpr int BLOCK_RUNS = BLOCK_THREADS * RunsPerThread;
+  static constexpr int BLOCK_RUNS = storage_t::BLOCK_RUNS;
 
   /// BlockScan used to determine the beginning of each run (i.e., prefix sum over the runs' length)
   using RunOffsetScanT = BlockScan<DecodedOffsetT, BlockDimX, BLOCK_SCAN_RAKING_MEMOIZE, BlockDimY, BlockDimZ>;
@@ -148,18 +195,7 @@ private:
   /// Type used to index into the block's runs
   using RunOffsetT = uint32_t;
 
-#ifndef _CCCL_DOXYGEN_INVOKED // Do not document
-  /// Shared memory type required by this thread block
-  union _TempStorage
-  {
-    typename RunOffsetScanT::TempStorage offset_scan;
-    struct
-    {
-      ItemT run_values[BLOCK_RUNS];
-      DecodedOffsetT run_offsets[BLOCK_RUNS];
-    } runs;
-  }; // union TempStorage
-#endif // _CCCL_DOXYGEN_INVOKED
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /// Internal storage allocator (used when the user does not provide pre-allocated shared memory)
   _CCCL_DEVICE _CCCL_FORCEINLINE _TempStorage& PrivateStorage()
@@ -175,8 +211,7 @@ private:
   uint32_t linear_tid;
 
 public:
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   //---------------------------------------------------------------------
   // CONSTRUCTOR

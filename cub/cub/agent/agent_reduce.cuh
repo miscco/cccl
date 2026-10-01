@@ -181,17 +181,36 @@ namespace detail::reduce
  * @tparam IsWarpReduction
  *   Whether or not this is a warp reduction
  */
+template <typename CollectiveStorageT>
+struct AgentReduceImplTempStorage
+{
+  /// Shared memory type required by this thread block
+  struct _TempStorage
+  {
+    typename CollectiveStorageT::TempStorage reduce;
+  };
+
+  /// Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename AgentReducePolicy,
           typename InputIteratorT,
           typename OffsetT,
           typename ReductionOp,
           typename AccumT,
           typename TransformOp,
+          typename CollectiveStorageT,
           typename CollectiveReduceT,
           int NumThreads,
           bool IsWarpReduction = false>
-struct AgentReduceImpl
+struct AgentReduceImpl : public AgentReduceImplTempStorage<CollectiveStorageT>
 {
+  using storage_t    = AgentReduceImplTempStorage<CollectiveStorageT>;
+  using TempStorage  = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Types and constants
   //---------------------------------------------------------------------
@@ -229,16 +248,6 @@ struct AgentReduceImpl
          <= 8;
 
   static constexpr CacheLoadModifier LOAD_MODIFIER = AgentReducePolicy::LOAD_MODIFIER;
-
-  /// Shared memory type required by this thread block
-  struct _TempStorage
-  {
-    typename CollectiveReduceT::TempStorage reduce;
-  };
-
-  /// Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   //---------------------------------------------------------------------
   // Per-thread fields
@@ -514,24 +523,27 @@ template <typename AgentReducePolicy,
           typename AccumT,
           typename TransformOp = ::cuda::std::identity>
 struct AgentReduce
-    : AgentReduceImpl<AgentReducePolicy,
-                      InputIteratorT,
-                      OffsetT,
-                      ReductionOp,
-                      AccumT,
-                      TransformOp,
-                      BlockReduce<AccumT, AgentReducePolicy::BLOCK_THREADS, AgentReducePolicy::BLOCK_ALGORITHM>,
-                      AgentReducePolicy::BLOCK_THREADS>
+    : AgentReduceImpl<
+        AgentReducePolicy,
+        InputIteratorT,
+        OffsetT,
+        ReductionOp,
+        AccumT,
+        TransformOp,
+        BlockReduceTempStorage<AccumT, AgentReducePolicy::BLOCK_THREADS, AgentReducePolicy::BLOCK_ALGORITHM, 1, 1>,
+        BlockReduce<AccumT, AgentReducePolicy::BLOCK_THREADS, AgentReducePolicy::BLOCK_ALGORITHM>,
+        AgentReducePolicy::BLOCK_THREADS>
 {
-  using base_t =
-    AgentReduceImpl<AgentReducePolicy,
-                    InputIteratorT,
-                    OffsetT,
-                    ReductionOp,
-                    AccumT,
-                    TransformOp,
-                    BlockReduce<AccumT, AgentReducePolicy::BLOCK_THREADS, AgentReducePolicy::BLOCK_ALGORITHM>,
-                    AgentReducePolicy::BLOCK_THREADS>;
+  using base_t = AgentReduceImpl<
+    AgentReducePolicy,
+    InputIteratorT,
+    OffsetT,
+    ReductionOp,
+    AccumT,
+    TransformOp,
+    BlockReduceTempStorage<AccumT, AgentReducePolicy::BLOCK_THREADS, AgentReducePolicy::BLOCK_ALGORITHM, 1, 1>,
+    BlockReduce<AccumT, AgentReducePolicy::BLOCK_THREADS, AgentReducePolicy::BLOCK_ALGORITHM>,
+    AgentReducePolicy::BLOCK_THREADS>;
 
   _CCCL_DEVICE _CCCL_FORCEINLINE AgentReduce(
     typename base_t::TempStorage& temp_storage,
@@ -582,6 +594,7 @@ struct AgentWarpReduce
                       ReductionOp,
                       AccumT,
                       TransformOp,
+                      WarpReduceTempStorage<AccumT, AgentReducePolicy::WARP_THREADS>,
                       WarpReduce<AccumT, AgentReducePolicy::WARP_THREADS>,
                       AgentReducePolicy::WARP_THREADS,
                       true>
@@ -593,6 +606,7 @@ struct AgentWarpReduce
                     ReductionOp,
                     AccumT,
                     TransformOp,
+                    WarpReduceTempStorage<AccumT, AgentReducePolicy::WARP_THREADS>,
                     WarpReduce<AccumT, AgentReducePolicy::WARP_THREADS>,
                     AgentReducePolicy::WARP_THREADS,
                     true>;

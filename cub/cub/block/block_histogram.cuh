@@ -156,6 +156,29 @@ enum BlockHistogramAlgorithm
 //! @tparam BlockDimZ
 //!   **[optional]** The thread block length in threads along the Z dimension (default: 1)
 //!
+namespace detail
+{
+template <typename T,
+          int BlockDimX,
+          int ItemsPerThread,
+          int Bins,
+          BlockHistogramAlgorithm Algorithm,
+          int BlockDimY,
+          int BlockDimZ>
+struct BlockHistogramTempStorage
+{
+  using internal_t =
+    ::cuda::std::_If<Algorithm == BLOCK_HISTO_SORT,
+                     BlockHistogramSortTempStorage<T, BlockDimX, ItemsPerThread, Bins, BlockDimY, BlockDimZ>,
+                     BlockHistogramAtomicTempStorage<Bins>>;
+
+  using _TempStorage = typename internal_t::TempStorage;
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
 template <typename T,
           int BlockDimX,
           int ItemsPerThread,
@@ -164,7 +187,11 @@ template <typename T,
           int BlockDimY                     = 1,
           int BlockDimZ                     = 1>
 class BlockHistogram
+    : private detail::BlockHistogramTempStorage<T, BlockDimX, ItemsPerThread, Bins, Algorithm, BlockDimY, BlockDimZ>
 {
+  using storage_t =
+    detail::BlockHistogramTempStorage<T, BlockDimX, ItemsPerThread, Bins, Algorithm, BlockDimY, BlockDimZ>;
+
 private:
   /// The thread block size in threads
   static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
@@ -176,7 +203,7 @@ private:
                      detail::BlockHistogramAtomic<Bins>>;
 
   /// Shared memory storage layout type for BlockHistogram
-  using _TempStorage = typename InternalBlockHistogram::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /// Shared storage reference
   _TempStorage& temp_storage;
@@ -193,8 +220,7 @@ private:
 
 public:
   /// @smemstorage{BlockHistogram}
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{

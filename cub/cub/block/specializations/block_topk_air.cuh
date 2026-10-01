@@ -75,36 +75,18 @@ struct compare_key_prefix_op
 template <typename KeyT,
           int ThreadsPerBlock,
           int ItemsPerThread,
-          typename ValueT      = NullType,
-          int RadixBits        = 8,
-          bool UnrollBitPasses = true,
-          bool MemoizeKeys     = true>
-class block_topk_air
+          typename ValueT,
+          int RadixBits,
+          bool UnrollBitPasses,
+          bool MemoizeKeys>
+struct BlockTopkAirTempStorage
 {
-private:
-  // TODO (elstehle): Make this configurable
-  // Whether to include all items tied with the k-th key when selecting top-k
-  static constexpr bool expand_k_to_include_ties = false;
-
   static constexpr int threads_per_block = ThreadsPerBlock;
   static constexpr int items_per_thread  = ItemsPerThread;
   static constexpr int tile_items        = threads_per_block * items_per_thread;
   static constexpr int num_buckets       = int{1u << RadixBits};
 
-  // Calculate number of buckets processed per thread
-  static constexpr int buckets_per_thread = ::cuda::ceil_div(num_buckets, threads_per_block);
-  static constexpr bool keys_only         = ::cuda::std::is_same_v<ValueT, NullType>;
-
   using histo_counter_t = ::cuda::std::uint32_t;
-  using block_scan_t    = BlockScan<histo_counter_t, threads_per_block, BLOCK_SCAN_WARP_SCANS>;
-
-  using traits                 = detail::radix::traits_t<KeyT>;
-  using bit_ordered_type       = typename traits::bit_ordered_type;
-  using bit_ordered_conversion = typename traits::bit_ordered_conversion_policy;
-
-  // ShiftDigitExtractor rather than BFEDigitExtractor: the BFE path is inline PTX, which is opaque to the
-  // compiler and prevents it from fusing with other instructions.
-  using fundamental_digit_extractor_t = ShiftDigitExtractor<KeyT>;
 
   struct TempStorage_
   {
@@ -114,7 +96,8 @@ private:
       {
         // Double-buffered: pass p histograms into buffer p%2 while re-zeroing buffer (p+1)%2
         histo_counter_t histogram[2][num_buckets];
-        typename block_scan_t::TempStorage scan_temp_storage;
+        typename BlockScanTempStorage<histo_counter_t, threads_per_block, BLOCK_SCAN_WARP_SCANS>::TempStorage
+          scan_temp_storage;
       } passes;
 
       struct
@@ -138,6 +121,49 @@ private:
     // so the partitioning stage needs no setup phase or barrier of its own.
     histo_counter_t selected_offset[2];
   };
+
+  struct TempStorage : Uninitialized<TempStorage_>
+  {};
+};
+
+template <typename KeyT,
+          int ThreadsPerBlock,
+          int ItemsPerThread,
+          typename ValueT      = NullType,
+          int RadixBits        = 8,
+          bool UnrollBitPasses = true,
+          bool MemoizeKeys     = true>
+class block_topk_air
+    : public BlockTopkAirTempStorage<KeyT, ThreadsPerBlock, ItemsPerThread, ValueT, RadixBits, UnrollBitPasses, MemoizeKeys>
+{
+  using base_t =
+    BlockTopkAirTempStorage<KeyT, ThreadsPerBlock, ItemsPerThread, ValueT, RadixBits, UnrollBitPasses, MemoizeKeys>;
+  using TempStorage_ = typename base_t::TempStorage_;
+
+private:
+  // TODO (elstehle): Make this configurable
+  // Whether to include all items tied with the k-th key when selecting top-k
+  static constexpr bool expand_k_to_include_ties = false;
+
+  static constexpr int threads_per_block = base_t::threads_per_block;
+  static constexpr int items_per_thread  = base_t::items_per_thread;
+  static constexpr int tile_items        = base_t::tile_items;
+  static constexpr int num_buckets       = base_t::num_buckets;
+
+  // Calculate number of buckets processed per thread
+  static constexpr int buckets_per_thread = ::cuda::ceil_div(num_buckets, threads_per_block);
+  static constexpr bool keys_only         = ::cuda::std::is_same_v<ValueT, NullType>;
+
+  using histo_counter_t = typename base_t::histo_counter_t;
+  using block_scan_t    = BlockScan<histo_counter_t, threads_per_block, BLOCK_SCAN_WARP_SCANS>;
+
+  using traits                 = detail::radix::traits_t<KeyT>;
+  using bit_ordered_type       = typename traits::bit_ordered_type;
+  using bit_ordered_conversion = typename traits::bit_ordered_conversion_policy;
+
+  // ShiftDigitExtractor rather than BFEDigitExtractor: the BFE path is inline PTX, which is opaque to the
+  // compiler and prevents it from fusing with other instructions.
+  using fundamental_digit_extractor_t = ShiftDigitExtractor<KeyT>;
 
   /// Shared storage reference
   TempStorage_& storage;
@@ -577,8 +603,7 @@ private:
   }
 
 public:
-  struct TempStorage : Uninitialized<TempStorage_>
-  {};
+  using TempStorage = typename base_t::TempStorage;
 
   _CCCL_DEVICE_API _CCCL_FORCEINLINE block_topk_air(TempStorage& storage)
       : storage(storage.Alias())

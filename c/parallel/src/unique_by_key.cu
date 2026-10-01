@@ -288,7 +288,7 @@ using device_unique_by_key_vsmem = cub::detail::unique_by_key::unique_by_key_vsm
   op_wrapper,
   {18}>;
 static_assert(
-  cub::detail::vsmem_helper_impl<typename device_unique_by_key_vsmem::agent_t>::vsmem_per_block == 0,
+  cub::detail::vsmem_helper_impl<typename device_unique_by_key_vsmem::storage_t>::vsmem_per_block == 0,
   "CCCL.C DeviceSelect::UniqueByKey does not support VSMEM-backed kernels");
 )XXX",
     input_keys_it.value_type.size, // 0

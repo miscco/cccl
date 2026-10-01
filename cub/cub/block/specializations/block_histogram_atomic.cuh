@@ -28,11 +28,17 @@ namespace detail
  *        histograms from data samples partitioned across a CUDA thread block.
  */
 template <int Bins>
-struct BlockHistogramAtomic
+struct BlockHistogramAtomicTempStorage
 {
-  /// Shared memory storage layout type
   struct TempStorage
   {};
+};
+
+template <int Bins>
+struct BlockHistogramAtomic : public BlockHistogramAtomicTempStorage<Bins>
+{
+  using base_t      = BlockHistogramAtomicTempStorage<Bins>;
+  using TempStorage = typename base_t::TempStorage;
 
   /// Constructor
   _CCCL_DEVICE _CCCL_FORCEINLINE BlockHistogramAtomic(TempStorage& temp_storage) {}

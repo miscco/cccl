@@ -51,6 +51,56 @@ struct batched_topk_counters
   alignas(128) unsigned retirement_count;
 };
 
+template <typename PolicyGetter, typename KeyInputItItT, typename ValueInputItItT, typename SegmentSizeParameterT>
+struct AgentBatchedTopkWorkerPerSegmentTempStorage
+{
+  using key_it_t   = it_value_t<KeyInputItItT>;
+  using value_it_t = it_value_t<ValueInputItItT>;
+  using key_t      = it_value_t<key_it_t>;
+  using value_t    = it_value_t<value_it_t>;
+
+  using segment_size_val_t = typename ::cuda::args::__traits<SegmentSizeParameterT>::element_type;
+
+  static constexpr auto policy                 = PolicyGetter{}();
+  static constexpr worker_policy active_policy = policy.worker_per_segment_policy;
+
+  static constexpr int threads_per_block         = active_policy.threads_per_block;
+  static constexpr int items_per_thread          = active_policy.items_per_thread;
+  static constexpr int epilogue_items_per_thread = active_policy.epilogue.items_per_thread;
+
+  struct TempStorage_
+  {
+    union
+    {
+      typename BlockLoadTempStorage<key_t, threads_per_block, items_per_thread, active_policy.load_algorithm, 1, 1>::
+        TempStorage load_keys;
+      typename BlockLoadTempStorage<value_t, threads_per_block, items_per_thread, active_policy.load_algorithm, 1, 1>::
+        TempStorage load_vals;
+      typename BlockTopkTempStorage<key_t, threads_per_block, items_per_thread, value_t>::TempStorage topk;
+      typename BlockStoreTempStorage<key_t, threads_per_block, items_per_thread, active_policy.store_algorithm, 1, 1>::
+        TempStorage store_keys;
+      typename BlockStoreTempStorage<value_t, threads_per_block, items_per_thread, active_policy.store_algorithm, 1, 1>::
+        TempStorage store_vals;
+      typename BlockLoadTempStorage<segment_size_val_t,
+                                    threads_per_block,
+                                    epilogue_items_per_thread,
+                                    active_policy.epilogue.load_algorithm,
+                                    1,
+                                    1>::TempStorage load_epilogue;
+      typename BlockScanTempStorage<int, threads_per_block, active_policy.epilogue.scan_algorithm, 1, 1>::TempStorage
+        scan_epilogue;
+      typename BlockStoreTempStorage<segment_size_val_t,
+                                     threads_per_block,
+                                     epilogue_items_per_thread,
+                                     active_policy.epilogue.store_algorithm,
+                                     1,
+                                     1>::TempStorage store_epilogue;
+    };
+  };
+
+  using TempStorage = Uninitialized<TempStorage_>;
+};
+
 template <typename PolicyGetter, // TODO(bgruber): pass worker_policy as NTTP in C++20
           typename KeyInputItItT,
           typename KeyOutputItItT,
@@ -62,7 +112,18 @@ template <typename PolicyGetter, // TODO(bgruber): pass worker_policy as NTTP in
           typename NumSegmentsParameterT,
           typename LargeSegmentTileOffsetT>
 struct agent_batched_topk_worker_per_segment
+    : public AgentBatchedTopkWorkerPerSegmentTempStorage<PolicyGetter,
+                                                         KeyInputItItT,
+                                                         ValueInputItItT,
+                                                         SegmentSizeParameterT>
 {
+  using storage_t = AgentBatchedTopkWorkerPerSegmentTempStorage<PolicyGetter,
+                                                                KeyInputItItT,
+                                                                ValueInputItItT,
+                                                                SegmentSizeParameterT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using TempStorage_ = typename storage_t::TempStorage_;
+
   // -------------------------------------------------------------------------
   // Types and Constants
   // -------------------------------------------------------------------------
@@ -118,26 +179,6 @@ struct agent_batched_topk_worker_per_segment
   using block_scan_epilogue_t = BlockScan<int, threads_per_block, active_policy.epilogue.scan_algorithm>;
   using block_store_epilogue_t =
     BlockStore<segment_size_val_t, threads_per_block, epilogue_items_per_thread, active_policy.epilogue.store_algorithm>;
-
-  // -------------------------------------------------------------------------
-  // Shared Memory Storage
-  // -------------------------------------------------------------------------
-  struct TempStorage_
-  {
-    union
-    {
-      typename block_load_keys_t::TempStorage load_keys;
-      typename block_load_vals_t::TempStorage load_vals;
-      typename block_topk_t::TempStorage topk;
-      typename block_store_keys_t::TempStorage store_keys;
-      typename block_store_vals_t::TempStorage store_vals;
-      typename block_load_epilogue_t::TempStorage load_epilogue;
-      typename block_scan_epilogue_t::TempStorage scan_epilogue;
-      typename block_store_epilogue_t::TempStorage store_epilogue;
-    };
-  };
-
-  using TempStorage = Uninitialized<TempStorage_>;
 
   // -------------------------------------------------------------------------
   // Members

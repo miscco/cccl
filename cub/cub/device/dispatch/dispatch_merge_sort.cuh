@@ -244,9 +244,9 @@ public:
       KeyT,
       ValueT>;
     const ::cuda::std::size_t block_sort_smem_size =
-      num_tiles * detail::vsmem_helper_impl<typename merge_sort_vsmem_t::block_sort_agent_t>::vsmem_per_block;
+      num_tiles * detail::vsmem_helper_impl<typename merge_sort_vsmem_t::block_sort_storage_t>::vsmem_per_block;
     const ::cuda::std::size_t merge_smem_size =
-      num_tiles * detail::vsmem_helper_impl<typename merge_sort_vsmem_t::merge_agent_t>::vsmem_per_block;
+      num_tiles * detail::vsmem_helper_impl<typename merge_sort_vsmem_t::merge_storage_t>::vsmem_per_block;
     const ::cuda::std::size_t virtual_shared_memory_size = (::cuda::std::max) (block_sort_smem_size, merge_smem_size);
 
     void* allocations[4]             = {nullptr, nullptr, nullptr, nullptr};
@@ -522,8 +522,9 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE auto dispatch(
     const ::cuda::std::size_t merge_smem_size      = 0;
 #else // CUB_DEFINE_RUNTIME_POLICIES
     const ::cuda::std::size_t block_sort_smem_size =
-      num_tiles * vsmem_helper_impl<typename vsmem_adapted_agents::block_sort_agent_t>::vsmem_per_block;
-    const ::cuda::std::size_t merge_smem_size = num_tiles * vsmem_helper_impl<typename vsmem_adapted_agents::merge_agent_t>::vsmem_per_block;
+      num_tiles * vsmem_helper_impl<typename vsmem_adapted_agents::block_sort_storage_t>::vsmem_per_block;
+    const ::cuda::std::size_t merge_smem_size =
+      num_tiles * vsmem_helper_impl<typename vsmem_adapted_agents::merge_storage_t>::vsmem_per_block;
 #endif // CUB_DEFINE_RUNTIME_POLICIES
     const ::cuda::std::size_t virtual_shared_memory_size = (::cuda::std::max) (block_sort_smem_size, merge_smem_size);
 

@@ -52,7 +52,7 @@ namespace detail
 //! @tparam IsDeterministic
 //!   Whether the reduction is deterministic
 template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ, bool IsDeterministic = true>
-struct BlockReduceWarpReductions
+struct BlockReduceWarpReductionsTempStorage
 {
   /// The thread block size in threads
   static constexpr int threads_per_block = BlockDimX * BlockDimY * BlockDimZ;
@@ -63,16 +63,13 @@ struct BlockReduceWarpReductions
   /// The logical warp size for warp reductions
   static constexpr int logical_warp_size = ::cuda::std::min(threads_per_block, warp_threads);
 
-  /// Whether or not the logical warp size evenly divides the thread block size
-  static constexpr bool even_warp_multiple = (threads_per_block % logical_warp_size == 0);
-
-  using WarpReduceInternal = typename WarpReduce<T, logical_warp_size>::InternalWarpReduce;
+  using warp_reduce_storage_t = WarpReduceTempStorage<T, logical_warp_size>;
 
   /// Shared memory storage layout type
   struct _TempStorage
   {
     /// Buffer for warp-synchronous reduction
-    typename WarpReduceInternal::TempStorage warp_reduce[warps];
+    typename warp_reduce_storage_t::internal_t::TempStorage warp_reduce[warps];
 
     /// Shared totals from each warp-synchronous reduction
     T warp_aggregates[warps];
@@ -82,6 +79,24 @@ struct BlockReduceWarpReductions
   };
 
   using TempStorage = Uninitialized<_TempStorage>;
+};
+
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ, bool IsDeterministic = true>
+struct BlockReduceWarpReductions
+    : public BlockReduceWarpReductionsTempStorage<T, BlockDimX, BlockDimY, BlockDimZ, IsDeterministic>
+{
+  using base_t       = BlockReduceWarpReductionsTempStorage<T, BlockDimX, BlockDimY, BlockDimZ, IsDeterministic>;
+  using TempStorage  = typename base_t::TempStorage;
+  using _TempStorage = typename base_t::_TempStorage;
+
+  static constexpr int threads_per_block = base_t::threads_per_block;
+  static constexpr int warps             = base_t::warps;
+  static constexpr int logical_warp_size = base_t::logical_warp_size;
+
+  /// Whether or not the logical warp size evenly divides the thread block size
+  static constexpr bool even_warp_multiple = (threads_per_block % logical_warp_size == 0);
+
+  using WarpReduceInternal = typename cub::WarpReduce<T, logical_warp_size>::InternalWarpReduce;
 
   // Thread fields
   _TempStorage& temp_storage;

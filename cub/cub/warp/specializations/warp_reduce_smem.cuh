@@ -44,45 +44,44 @@ namespace detail
  *   Number of threads per logical warp
  */
 template <typename T, int LogicalWarpThreads>
-struct WarpReduceSmem
+struct WarpReduceSmemTempStorage
 {
-  /******************************************************************************
-   * Constants and type definitions
-   ******************************************************************************/
+  static constexpr bool IS_ARCH_WARP         = (LogicalWarpThreads == warp_threads);
+  static constexpr bool IS_POW_OF_TWO        = ::cuda::is_power_of_two(LogicalWarpThreads);
+  static constexpr int STEPS                 = Log2<LogicalWarpThreads>::VALUE;
+  static constexpr int HALF_WARP_THREADS     = 1 << (STEPS - 1);
+  static constexpr int WARP_SMEM_ELEMENTS    = LogicalWarpThreads + HALF_WARP_THREADS;
+  static constexpr auto UNSET                = 0x0;
+  static constexpr auto SET                  = 0x1;
+  static constexpr auto SEEN                 = 0x2;
+  using SmemFlag                             = unsigned char;
 
-  /// Whether the logical warp size and the PTX warp size coincide
-  static constexpr bool IS_ARCH_WARP = (LogicalWarpThreads == warp_threads);
-
-  /// Whether the logical warp size is a power-of-two
-  static constexpr bool IS_POW_OF_TWO = ::cuda::is_power_of_two(LogicalWarpThreads);
-
-  /// The number of warp reduction steps
-  static constexpr int STEPS = Log2<LogicalWarpThreads>::VALUE;
-
-  /// The number of threads in half a warp
-  static constexpr int HALF_WARP_THREADS = 1 << (STEPS - 1);
-
-  /// The number of shared memory elements per warp
-  static constexpr int WARP_SMEM_ELEMENTS = LogicalWarpThreads + HALF_WARP_THREADS;
-
-  /// FlagT status (when not using ballot)
-  static constexpr auto UNSET = 0x0; // Is initially unset
-  static constexpr auto SET   = 0x1; // Is initially set
-  static constexpr auto SEEN  = 0x2; // Has seen another head flag from a successor peer
-
-  /// Shared memory flag type
-  using SmemFlag = unsigned char;
-
-  /// Shared memory storage layout type (1.5 warps-worth of elements for each warp)
   struct _TempStorage
   {
     T reduce[WARP_SMEM_ELEMENTS];
     SmemFlag flags[WARP_SMEM_ELEMENTS];
   };
 
-  // Alias wrapper allowing storage to be unioned
   struct TempStorage : Uninitialized<_TempStorage>
   {};
+};
+
+template <typename T, int LogicalWarpThreads>
+struct WarpReduceSmem : WarpReduceSmemTempStorage<T, LogicalWarpThreads>
+{
+  using base_t       = WarpReduceSmemTempStorage<T, LogicalWarpThreads>;
+  using TempStorage  = typename base_t::TempStorage;
+  using _TempStorage = typename base_t::_TempStorage;
+  using SmemFlag     = typename base_t::SmemFlag;
+
+  static constexpr bool IS_ARCH_WARP      = base_t::IS_ARCH_WARP;
+  static constexpr bool IS_POW_OF_TWO     = base_t::IS_POW_OF_TWO;
+  static constexpr int STEPS              = base_t::STEPS;
+  static constexpr int HALF_WARP_THREADS  = base_t::HALF_WARP_THREADS;
+  static constexpr int WARP_SMEM_ELEMENTS = base_t::WARP_SMEM_ELEMENTS;
+  static constexpr auto UNSET             = base_t::UNSET;
+  static constexpr auto SET               = base_t::SET;
+  static constexpr auto SEEN              = base_t::SEEN;
 
   /******************************************************************************
    * Thread fields

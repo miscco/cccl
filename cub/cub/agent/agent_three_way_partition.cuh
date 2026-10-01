@@ -157,6 +157,44 @@ struct accumulator_pack_t : accumulator_pack_base_t<OffsetT>
  * the second part. If both functors don't select an item, the algorithm places
  * it into the unselected part.
  */
+template <typename PolicyT, typename InputIteratorT, typename OffsetT>
+struct AgentThreeWayPartitionTempStorage
+{
+  using InputT           = it_value_t<InputIteratorT>;
+  using AccumPackHelperT = accumulator_pack_t<OffsetT>;
+  using AccumPackT       = typename AccumPackHelperT::pack_t;
+
+  static constexpr int BLOCK_THREADS    = PolicyT::BLOCK_THREADS;
+  static constexpr int ITEMS_PER_THREAD = PolicyT::ITEMS_PER_THREAD;
+  static constexpr int TILE_ITEMS       = BLOCK_THREADS * ITEMS_PER_THREAD;
+
+  using ItemExchangeT = InputT[TILE_ITEMS];
+
+  // Shared memory type for this thread block
+  union _TempStorage
+  {
+    struct ScanStorage
+    {
+      // Smem needed for tile scanning
+      typename BlockScanTempStorage<AccumPackT, BLOCK_THREADS, PolicyT::SCAN_ALGORITHM, 1, 1>::TempStorage scan;
+
+      // Smem needed for cooperative prefix callback
+      typename TilePrefixCallbackOpTempStorage<AccumPackT>::TempStorage prefix;
+    } scan_storage;
+
+    // Smem needed for loading items
+    typename BlockLoadTempStorage<InputT, BLOCK_THREADS, ITEMS_PER_THREAD, PolicyT::LOAD_ALGORITHM, 1, 1>::TempStorage
+      load_items;
+
+    // Smem needed for compacting items (allows non POD items in this union)
+    cub::Uninitialized<ItemExchangeT> raw_exchange;
+  };
+
+  // Alias wrapper allowing storage to be unioned
+  struct TempStorage : cub::Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename PolicyT,
           typename InputIteratorT,
           typename FirstOutputIteratorT,
@@ -166,8 +204,12 @@ template <typename PolicyT,
           typename SelectSecondPartOp,
           typename OffsetT,
           typename StreamingContextT>
-struct AgentThreeWayPartition
+struct AgentThreeWayPartition : public AgentThreeWayPartitionTempStorage<PolicyT, InputIteratorT, OffsetT>
 {
+  using storage_t   = AgentThreeWayPartitionTempStorage<PolicyT, InputIteratorT, OffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Types and constants
   //---------------------------------------------------------------------
@@ -204,29 +246,6 @@ struct AgentThreeWayPartition
 
   // Item exchange type
   using ItemExchangeT = InputT[TILE_ITEMS];
-
-  // Shared memory type for this thread block
-  union _TempStorage
-  {
-    struct ScanStorage
-    {
-      // Smem needed for tile scanning
-      typename BlockScanT::TempStorage scan;
-
-      // Smem needed for cooperative prefix callback
-      typename TilePrefixCallbackOpT::TempStorage prefix;
-    } scan_storage;
-
-    // Smem needed for loading items
-    typename BlockLoadT::TempStorage load_items;
-
-    // Smem needed for compacting items (allows non POD items in this union)
-    cub::Uninitialized<ItemExchangeT> raw_exchange;
-  };
-
-  // Alias wrapper allowing storage to be unioned
-  struct TempStorage : cub::Uninitialized<_TempStorage>
-  {};
 
   //---------------------------------------------------------------------
   // Per-thread fields

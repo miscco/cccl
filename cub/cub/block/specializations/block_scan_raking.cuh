@@ -51,19 +51,48 @@ namespace detail
  * expense of higher register pressure
  */
 template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ, bool Memoize>
-struct BlockScanRaking
+struct BlockScanRakingTempStorage
 {
+  /// The thread block size in threads
+  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
+
+  using raking_layout_storage_t = BlockRakingLayoutTempStorage<T, BLOCK_THREADS>;
+
+  static constexpr int RAKING_THREADS = raking_layout_storage_t::RAKING_THREADS;
+
+  struct _TempStorage
+  {
+    /// Buffer for warp-synchronous scan
+    typename WarpScanTempStorage<T, RAKING_THREADS>::TempStorage warp_scan;
+
+    /// Padded thread block raking grid
+    typename raking_layout_storage_t::TempStorage raking_grid;
+
+    /// Block aggregate
+    T block_aggregate;
+  };
+
+  /// Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ, bool Memoize>
+struct BlockScanRaking : public BlockScanRakingTempStorage<T, BlockDimX, BlockDimY, BlockDimZ, Memoize>
+{
+  using base_t       = BlockScanRakingTempStorage<T, BlockDimX, BlockDimY, BlockDimZ, Memoize>;
+  using TempStorage  = typename base_t::TempStorage;
+  using _TempStorage = typename base_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Types and constants
   //---------------------------------------------------------------------
 
-  /// The thread block size in threads
-  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int BLOCK_THREADS = base_t::BLOCK_THREADS;
 
   /// Layout type for padded thread block raking grid
-  using BlockRakingLayout = BlockRakingLayout<T, BLOCK_THREADS>;
+  using BlockRakingLayout = cub::BlockRakingLayout<T, BLOCK_THREADS>;
 
-  /// Constants
   /// Number of raking threads
   static constexpr int RAKING_THREADS = BlockRakingLayout::RAKING_THREADS;
 
@@ -74,24 +103,7 @@ struct BlockScanRaking
   static constexpr bool WARP_SYNCHRONOUS = (BLOCK_THREADS == RAKING_THREADS);
 
   ///  WarpScan utility type
-  using WarpScan = WarpScan<T, RAKING_THREADS>;
-
-  /// Shared memory storage layout type
-  struct _TempStorage
-  {
-    /// Buffer for warp-synchronous scan
-    typename WarpScan::TempStorage warp_scan;
-
-    /// Padded thread block raking grid
-    typename BlockRakingLayout::TempStorage raking_grid;
-
-    /// Block aggregate
-    T block_aggregate;
-  };
-
-  /// Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using WarpScan = cub::WarpScan<T, RAKING_THREADS>;
 
   //---------------------------------------------------------------------
   // Per-thread fields

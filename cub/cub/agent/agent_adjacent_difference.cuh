@@ -54,6 +54,29 @@ using AgentAdjacentDifferencePolicy CCCL_DEPRECATED_BECAUSE("Use the tuning API 
 
 namespace detail::adjacent_difference
 {
+template <typename Policy, typename InputIteratorT, typename InputT, typename OutputT>
+struct AgentDifferenceTempStorage
+{
+  using LoadIt = try_make_cache_modified_iterator_t<Policy::LOAD_MODIFIER, InputIteratorT>;
+
+  union _TempStorage
+  {
+    typename BlockLoadTempStorage<it_value_t<LoadIt>,
+                                  Policy::BLOCK_THREADS,
+                                  Policy::ITEMS_PER_THREAD,
+                                  Policy::LOAD_ALGORITHM,
+                                  1,
+                                  1>::TempStorage load;
+    typename BlockStoreTempStorage<OutputT, Policy::BLOCK_THREADS, Policy::ITEMS_PER_THREAD, Policy::STORE_ALGORITHM, 1, 1>::
+      TempStorage store;
+    typename BlockAdjacentDifferenceTempStorage<InputT, Policy::BLOCK_THREADS, 1, 1>::TempStorage adjacent_difference;
+  };
+
+  /// Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename Policy,
           typename InputIteratorT,
           typename OutputIteratorT,
@@ -63,25 +86,18 @@ template <typename Policy,
           typename OutputT,
           bool MayAlias,
           bool ReadLeft>
-struct AgentDifference
+struct AgentDifference : public AgentDifferenceTempStorage<Policy, InputIteratorT, InputT, OutputT>
 {
+  using storage_t   = AgentDifferenceTempStorage<Policy, InputIteratorT, InputT, OutputT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   using LoadIt = try_make_cache_modified_iterator_t<Policy::LOAD_MODIFIER, InputIteratorT>;
 
   using BlockLoad  = typename cub::BlockLoadType<Policy, LoadIt>::type;
   using BlockStore = typename cub::BlockStoreType<Policy, OutputIteratorT, OutputT>::type;
 
   using BlockAdjacentDifferenceT = cub::BlockAdjacentDifference<InputT, Policy::BLOCK_THREADS>;
-
-  union _TempStorage
-  {
-    typename BlockLoad::TempStorage load;
-    typename BlockStore::TempStorage store;
-    typename BlockAdjacentDifferenceT::TempStorage adjacent_difference;
-  };
-
-  /// Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   static constexpr int BLOCK_THREADS      = Policy::BLOCK_THREADS;
   static constexpr int ITEMS_PER_THREAD   = Policy::ITEMS_PER_THREAD;

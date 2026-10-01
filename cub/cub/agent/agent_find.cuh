@@ -23,6 +23,20 @@
 CUB_NAMESPACE_BEGIN
 namespace detail::find
 {
+template <typename OffsetT>
+struct AgentTTempStorage
+{
+  // Shared memory type required by this thread block
+  struct _TempStorage
+  {
+    OffsetT global_result;
+    OffsetT block_result;
+  };
+
+  // Alias wrapper allowing storage to be unioned
+  using TempStorage = Uninitialized<_TempStorage>;
+};
+
 template <int ThreadsPerBlock,
           int ItemsPerThread,
           int VecSize,
@@ -30,8 +44,12 @@ template <int ThreadsPerBlock,
           typename InputIteratorT,
           typename OffsetT,
           typename PredicateT>
-struct agent_t
+struct agent_t : public AgentTTempStorage<OffsetT>
 {
+  using storage_t   = AgentTTempStorage<OffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   // The input value type
   using InputT = typename ::cuda::std::iterator_traits<InputIteratorT>::value_type;
 
@@ -47,21 +65,20 @@ struct agent_t
 
   static constexpr CacheLoadModifier load_modifier = LoadModifier;
 
-  // Shared memory type required by this thread block
-  struct _TempStorage
-  {
-    OffsetT global_result;
-    OffsetT block_result;
-  };
-
-  // Alias wrapper allowing storage to be unioned
-  using TempStorage = Uninitialized<_TempStorage>;
-
   _TempStorage& temp_storage;
   InputIteratorT d_in;
   PredicateT predicate;
   OffsetT* found_pos_ptr;
   OffsetT num_items;
+
+  _CCCL_DEVICE _CCCL_FORCEINLINE agent_t(
+    _TempStorage& temp_storage, InputIteratorT d_in, PredicateT predicate, OffsetT* found_pos_ptr, OffsetT num_items)
+      : temp_storage(temp_storage)
+      , d_in(d_in)
+      , predicate(predicate)
+      , found_pos_ptr(found_pos_ptr)
+      , num_items(num_items)
+  {}
 
   template <typename Iterator = InputIteratorT, bool CanVectorize = attempt_vectorization>
   _CCCL_DEVICE _CCCL_FORCEINLINE bool is_aligned_and_full_tile(OffsetT tile_offset)

@@ -194,6 +194,59 @@ CUB_NAMESPACE_BEGIN
 //! @tparam BlockDimZ
 //!   **[optional]** The thread block length in threads along the Z dimension (default: 1)
 //!
+namespace detail
+{
+template <typename KeyT,
+          int BlockDimX,
+          int ItemsPerThread,
+          typename ValueT,
+          int RadixBits,
+          bool MemoizeOuterScan,
+          BlockScanAlgorithm InnerScanAlgorithm,
+          cudaSharedMemConfig SMemConfig,
+          int BlockDimY,
+          int BlockDimZ>
+struct BlockRadixSortTempStorage
+{
+  using ascending_rank_storage_t = BlockRadixRankTempStorage<
+    BlockDimX,
+    RadixBits,
+    false,
+    MemoizeOuterScan,
+    InnerScanAlgorithm,
+    SMemConfig,
+    BlockDimY,
+    BlockDimZ>;
+
+  using descending_rank_storage_t = BlockRadixRankTempStorage<
+    BlockDimX,
+    RadixBits,
+    true,
+    MemoizeOuterScan,
+    InnerScanAlgorithm,
+    SMemConfig,
+    BlockDimY,
+    BlockDimZ>;
+
+  using exchange_keys_storage_t =
+    BlockExchangeTempStorage<KeyT, BlockDimX, ItemsPerThread, false, BlockDimY, BlockDimZ>;
+
+  using exchange_values_storage_t =
+    BlockExchangeTempStorage<ValueT, BlockDimX, ItemsPerThread, false, BlockDimY, BlockDimZ>;
+
+  union _TempStorage
+  {
+    typename ascending_rank_storage_t::TempStorage asending_ranking_storage;
+    typename descending_rank_storage_t::TempStorage descending_ranking_storage;
+    typename exchange_keys_storage_t::TempStorage exchange_keys;
+    typename exchange_values_storage_t::TempStorage exchange_values;
+  };
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
 template <typename KeyT,
           int BlockDimX,
           int ItemsPerThread,
@@ -205,7 +258,30 @@ template <typename KeyT,
           int BlockDimY                         = 1,
           int BlockDimZ                         = 1>
 class BlockRadixSort
+    : private detail::BlockRadixSortTempStorage<
+        KeyT,
+        BlockDimX,
+        ItemsPerThread,
+        ValueT,
+        RadixBits,
+        MemoizeOuterScan,
+        InnerScanAlgorithm,
+        SMemConfig,
+        BlockDimY,
+        BlockDimZ>
 {
+  using storage_t = detail::BlockRadixSortTempStorage<
+    KeyT,
+    BlockDimX,
+    ItemsPerThread,
+    ValueT,
+    RadixBits,
+    MemoizeOuterScan,
+    InnerScanAlgorithm,
+    SMemConfig,
+    BlockDimY,
+    BlockDimZ>;
+
 private:
   /******************************************************************************
    * Constants and type definitions
@@ -239,16 +315,7 @@ private:
   /// BlockExchange utility type for values
   using BlockExchangeValues = BlockExchange<ValueT, BlockDimX, ItemsPerThread, false, BlockDimY, BlockDimZ>;
 
-#ifndef _CCCL_DOXYGEN_INVOKED // Do not document
-  /// Shared memory storage layout type
-  union _TempStorage
-  {
-    typename AscendingBlockRadixRank::TempStorage asending_ranking_storage;
-    typename DescendingBlockRadixRank::TempStorage descending_ranking_storage;
-    typename BlockExchangeKeys::TempStorage exchange_keys;
-    typename BlockExchangeValues::TempStorage exchange_values;
-  };
-#endif // _CCCL_DOXYGEN_INVOKED
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /******************************************************************************
    * Thread fields
@@ -497,8 +564,7 @@ public:
 #endif // _CCCL_DOXYGEN_INVOKED
 
   /// @smemstorage{BlockRadixSort}
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{

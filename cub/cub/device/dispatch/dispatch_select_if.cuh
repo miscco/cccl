@@ -192,6 +192,20 @@ struct bind_selection_opt
             typename EqualityOpT,
             typename OffsetT,
             typename StreamingContextT>
+  struct temp_storage_t : AgentSelectIfTempStorage<AgentSelectIfPolicyT, InputIteratorT, FlagsInputIteratorT, OffsetT>
+  {
+    using TempStorage =
+      typename AgentSelectIfTempStorage<AgentSelectIfPolicyT, InputIteratorT, FlagsInputIteratorT, OffsetT>::TempStorage;
+  };
+
+  template <typename AgentSelectIfPolicyT,
+            typename InputIteratorT,
+            typename FlagsInputIteratorT,
+            typename SelectedOutputIteratorT,
+            typename SelectOpT,
+            typename EqualityOpT,
+            typename OffsetT,
+            typename StreamingContextT>
   using agent_t =
     AgentSelectIf<AgentSelectIfPolicyT,
                   InputIteratorT,
@@ -228,6 +242,7 @@ struct make_vsmem_helper
     active_policy.lookback._load_prefetch>;
   using type = vsmem_helper_default_fallback_policy_t<
     agent_policy_t,
+    bind_selection_opt<SelectionOpt>::template temp_storage_t,
     bind_selection_opt<SelectionOpt>::template agent_t,
     InputIteratorT,
     FlagsInputIteratorT,
@@ -596,6 +611,7 @@ struct CCCL_DEPRECATED_BECAUSE("Use the tuning API for DeviceSelect/DevicePartit
 
     using VsmemHelperT = cub::detail::vsmem_helper_default_fallback_policy_t<
       Policy,
+      detail::select::bind_selection_opt<SelectionOpt>::template temp_storage_t,
       detail::select::bind_selection_opt<SelectionOpt>::template agent_t,
       InputIteratorT,
       FlagsInputIteratorT,

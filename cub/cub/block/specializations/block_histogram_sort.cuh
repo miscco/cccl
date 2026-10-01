@@ -50,37 +50,31 @@ namespace detail
  *   The thread block length in threads along the Z dimension
  */
 template <typename T, int BlockDimX, int ItemsPerThread, int Bins, int BlockDimY, int BlockDimZ>
-struct BlockHistogramSort
+struct BlockHistogramSortTempStorage
 {
-  /// The thread block size in threads
-  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
+  using sort_storage_t = BlockRadixSortTempStorage<
+    T,
+    BlockDimX,
+    ItemsPerThread,
+    NullType,
+    4,
+    true,
+    BLOCK_SCAN_WARP_SCANS,
+    cudaSharedMemBankSizeFourByte,
+    BlockDimY,
+    BlockDimZ>;
 
-  // Parameterize BlockRadixSort type for our thread block
-  using BlockRadixSortT =
-    BlockRadixSort<T,
-                   BlockDimX,
-                   ItemsPerThread,
-                   NullType,
-                   4,
-                   true,
-                   BLOCK_SCAN_WARP_SCANS,
-                   cudaSharedMemBankSizeFourByte,
-                   BlockDimY,
-                   BlockDimZ>;
+  using discontinuity_storage_t = BlockDiscontinuityTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>;
 
-  // Parameterize BlockDiscontinuity type for our thread block
-  using BlockDiscontinuityT = BlockDiscontinuity<T, BlockDimX, BlockDimY, BlockDimZ>;
-
-  /// Shared memory
   union _TempStorage
   {
     // Storage for sorting bin values
-    typename BlockRadixSortT::TempStorage sort;
+    typename sort_storage_t::TempStorage sort;
 
     struct Discontinuities
     {
       // Storage for detecting discontinuities in the tile of sorted bin values
-      typename BlockDiscontinuityT::TempStorage flag;
+      typename discontinuity_storage_t::TempStorage flag;
 
       // Storage for noting begin/end offsets of bin runs in the tile of sorted bin values
       unsigned int run_begin[Bins];
@@ -91,6 +85,34 @@ struct BlockHistogramSort
   /// Alias wrapper allowing storage to be unioned
   struct TempStorage : Uninitialized<_TempStorage>
   {};
+};
+
+template <typename T, int BlockDimX, int ItemsPerThread, int Bins, int BlockDimY, int BlockDimZ>
+struct BlockHistogramSort
+    : public BlockHistogramSortTempStorage<T, BlockDimX, ItemsPerThread, Bins, BlockDimY, BlockDimZ>
+{
+  using base_t       = BlockHistogramSortTempStorage<T, BlockDimX, ItemsPerThread, Bins, BlockDimY, BlockDimZ>;
+  using TempStorage  = typename base_t::TempStorage;
+  using _TempStorage = typename base_t::_TempStorage;
+
+  /// The thread block size in threads
+  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
+
+  // Parameterize BlockRadixSort type for our thread block
+  using BlockRadixSortT = cub::BlockRadixSort<
+    T,
+    BlockDimX,
+    ItemsPerThread,
+    NullType,
+    4,
+    true,
+    BLOCK_SCAN_WARP_SCANS,
+    cudaSharedMemBankSizeFourByte,
+    BlockDimY,
+    BlockDimZ>;
+
+  // Parameterize BlockDiscontinuity type for our thread block
+  using BlockDiscontinuityT = cub::BlockDiscontinuity<T, BlockDimX, BlockDimY, BlockDimZ>;
 
   // Thread fields
   _TempStorage& temp_storage;

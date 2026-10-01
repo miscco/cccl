@@ -24,6 +24,7 @@
 #include <cuda/__cmath/pow2.h>
 #include <cuda/__ptx/instructions/get_sreg.h>
 #include <cuda/std/__concepts/same_as.h>
+#include <cuda/std/__type_traits/conditional.h>
 #include <cuda/std/__fwd/format.h>
 #include <cuda/std/__host_stdlib/ostream>
 
@@ -155,6 +156,40 @@ struct std::formatter<CUB_NS_QUALIFIER::WarpStoreAlgorithm, CharT> : formatter<c
 
 CUB_NAMESPACE_BEGIN
 
+namespace detail
+{
+template <typename T, int ItemsPerThread, int LogicalWarpThreads>
+struct WarpStoreTransposeTempStorage
+{
+  using exchange_storage_t = WarpExchangeTempStorage<T, ItemsPerThread, LogicalWarpThreads, WARP_EXCHANGE_SMEM>;
+
+  struct _TempStorage : exchange_storage_t::TempStorage
+  {};
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
+template <typename T, int ItemsPerThread, int LogicalWarpThreads>
+struct WarpStoreNullTempStorage
+{
+  using TempStorage = NullType;
+};
+
+template <typename T, int ItemsPerThread, WarpStoreAlgorithm Algorithm, int LogicalWarpThreads>
+struct WarpStoreTempStorage
+{
+  using internal_t = ::cuda::std::_If<Algorithm == WARP_STORE_TRANSPOSE,
+                                      WarpStoreTransposeTempStorage<T, ItemsPerThread, LogicalWarpThreads>,
+                                      WarpStoreNullTempStorage<T, ItemsPerThread, LogicalWarpThreads>>;
+
+  using _TempStorage = typename internal_t::TempStorage;
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
 //! @rst
 //! The WarpStore class provides :ref:`collective <collective-primitives>`
 //! data movement methods for writing a :ref:`blocked arrangement <flexible-data-arrangement>`
@@ -250,8 +285,10 @@ template <typename T,
           int ItemsPerThread,
           WarpStoreAlgorithm ALGORITHM = WARP_STORE_DIRECT,
           int LogicalWarpThreads       = detail::warp_threads>
-class WarpStore
+class WarpStore : private detail::WarpStoreTempStorage<T, ItemsPerThread, ALGORITHM, LogicalWarpThreads>
 {
+  using storage_t = detail::WarpStoreTempStorage<T, ItemsPerThread, ALGORITHM, LogicalWarpThreads>;
+
   static_assert(::cuda::is_power_of_two(LogicalWarpThreads), "LogicalWarpThreads must be a power of two");
 
   static constexpr bool IS_ARCH_WARP = LogicalWarpThreads == detail::warp_threads;
@@ -343,11 +380,9 @@ private:
   {
     using WarpExchangeT = WarpExchange<T, ItemsPerThread, LogicalWarpThreads>;
 
-    struct _TempStorage : WarpExchangeT::TempStorage
-    {};
-
-    struct TempStorage : Uninitialized<_TempStorage>
-    {};
+    using transpose_storage_t = detail::WarpStoreTransposeTempStorage<T, ItemsPerThread, LogicalWarpThreads>;
+    using TempStorage         = typename transpose_storage_t::TempStorage;
+    using _TempStorage        = typename transpose_storage_t::_TempStorage;
 
     _TempStorage& temp_storage;
 
@@ -377,7 +412,7 @@ private:
   using InternalStore = StoreInternal<ALGORITHM, 0>;
 
   /// Shared memory storage layout type
-  using _TempStorage = typename InternalStore::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
 
   _CCCL_DEVICE _CCCL_FORCEINLINE _TempStorage& PrivateStorage()
   {
@@ -390,8 +425,7 @@ private:
   int linear_tid;
 
 public:
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{

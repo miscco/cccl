@@ -36,31 +36,18 @@ namespace detail::merge
 // TODO(bgruber): pass a merge_policy by value instead of individual template parameters in C++20
 template <int ThreadsPerBlock,
           int ItemsPerThread,
-          CacheLoadModifier LoadModifier,
           BlockStoreAlgorithm StoreAlgorithm,
           bool UseBl2ShForKeys,
           bool UseBl2ShForItems,
-          bool Unroll,
           typename KeysIt1,
-          typename ItemsIt1,
-          typename KeysIt2,
-          typename ItemsIt2,
-          typename KeysOutputIt,
-          typename ItemsOutputIt,
-          typename Offset,
-          typename CompareOp>
-struct agent_t
+          typename ItemsIt1>
+struct AgentTTempStorage
 {
-  static constexpr int threads_per_block = ThreadsPerBlock; // also used for kernel launch bounds and dispatch logic
-  static constexpr int items_per_tile    = ItemsPerThread * ThreadsPerBlock; // also used by dispatch logic
+  static constexpr int threads_per_block = ThreadsPerBlock;
+  static constexpr int items_per_tile    = ItemsPerThread * ThreadsPerBlock;
 
-  // key and value type are taken from the first input sequence (consistent with old Thrust behavior)
   using key_type  = it_value_t<KeysIt1>;
   using item_type = it_value_t<ItemsIt1>;
-
-  using block_load_to_shared = BlockLoadToShared<ThreadsPerBlock>;
-  using block_store_keys     = BlockStore<key_type, ThreadsPerBlock, ItemsPerThread, StoreAlgorithm>;
-  using block_store_items    = BlockStore<item_type, ThreadsPerBlock, ItemsPerThread, StoreAlgorithm>;
 
   static constexpr int bl2sh_minimum_align = cub::detail::LoadToSharedBufferAlignBytes<char>();
 
@@ -80,8 +67,10 @@ struct agent_t
     using items_smem = ::cuda::std::conditional_t<UseBl2ShForItems, buffer_t<item_type>, item_type[items_per_tile + 1]>;
     union
     {
-      typename block_store_keys::TempStorage store_keys;
-      typename block_store_items::TempStorage store_items;
+      typename BlockStoreTempStorage<key_type, ThreadsPerBlock, ItemsPerThread, StoreAlgorithm, 1, 1>::TempStorage
+        store_keys;
+      typename BlockStoreTempStorage<item_type, ThreadsPerBlock, ItemsPerThread, StoreAlgorithm, 1, 1>::TempStorage
+        store_items;
       keys_smem keys_shared;
       items_smem items_shared;
     };
@@ -90,13 +79,58 @@ struct agent_t
   // inherit from data storage, so it's positioned at the start of the shared memory
   struct temp_storages_with_bl2sh : temp_storages_without_bl2sh
   {
-    typename block_load_to_shared::TempStorage load2sh;
+    typename BlockLoadToSharedTempStorage<ThreadsPerBlock, 1, 1>::TempStorage load2sh;
   };
 
   using temp_storages = ::cuda::std::
     conditional_t<UseBl2ShForKeys || UseBl2ShForItems, temp_storages_with_bl2sh, temp_storages_without_bl2sh>;
 
   using TempStorage = Uninitialized<temp_storages>;
+};
+
+template <int ThreadsPerBlock,
+          int ItemsPerThread,
+          CacheLoadModifier LoadModifier,
+          BlockStoreAlgorithm StoreAlgorithm,
+          bool UseBl2ShForKeys,
+          bool UseBl2ShForItems,
+          bool Unroll,
+          typename KeysIt1,
+          typename ItemsIt1,
+          typename KeysIt2,
+          typename ItemsIt2,
+          typename KeysOutputIt,
+          typename ItemsOutputIt,
+          typename Offset,
+          typename CompareOp>
+struct agent_t : public AgentTTempStorage<ThreadsPerBlock,
+                                          ItemsPerThread,
+                                          StoreAlgorithm,
+                                          UseBl2ShForKeys,
+                                          UseBl2ShForItems,
+                                          KeysIt1,
+                                          ItemsIt1>
+{
+  using storage_t = AgentTTempStorage<ThreadsPerBlock,
+                                      ItemsPerThread,
+                                      StoreAlgorithm,
+                                      UseBl2ShForKeys,
+                                      UseBl2ShForItems,
+                                      KeysIt1,
+                                      ItemsIt1>;
+  using TempStorage = typename storage_t::TempStorage;
+  using temp_storages = typename storage_t::temp_storages;
+
+  static constexpr int threads_per_block = ThreadsPerBlock; // also used for kernel launch bounds and dispatch logic
+  static constexpr int items_per_tile    = ItemsPerThread * ThreadsPerBlock; // also used by dispatch logic
+
+  // key and value type are taken from the first input sequence (consistent with old Thrust behavior)
+  using key_type  = it_value_t<KeysIt1>;
+  using item_type = it_value_t<ItemsIt1>;
+
+  using block_load_to_shared = BlockLoadToShared<ThreadsPerBlock>;
+  using block_store_keys     = BlockStore<key_type, ThreadsPerBlock, ItemsPerThread, StoreAlgorithm>;
+  using block_store_items    = BlockStore<item_type, ThreadsPerBlock, ItemsPerThread, StoreAlgorithm>;
 
   // Per thread data
   temp_storages& storage;
@@ -110,6 +144,31 @@ struct agent_t
   ItemsOutputIt items_out;
   CompareOp compare_op;
   Offset* key1_beg_offsets;
+
+  _CCCL_DEVICE _CCCL_FORCEINLINE agent_t(
+    temp_storages& storage,
+    KeysIt1 keys1_in,
+    ItemsIt1 items1_in,
+    Offset keys1_count,
+    KeysIt2 keys2_in,
+    ItemsIt2 items2_in,
+    Offset keys2_count,
+    KeysOutputIt keys_out,
+    ItemsOutputIt items_out,
+    CompareOp compare_op,
+    Offset* key1_beg_offsets)
+      : storage(storage)
+      , keys1_in(keys1_in)
+      , items1_in(items1_in)
+      , keys1_count(keys1_count)
+      , keys2_in(keys2_in)
+      , items2_in(items2_in)
+      , keys2_count(keys2_count)
+      , keys_out(keys_out)
+      , items_out(items_out)
+      , compare_op(compare_op)
+      , key1_beg_offsets(key1_beg_offsets)
+  {}
 
   template <bool IsFullTile>
   _CCCL_DEVICE _CCCL_FORCEINLINE void consume_tile(Offset tile_idx, Offset tile_base, int num_remaining)

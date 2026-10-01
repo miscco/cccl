@@ -37,6 +37,34 @@
 
 CUB_NAMESPACE_BEGIN
 
+namespace detail
+{
+template <typename T, int LogicalWarpThreads>
+struct WarpReduceTempStorage
+{
+  static constexpr bool is_power_of_two = ::cuda::is_power_of_two(LogicalWarpThreads);
+
+  using internal_t =
+    ::cuda::std::_If<is_power_of_two,
+                     WarpReduceShflTempStorage<T, LogicalWarpThreads>,
+                     WarpReduceSmemTempStorage<T, LogicalWarpThreads>>;
+
+  using _TempStorage = typename internal_t::TempStorage;
+  using TempStorage  = Uninitialized<_TempStorage>;
+};
+
+template <typename T>
+struct WarpReduceTempStorage<T, 1>
+{
+  using _TempStorage = NullType;
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+
+  using internal_t = WarpReduceTempStorage;
+};
+} // namespace detail
+
 //! @rst
 //! The ``WarpReduce`` class provides :ref:`collective <collective-primitives>` methods for computing a parallel
 //! reduction of items partitioned across a CUDA thread warp.
@@ -143,13 +171,15 @@ CUB_NAMESPACE_BEGIN
 //!   (e.g., 32 threads for SM20).
 //!
 template <typename T, int LogicalWarpThreads = detail::warp_threads>
-class WarpReduce
+class WarpReduce : private detail::WarpReduceTempStorage<T, LogicalWarpThreads>
 {
+  using storage_t = detail::WarpReduceTempStorage<T, LogicalWarpThreads>;
+
   static_assert(LogicalWarpThreads >= 1 && LogicalWarpThreads <= detail::warp_threads,
                 "LogicalWarpThreads must be in the range [1, 32]");
 
   static constexpr bool is_full_warp    = (LogicalWarpThreads == detail::warp_threads);
-  static constexpr bool is_power_of_two = ::cuda::is_power_of_two(LogicalWarpThreads);
+  static constexpr bool is_power_of_two = storage_t::is_power_of_two;
 
 public:
 #ifndef _CCCL_DOXYGEN_INVOKED // Do not document
@@ -163,14 +193,14 @@ public:
 
 private:
   /// Shared memory storage layout type for WarpReduce
-  using _TempStorage = typename InternalWarpReduce::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /// Shared storage reference
   _TempStorage& temp_storage;
 
 public:
   /// \smemstorage{WarpReduce}
-  using TempStorage = Uninitialized<_TempStorage>;
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{
@@ -714,16 +744,14 @@ public:
 
 #ifndef _CCCL_DOXYGEN_INVOKED // Do not document
 template <typename T>
-class WarpReduce<T, 1>
+class WarpReduce<T, 1> : private detail::WarpReduceTempStorage<T, 1>
 {
-private:
-  using _TempStorage = cub::NullType;
+  using storage_t = detail::WarpReduceTempStorage<T, 1>;
 
 public:
   struct InternalWarpReduce
   {
-    struct TempStorage : Uninitialized<_TempStorage>
-    {};
+    using TempStorage = typename storage_t::TempStorage;
 
     _CCCL_DEVICE _CCCL_FORCEINLINE InternalWarpReduce(TempStorage& /*temp_storage */) {}
 
@@ -742,7 +770,7 @@ public:
     }
   };
 
-  using TempStorage = typename InternalWarpReduce::TempStorage;
+  using TempStorage = typename storage_t::TempStorage;
 
   _CCCL_DEVICE _CCCL_FORCEINLINE WarpReduce(TempStorage& /*temp_storage */) {}
 

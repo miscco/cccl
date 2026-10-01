@@ -49,8 +49,16 @@ namespace detail
  *   Number of threads per logical warp (must be a power-of-two)
  */
 template <typename T, int LogicalWarpThreads>
-struct WarpReduceShfl
+struct WarpReduceShflTempStorage
 {
+  using TempStorage = NullType;
+};
+
+template <typename T, int LogicalWarpThreads>
+struct WarpReduceShfl : WarpReduceShflTempStorage<T, LogicalWarpThreads>
+{
+  using TempStorage = typename WarpReduceShflTempStorage<T, LogicalWarpThreads>::TempStorage;
+
   static_assert(::cuda::is_power_of_two(LogicalWarpThreads), "LogicalWarpThreads must be a power of two");
 
   //---------------------------------------------------------------------
@@ -68,9 +76,6 @@ struct WarpReduceShfl
 
   /// The 5-bit SHFL mask for logically splitting warps into sub-segments starts 8-bits up
   static constexpr unsigned SHFL_C = (warp_threads - LogicalWarpThreads) << 8;
-
-  /// Shared memory storage layout type
-  using TempStorage = NullType;
 
   //---------------------------------------------------------------------
   // Thread fields

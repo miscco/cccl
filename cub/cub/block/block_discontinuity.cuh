@@ -99,11 +99,11 @@ CUB_NAMESPACE_BEGIN
 //! @tparam BlockDimZ
 //!   **[optional]** The thread block length in threads along the Z dimension (default: 1)
 //!
-template <typename T, int BlockDimX, int BlockDimY = 1, int BlockDimZ = 1>
-class BlockDiscontinuity
+namespace detail
 {
-private:
-  /// The thread block size in threads
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
+struct BlockDiscontinuityTempStorage
+{
   static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
 
   /// Shared memory storage layout type (last element from each thread's input)
@@ -112,6 +112,22 @@ private:
     T first_items[BLOCK_THREADS];
     T last_items[BLOCK_THREADS];
   };
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
+template <typename T, int BlockDimX, int BlockDimY = 1, int BlockDimZ = 1>
+class BlockDiscontinuity : private detail::BlockDiscontinuityTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>
+{
+  using storage_t = detail::BlockDiscontinuityTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>;
+
+private:
+  /// The thread block size in threads
+  static constexpr int BLOCK_THREADS = storage_t::BLOCK_THREADS;
+
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /// Internal storage allocator
   _CCCL_DEVICE _CCCL_FORCEINLINE _TempStorage& PrivateStorage()
@@ -212,8 +228,7 @@ private:
 
 public:
   /// @smemstorage{BlockDiscontinuity}
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{

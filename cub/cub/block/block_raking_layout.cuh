@@ -44,18 +44,16 @@ CUB_NAMESPACE_BEGIN
 //! @tparam ThreadsPerBlock
 //!   The thread block size in threads.
 //!
-template <typename T, int ThreadsPerBlock>
-struct BlockRakingLayout
+namespace detail
 {
-  //---------------------------------------------------------------------
-  // Constants and type definitions
-  //---------------------------------------------------------------------
-
+template <typename T, int ThreadsPerBlock>
+struct BlockRakingLayoutTempStorage
+{
   /// The total number of elements that need to be cooperatively reduced
   static constexpr int SHARED_ELEMENTS = ThreadsPerBlock;
 
   /// Maximum number of warp-synchronous raking threads
-  static constexpr int MAX_RAKING_THREADS = ::cuda::std::min(ThreadsPerBlock, detail::warp_threads);
+  static constexpr int MAX_RAKING_THREADS = ::cuda::std::min(ThreadsPerBlock, warp_threads);
 
   /// Number of raking elements per warp-synchronous raking thread (rounded up)
   static constexpr int SEGMENT_LENGTH = (SHARED_ELEMENTS + MAX_RAKING_THREADS - 1) / MAX_RAKING_THREADS;
@@ -65,11 +63,10 @@ struct BlockRakingLayout
   static constexpr int RAKING_THREADS = (SHARED_ELEMENTS + SEGMENT_LENGTH - 1) / SEGMENT_LENGTH;
 
   /// Whether we will have bank conflicts (technically we should find out if the GCD is > 1)
-  static constexpr bool HAS_CONFLICTS = (detail::smem_banks % SEGMENT_LENGTH == 0);
+  static constexpr bool HAS_CONFLICTS = (smem_banks % SEGMENT_LENGTH == 0);
 
   /// Degree of bank conflicts (e.g., 4-way)
-  static constexpr int CONFLICT_DEGREE =
-    (HAS_CONFLICTS) ? (MAX_RAKING_THREADS * SEGMENT_LENGTH) / detail::smem_banks : 1;
+  static constexpr int CONFLICT_DEGREE = (HAS_CONFLICTS) ? (MAX_RAKING_THREADS * SEGMENT_LENGTH) / smem_banks : 1;
 
   /// Pad each segment length with one element if segment length is not relatively prime to warp size and can't be
   /// optimized as a vector load
@@ -82,17 +79,40 @@ struct BlockRakingLayout
   /// number of raking threads)
   static constexpr int UNGUARDED = (SHARED_ELEMENTS % RAKING_THREADS == 0);
 
-  /**
-   * @brief Shared memory storage type
-   */
   struct __align__(16) _TempStorage
   {
-    T buff[BlockRakingLayout::GRID_ELEMENTS];
+    T buff[GRID_ELEMENTS];
   };
 
   /// Alias wrapper allowing storage to be unioned
   struct TempStorage : Uninitialized<_TempStorage>
   {};
+};
+} // namespace detail
+
+template <typename T, int ThreadsPerBlock>
+struct BlockRakingLayout : private detail::BlockRakingLayoutTempStorage<T, ThreadsPerBlock>
+{
+  using storage_t = detail::BlockRakingLayoutTempStorage<T, ThreadsPerBlock>;
+
+  //---------------------------------------------------------------------
+  // Constants and type definitions
+  //---------------------------------------------------------------------
+
+  static constexpr int SHARED_ELEMENTS      = storage_t::SHARED_ELEMENTS;
+  static constexpr int MAX_RAKING_THREADS   = storage_t::MAX_RAKING_THREADS;
+  static constexpr int SEGMENT_LENGTH       = storage_t::SEGMENT_LENGTH;
+  static constexpr int RAKING_THREADS       = storage_t::RAKING_THREADS;
+  static constexpr bool HAS_CONFLICTS       = storage_t::HAS_CONFLICTS;
+  static constexpr int CONFLICT_DEGREE      = storage_t::CONFLICT_DEGREE;
+  static constexpr bool USE_SEGMENT_PADDING = storage_t::USE_SEGMENT_PADDING;
+  static constexpr int GRID_ELEMENTS        = storage_t::GRID_ELEMENTS;
+  static constexpr int UNGUARDED            = storage_t::UNGUARDED;
+
+  using _TempStorage = typename storage_t::_TempStorage;
+
+  /// Alias wrapper allowing storage to be unioned
+  using TempStorage = typename storage_t::TempStorage;
 
   /**
    * @brief Returns the location for the calling thread to place data into the grid

@@ -115,6 +115,7 @@ __launch_bounds__(int(current_policy<PolicySelector>().lookback.threads_per_bloc
 
     using vsmem_helper_t = vsmem_helper_default_fallback_policy_t<
       AgentReduceByKeyPolicyT,
+      reduce_by_key::AgentReduceByKeyTempStorage,
       reduce_by_key::AgentReduceByKey,
       KeysInputIteratorT,
       UniqueOutputIteratorT,

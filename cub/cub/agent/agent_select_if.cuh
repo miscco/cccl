@@ -193,6 +193,51 @@ struct is_partition_distinct_output_t<partition_distinct_output_t<SelectedOutput
  *   SelectImpl indicating whether to partition, just selection or selection where the memory for the input and
  *   output may alias each other.
  */
+template <typename AgentSelectIfPolicyT, typename InputIteratorT, typename FlagsInputIteratorT, typename OffsetT>
+struct AgentSelectIfTempStorage
+{
+  using InputT = it_value_t<InputIteratorT>;
+  using FlagT  = it_value_t<FlagsInputIteratorT>;
+
+  static constexpr ::cuda::std::int32_t BLOCK_THREADS    = AgentSelectIfPolicyT::BLOCK_THREADS;
+  static constexpr ::cuda::std::int32_t ITEMS_PER_THREAD = AgentSelectIfPolicyT::ITEMS_PER_THREAD;
+  static constexpr ::cuda::std::int32_t TILE_ITEMS       = BLOCK_THREADS * ITEMS_PER_THREAD;
+
+  using ItemExchangeT = InputT[TILE_ITEMS];
+
+  // Shared memory type for this thread block
+  union _TempStorage
+  {
+    struct ScanStorage
+    {
+      // Smem needed for tile scanning
+      typename BlockScanTempStorage<OffsetT, BLOCK_THREADS, AgentSelectIfPolicyT::SCAN_ALGORITHM, 1, 1>::TempStorage
+        scan;
+
+      // Smem needed for cooperative prefix callback
+      typename TilePrefixCallbackOpTempStorage<OffsetT>::TempStorage prefix;
+
+      // Smem needed for discontinuity detection
+      typename BlockDiscontinuityTempStorage<InputT, BLOCK_THREADS, 1, 1>::TempStorage discontinuity;
+    } scan_storage;
+
+    // Smem needed for loading items
+    typename BlockLoadTempStorage<InputT, BLOCK_THREADS, ITEMS_PER_THREAD, AgentSelectIfPolicyT::LOAD_ALGORITHM, 1, 1>::
+      TempStorage load_items;
+
+    // Smem needed for loading values
+    typename BlockLoadTempStorage<FlagT, BLOCK_THREADS, ITEMS_PER_THREAD, AgentSelectIfPolicyT::LOAD_ALGORITHM, 1, 1>::
+      TempStorage load_flags;
+
+    // Smem needed for compacting items (allows non POD items in this union)
+    Uninitialized<ItemExchangeT> raw_exchange;
+  };
+
+  // Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename AgentSelectIfPolicyT,
           typename InputIteratorT,
           typename FlagsInputIteratorT,
@@ -203,7 +248,13 @@ template <typename AgentSelectIfPolicyT,
           typename StreamingContextT,
           SelectImpl SelectionOpt>
 struct AgentSelectIf
+    : public AgentSelectIfTempStorage<AgentSelectIfPolicyT, InputIteratorT, FlagsInputIteratorT, OffsetT>
 {
+  using storage_t =
+    AgentSelectIfTempStorage<AgentSelectIfPolicyT, InputIteratorT, FlagsInputIteratorT, OffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Types and constants
   //---------------------------------------------------------------------
@@ -292,35 +343,6 @@ struct AgentSelectIf
 
   // Item exchange type
   using ItemExchangeT = InputT[TILE_ITEMS];
-
-  // Shared memory type for this thread block
-  union _TempStorage
-  {
-    struct ScanStorage
-    {
-      // Smem needed for tile scanning
-      typename BlockScanT::TempStorage scan;
-
-      // Smem needed for cooperative prefix callback
-      typename TilePrefixCallbackOpT::TempStorage prefix;
-
-      // Smem needed for discontinuity detection
-      typename BlockDiscontinuityT::TempStorage discontinuity;
-    } scan_storage;
-
-    // Smem needed for loading items
-    typename BlockLoadT::TempStorage load_items;
-
-    // Smem needed for loading values
-    typename BlockLoadFlags::TempStorage load_flags;
-
-    // Smem needed for compacting items (allows non POD items in this union)
-    Uninitialized<ItemExchangeT> raw_exchange;
-  };
-
-  // Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   //---------------------------------------------------------------------
   // Per-thread fields

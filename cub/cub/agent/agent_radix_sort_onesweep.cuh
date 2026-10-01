@@ -142,6 +142,59 @@ using AgentRadixSortOnesweepPolicy
 
 namespace detail::radix_sort
 {
+template <typename AgentRadixSortOnesweepPolicy, typename KeyT, typename ValueT, typename OffsetT, typename PortionOffsetT>
+struct AgentRadixSortOnesweepTempStorage
+{
+  using traits           = radix::traits_t<KeyT>;
+  using bit_ordered_type = typename traits::bit_ordered_type;
+
+  static constexpr int ITEMS_PER_THREAD = AgentRadixSortOnesweepPolicy::ITEMS_PER_THREAD;
+  static constexpr int BLOCK_THREADS    = AgentRadixSortOnesweepPolicy::BLOCK_THREADS;
+  static constexpr int RANK_NUM_PARTS   = AgentRadixSortOnesweepPolicy::RANK_NUM_PARTS;
+  static constexpr int TILE_ITEMS       = BLOCK_THREADS * ITEMS_PER_THREAD;
+  static constexpr int RADIX_BITS       = AgentRadixSortOnesweepPolicy::RADIX_BITS;
+  static constexpr int RADIX_DIGITS     = 1 << RADIX_BITS;
+
+  static constexpr RadixRankAlgorithm RANK_ALGORITHM = AgentRadixSortOnesweepPolicy::RANK_ALGORITHM;
+  static constexpr BlockScanAlgorithm SCAN_ALGORITHM = AgentRadixSortOnesweepPolicy::SCAN_ALGORITHM;
+
+  using BlockRadixRankStorageT = ::cuda::std::_If<
+    RANK_ALGORITHM == RADIX_RANK_MATCH_EARLY_COUNTS_ATOMIC_OR,
+    BlockRadixRankMatchEarlyCountsTempStorage<BLOCK_THREADS,
+                                              RADIX_BITS,
+                                              false,
+                                              SCAN_ALGORITHM,
+                                              WARP_MATCH_ATOMIC_OR,
+                                              RANK_NUM_PARTS>,
+    ::cuda::std::_If<
+      RANK_ALGORITHM == RADIX_RANK_MATCH,
+      BlockRadixRankMatchTempStorage<BLOCK_THREADS, RADIX_BITS, false, SCAN_ALGORITHM, 1, 1>,
+      BlockRadixRankMatchEarlyCountsTempStorage<BLOCK_THREADS,
+                                                RADIX_BITS,
+                                                false,
+                                                SCAN_ALGORITHM,
+                                                WARP_MATCH_ANY,
+                                                RANK_NUM_PARTS>>>;
+
+  // temporary storage
+  struct TempStorage_
+  {
+    union
+    {
+      bit_ordered_type keys_out[TILE_ITEMS];
+      ValueT values_out[TILE_ITEMS];
+      typename BlockRadixRankStorageT::TempStorage rank_temp_storage;
+    };
+    union
+    {
+      OffsetT global_offsets[RADIX_DIGITS];
+      PortionOffsetT block_idx;
+    };
+  };
+
+  using TempStorage = Uninitialized<TempStorage_>;
+};
+
 template <typename AgentRadixSortOnesweepPolicy,
           bool IsDescending,
           typename KeyT,
@@ -150,7 +203,13 @@ template <typename AgentRadixSortOnesweepPolicy,
           typename PortionOffsetT,
           typename DecomposerT = identity_decomposer_t>
 struct AgentRadixSortOnesweep
+    : public AgentRadixSortOnesweepTempStorage<AgentRadixSortOnesweepPolicy, KeyT, ValueT, OffsetT, PortionOffsetT>
 {
+  using storage_t =
+    AgentRadixSortOnesweepTempStorage<AgentRadixSortOnesweepPolicy, KeyT, ValueT, OffsetT, PortionOffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using TempStorage_ = typename storage_t::TempStorage_;
+
   // constants
   static constexpr int ITEMS_PER_THREAD      = AgentRadixSortOnesweepPolicy::ITEMS_PER_THREAD;
   static constexpr bool KEYS_ONLY            = ::cuda::std::is_same_v<ValueT, NullType>;
@@ -198,24 +257,6 @@ struct AgentRadixSortOnesweep
       RANK_ALGORITHM == RADIX_RANK_MATCH,
       BlockRadixRankMatch<BLOCK_THREADS, RADIX_BITS, false, SCAN_ALGORITHM>,
       BlockRadixRankMatchEarlyCounts<BLOCK_THREADS, RADIX_BITS, false, SCAN_ALGORITHM, WARP_MATCH_ANY, RANK_NUM_PARTS>>>;
-
-  // temporary storage
-  struct TempStorage_
-  {
-    union
-    {
-      bit_ordered_type keys_out[TILE_ITEMS];
-      ValueT values_out[TILE_ITEMS];
-      typename BlockRadixRankT::TempStorage rank_temp_storage;
-    };
-    union
-    {
-      OffsetT global_offsets[RADIX_DIGITS];
-      PortionOffsetT block_idx;
-    };
-  };
-
-  using TempStorage = Uninitialized<TempStorage_>;
 
   // thread variables
   TempStorage_& s;

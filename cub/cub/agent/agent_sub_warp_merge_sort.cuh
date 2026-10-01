@@ -89,9 +89,32 @@ namespace detail::sub_warp_merge_sort
  * @tparam OffsetT
  *   Signed integer type for global offsets
  */
-template <bool IsDescending, typename PolicyT, typename KeyT, typename ValueT, typename OffsetT>
-class AgentSubWarpSort
+template <typename PolicyT, typename KeyT, typename ValueT>
+struct AgentSubWarpSortTempStorage
 {
+  union _TempStorage
+  {
+    typename WarpLoadTempStorage<KeyT, PolicyT::ITEMS_PER_THREAD, PolicyT::LOAD_ALGORITHM, PolicyT::WARP_THREADS>::
+      TempStorage load_keys;
+    typename WarpLoadTempStorage<ValueT, PolicyT::ITEMS_PER_THREAD, PolicyT::LOAD_ALGORITHM, PolicyT::WARP_THREADS>::
+      TempStorage load_items;
+    typename WarpMergeSort<KeyT, PolicyT::ITEMS_PER_THREAD, PolicyT::WARP_THREADS, ValueT>::TempStorage sort;
+    typename WarpStoreTempStorage<KeyT, PolicyT::ITEMS_PER_THREAD, PolicyT::STORE_ALGORITHM, PolicyT::WARP_THREADS>::
+      TempStorage store_keys;
+    typename WarpStoreTempStorage<ValueT, PolicyT::ITEMS_PER_THREAD, PolicyT::STORE_ALGORITHM, PolicyT::WARP_THREADS>::
+      TempStorage store_items;
+  };
+
+  /// Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
+template <bool IsDescending, typename PolicyT, typename KeyT, typename ValueT, typename OffsetT>
+class AgentSubWarpSort : public AgentSubWarpSortTempStorage<PolicyT, KeyT, ValueT>
+{
+  using storage_t = AgentSubWarpSortTempStorage<PolicyT, KeyT, ValueT>;
+
   using traits           = detail::radix::traits_t<KeyT>;
   using bit_ordered_type = typename traits::bit_ordered_type;
 
@@ -170,6 +193,9 @@ class AgentSubWarpSort
   }
 
 public:
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   static constexpr bool KEYS_ONLY = ::cuda::std::is_same_v<ValueT, cub::NullType>;
 
   using WarpMergeSortT = WarpMergeSort<KeyT, PolicyT::ITEMS_PER_THREAD, PolicyT::WARP_THREADS, ValueT>;
@@ -185,19 +211,6 @@ public:
     cub::WarpStore<KeyT, PolicyT::ITEMS_PER_THREAD, PolicyT::STORE_ALGORITHM, PolicyT::WARP_THREADS>;
   using WarpStoreItemsT =
     cub::WarpStore<ValueT, PolicyT::ITEMS_PER_THREAD, PolicyT::STORE_ALGORITHM, PolicyT::WARP_THREADS>;
-
-  union _TempStorage
-  {
-    typename WarpLoadKeysT::TempStorage load_keys;
-    typename WarpLoadItemsT::TempStorage load_items;
-    typename WarpMergeSortT::TempStorage sort;
-    typename WarpStoreKeysT::TempStorage store_keys;
-    typename WarpStoreItemsT::TempStorage store_items;
-  };
-
-  /// Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   _TempStorage& storage;
 

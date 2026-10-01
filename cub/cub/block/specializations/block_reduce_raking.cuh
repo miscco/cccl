@@ -57,16 +57,42 @@ namespace detail
  *   The thread block length in threads along the Z dimension
  */
 template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
-struct BlockReduceRaking
+struct BlockReduceRakingTempStorage
 {
+  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
+
+  using raking_layout_storage_t = BlockRakingLayoutTempStorage<T, BLOCK_THREADS>;
+  using warp_reduce_storage_t   = WarpReduceTempStorage<T, raking_layout_storage_t::RAKING_THREADS>;
+
+  union _TempStorage
+  {
+    /// Storage for warp-synchronous reduction
+    typename warp_reduce_storage_t::internal_t::TempStorage warp_storage;
+
+    /// Padded thread block raking grid
+    typename raking_layout_storage_t::TempStorage raking_grid;
+  };
+
+  /// Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
+struct BlockReduceRaking : public BlockReduceRakingTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>
+{
+  using base_t       = BlockReduceRakingTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>;
+  using TempStorage  = typename base_t::TempStorage;
+  using _TempStorage = typename base_t::_TempStorage;
+
   /// The thread block size in threads
   static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
 
   /// Layout type for padded thread block raking grid
-  using BlockRakingLayout = BlockRakingLayout<T, BLOCK_THREADS>;
+  using BlockRakingLayout = cub::BlockRakingLayout<T, BLOCK_THREADS>;
 
   ///  WarpReduce utility type
-  using WarpReduce = typename WarpReduce<T, BlockRakingLayout::RAKING_THREADS>::InternalWarpReduce;
+  using WarpReduce = typename cub::WarpReduce<T, BlockRakingLayout::RAKING_THREADS>::InternalWarpReduce;
 
   /// Constants
   /// Number of raking threads
@@ -84,20 +110,6 @@ struct BlockReduceRaking
 
   /// Whether or not accesses into smem are unguarded
   static constexpr bool RAKING_UNGUARDED = BlockRakingLayout::UNGUARDED;
-
-  /// Shared memory storage layout type
-  union _TempStorage
-  {
-    /// Storage for warp-synchronous reduction
-    typename WarpReduce::TempStorage warp_storage;
-
-    /// Padded thread block raking grid
-    typename BlockRakingLayout::TempStorage raking_grid;
-  };
-
-  /// Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   // Thread fields
   _TempStorage& temp_storage;

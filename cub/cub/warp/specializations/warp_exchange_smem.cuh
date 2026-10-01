@@ -30,26 +30,36 @@ CUB_NAMESPACE_BEGIN
 namespace detail
 {
 template <typename InputT, int ItemsPerThread, int LogicalWarpThreads = warp_threads>
-class WarpExchangeSmem
+struct WarpExchangeSmemTempStorage
 {
-  static_assert(::cuda::is_power_of_two(LogicalWarpThreads), "LogicalWarpThreads must be a power of two");
-
   static constexpr int ITEMS_PER_TILE = ItemsPerThread * LogicalWarpThreads + 1;
-
-  static constexpr bool IS_ARCH_WARP = LogicalWarpThreads == warp_threads;
-
   static constexpr int LOG_SMEM_BANKS = log2_smem_banks;
-
-  // Insert padding if the number of items per thread is a power of two
-  // and > 4 (otherwise we can typically use 128b loads)
   static constexpr bool INSERT_PADDING = (ItemsPerThread > 4) && (::cuda::is_power_of_two(ItemsPerThread));
-
   static constexpr int PADDING_ITEMS = INSERT_PADDING ? (ITEMS_PER_TILE >> LOG_SMEM_BANKS) : 0;
 
   union _TempStorage
   {
     InputT items_shared[ITEMS_PER_TILE + PADDING_ITEMS];
-  }; // union TempStorage
+  };
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
+template <typename InputT, int ItemsPerThread, int LogicalWarpThreads = warp_threads>
+class WarpExchangeSmem : public WarpExchangeSmemTempStorage<InputT, ItemsPerThread, LogicalWarpThreads>
+{
+  using base_t = WarpExchangeSmemTempStorage<InputT, ItemsPerThread, LogicalWarpThreads>;
+
+  static_assert(::cuda::is_power_of_two(LogicalWarpThreads), "LogicalWarpThreads must be a power of two");
+
+  static constexpr int ITEMS_PER_TILE  = base_t::ITEMS_PER_TILE;
+  static constexpr bool IS_ARCH_WARP   = LogicalWarpThreads == warp_threads;
+  static constexpr int LOG_SMEM_BANKS  = base_t::LOG_SMEM_BANKS;
+  static constexpr bool INSERT_PADDING = base_t::INSERT_PADDING;
+  static constexpr int PADDING_ITEMS   = base_t::PADDING_ITEMS;
+
+  using _TempStorage = typename base_t::_TempStorage;
 
   /// Shared storage reference
   _TempStorage& temp_storage;
@@ -59,8 +69,7 @@ class WarpExchangeSmem
   const unsigned int member_mask;
 
 public:
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename base_t::TempStorage;
 
   WarpExchangeSmem() = delete;
 

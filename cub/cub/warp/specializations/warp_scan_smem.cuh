@@ -47,30 +47,30 @@ namespace detail
  *   Number of threads per logical warp
  */
 template <typename T, int LogicalWarpThreads>
-struct WarpScanSmem
+struct WarpScanSmemTempStorage
 {
-  /******************************************************************************
-   * Constants and type definitions
-   ******************************************************************************/
-
-  /// Whether the logical warp size and the PTX warp size coincide
-  static constexpr bool IS_ARCH_WARP = (LogicalWarpThreads == warp_threads);
-
-  /// The number of warp scan steps
-  static constexpr int STEPS = Log2<LogicalWarpThreads>::VALUE;
-
-  /// The number of threads in half a warp
-  static constexpr int HALF_WARP_THREADS = 1 << (STEPS - 1);
-
-  /// The number of shared memory elements per warp
+  static constexpr bool IS_ARCH_WARP      = (LogicalWarpThreads == warp_threads);
+  static constexpr int STEPS              = Log2<LogicalWarpThreads>::VALUE;
+  static constexpr int HALF_WARP_THREADS  = 1 << (STEPS - 1);
   static constexpr int WARP_SMEM_ELEMENTS = LogicalWarpThreads + HALF_WARP_THREADS;
 
-  /// Shared memory storage layout type (1.5 warps-worth of elements for each warp)
   using _TempStorage = T[WARP_SMEM_ELEMENTS];
 
-  // Alias wrapper allowing storage to be unioned
   struct TempStorage : Uninitialized<_TempStorage>
   {};
+};
+
+template <typename T, int LogicalWarpThreads>
+struct WarpScanSmem : WarpScanSmemTempStorage<T, LogicalWarpThreads>
+{
+  using base_t       = WarpScanSmemTempStorage<T, LogicalWarpThreads>;
+  using TempStorage  = typename base_t::TempStorage;
+  using _TempStorage = typename base_t::_TempStorage;
+
+  static constexpr bool IS_ARCH_WARP      = base_t::IS_ARCH_WARP;
+  static constexpr int STEPS              = base_t::STEPS;
+  static constexpr int HALF_WARP_THREADS  = base_t::HALF_WARP_THREADS;
+  static constexpr int WARP_SMEM_ELEMENTS = base_t::WARP_SMEM_ELEMENTS;
 
   /******************************************************************************
    * Thread fields

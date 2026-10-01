@@ -48,56 +48,72 @@ namespace detail
  *   The thread block length in threads along the Z dimension
  */
 template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
-struct BlockReduceRakingCommutativeOnly
+struct BlockReduceRakingCommutativeOnlyTempStorage
 {
-  /// The thread block size in threads
-  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
-
-  // The fall-back implementation to use when BLOCK_THREADS is not a multiple of the warp size or not all threads have
-  // valid values
-  using FallBack = detail::BlockReduceRaking<T, BlockDimX, BlockDimY, BlockDimZ>;
-
-  /// Constants
-  /// Number of warp threads
-  static constexpr int WARP_THREADS = warp_threads;
-
-  /// Whether or not to use fall-back
-  static constexpr bool USE_FALLBACK = ((BLOCK_THREADS % WARP_THREADS != 0) || (BLOCK_THREADS <= WARP_THREADS));
-
-  /// Number of raking threads
-  static constexpr int RAKING_THREADS = WARP_THREADS;
-
-  /// Number of threads actually sharing items with the raking threads
+  static constexpr int BLOCK_THREADS   = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int WARP_THREADS    = warp_threads;
+  static constexpr int RAKING_THREADS  = WARP_THREADS;
   static constexpr int SHARING_THREADS = ::cuda::std::max(1, BLOCK_THREADS - RAKING_THREADS);
 
-  /// Number of raking elements per warp synchronous raking thread
-  static constexpr int SEGMENT_LENGTH = SHARING_THREADS / WARP_THREADS;
+  using warp_reduce_storage_t   = WarpReduceTempStorage<T, RAKING_THREADS>;
+  using raking_layout_storage_t = BlockRakingLayoutTempStorage<T, SHARING_THREADS>;
+  using fallback_storage_t      = BlockReduceRakingTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>;
 
-  ///  WarpReduce utility type
-  using WarpReduce = WarpReduce<T, RAKING_THREADS>;
-
-  /// Layout type for padded thread block raking grid
-  using BlockRakingLayout = BlockRakingLayout<T, SHARING_THREADS>;
-
-  /// Shared memory storage layout type
   union _TempStorage
   {
     struct DefaultStorage
     {
       /// Storage for warp-synchronous reduction
-      typename WarpReduce::TempStorage warp_storage;
+      typename warp_reduce_storage_t::TempStorage warp_storage;
 
       /// Padded thread block raking grid
-      typename BlockRakingLayout::TempStorage raking_grid;
+      typename raking_layout_storage_t::TempStorage raking_grid;
     } default_storage;
 
     /// Fall-back storage for non-commutative block reduction
-    typename FallBack::TempStorage fallback_storage;
+    typename fallback_storage_t::TempStorage fallback_storage;
   };
 
   /// Alias wrapper allowing storage to be unioned
   struct TempStorage : Uninitialized<_TempStorage>
   {};
+};
+
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
+struct BlockReduceRakingCommutativeOnly
+    : public BlockReduceRakingCommutativeOnlyTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>
+{
+  using base_t       = BlockReduceRakingCommutativeOnlyTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>;
+  using TempStorage  = typename base_t::TempStorage;
+  using _TempStorage = typename base_t::_TempStorage;
+
+  /// The thread block size in threads
+  static constexpr int BLOCK_THREADS = base_t::BLOCK_THREADS;
+
+  // The fall-back implementation to use when BLOCK_THREADS is not a multiple of the warp size or not all threads have
+  // valid values
+  using FallBack = BlockReduceRaking<T, BlockDimX, BlockDimY, BlockDimZ>;
+
+  /// Number of warp threads
+  static constexpr int WARP_THREADS = base_t::WARP_THREADS;
+
+  /// Whether or not to use fall-back
+  static constexpr bool USE_FALLBACK = ((BLOCK_THREADS % WARP_THREADS != 0) || (BLOCK_THREADS <= WARP_THREADS));
+
+  /// Number of raking threads
+  static constexpr int RAKING_THREADS = base_t::RAKING_THREADS;
+
+  /// Number of threads actually sharing items with the raking threads
+  static constexpr int SHARING_THREADS = base_t::SHARING_THREADS;
+
+  /// Number of raking elements per warp synchronous raking thread
+  static constexpr int SEGMENT_LENGTH = SHARING_THREADS / WARP_THREADS;
+
+  ///  WarpReduce utility type
+  using WarpReduce = cub::WarpReduce<T, RAKING_THREADS>;
+
+  /// Layout type for padded thread block raking grid
+  using BlockRakingLayout = cub::BlockRakingLayout<T, SHARING_THREADS>;
 
   // Thread fields
   _TempStorage& temp_storage;

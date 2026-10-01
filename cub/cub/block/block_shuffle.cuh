@@ -49,23 +49,38 @@ CUB_NAMESPACE_BEGIN
 //! @tparam BlockDimZ
 //!   **[optional]** The thread block length in threads along the Z dimension (default: 1)
 //!
-template <typename T, int BlockDimX, int BlockDimY = 1, int BlockDimZ = 1>
-class BlockShuffle
+namespace detail
 {
-private:
+template <typename T, int BlockDimX, int BlockDimY, int BlockDimZ>
+struct BlockShuffleTempStorage
+{
   static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
+
+  /// Shared memory storage layout type (last element from each thread's input)
+  using _TempStorage = T[BLOCK_THREADS];
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
+template <typename T, int BlockDimX, int BlockDimY = 1, int BlockDimZ = 1>
+class BlockShuffle : private detail::BlockShuffleTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>
+{
+  using storage_t = detail::BlockShuffleTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>;
+
+private:
+  static constexpr int BLOCK_THREADS = storage_t::BLOCK_THREADS;
 
   static constexpr int LOG_WARP_THREADS = detail::log2_warp_threads;
   static constexpr int WARP_THREADS     = 1 << LOG_WARP_THREADS;
   static constexpr int WARPS            = (BLOCK_THREADS + WARP_THREADS - 1) / WARP_THREADS;
 
-  /// Shared memory storage layout type (last element from each thread's input)
-  using _TempStorage = T[BLOCK_THREADS];
+  using _TempStorage = typename storage_t::_TempStorage;
 
 public:
   /// \smemstorage{BlockShuffle}
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
 private:
   /// Shared storage reference

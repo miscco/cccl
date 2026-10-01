@@ -117,14 +117,16 @@ CUB_NAMESPACE_BEGIN
 //! @tparam BlockDimZ
 //!    **[optional]** The thread block length in threads along the Z dimension (default: 1)
 //!
-template <typename T, int BlockDimX, int ItemsPerThread, bool WarpTimeSlicing = false, int BlockDimY = 1, int BlockDimZ = 1>
-class BlockExchange
+namespace detail
 {
-  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ; ///< The thread block size in threads
-  static constexpr int WARP_THREADS  = detail::warp_threads;
-  static constexpr int WARPS = (BLOCK_THREADS + WARP_THREADS - 1) / WARP_THREADS; // TODO(bgruber): use ceil_div in
-                                                                                  // C++14
-  static constexpr int LOG_SMEM_BANKS = detail::log2_smem_banks;
+template <typename T, int BlockDimX, int ItemsPerThread, bool WarpTimeSlicing, int BlockDimY, int BlockDimZ>
+struct BlockExchangeTempStorage
+{
+  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int WARP_THREADS  = warp_threads;
+  static constexpr int WARPS         = (BLOCK_THREADS + WARP_THREADS - 1) / WARP_THREADS; // TODO(bgruber): use
+                                                                                  // ceil_div in C++14
+  static constexpr int LOG_SMEM_BANKS = log2_smem_banks;
 
   static constexpr int TILE_ITEMS  = BLOCK_THREADS * ItemsPerThread;
   static constexpr int TIME_SLICES = WarpTimeSlicing ? WARPS : 1;
@@ -139,15 +141,40 @@ class BlockExchange
   static constexpr bool INSERT_PADDING = ItemsPerThread > 4 && ::cuda::is_power_of_two(ItemsPerThread);
   static constexpr int PADDING_ITEMS   = INSERT_PADDING ? (TIME_SLICED_ITEMS >> LOG_SMEM_BANKS) : 0;
 
-  /// Shared memory storage layout type
   struct alignas(16) _TempStorage
   {
     T buff[TIME_SLICED_ITEMS + PADDING_ITEMS];
   };
 
+  using TempStorage = Uninitialized<_TempStorage>;
+};
+} // namespace detail
+
+template <typename T, int BlockDimX, int ItemsPerThread, bool WarpTimeSlicing = false, int BlockDimY = 1, int BlockDimZ = 1>
+class BlockExchange
+    : private detail::BlockExchangeTempStorage<T, BlockDimX, ItemsPerThread, WarpTimeSlicing, BlockDimY, BlockDimZ>
+{
+  using storage_t =
+    detail::BlockExchangeTempStorage<T, BlockDimX, ItemsPerThread, WarpTimeSlicing, BlockDimY, BlockDimZ>;
+
+  static constexpr int BLOCK_THREADS            = storage_t::BLOCK_THREADS; ///< The thread block size in threads
+  static constexpr int WARP_THREADS             = storage_t::WARP_THREADS;
+  static constexpr int WARPS                    = storage_t::WARPS;
+  static constexpr int LOG_SMEM_BANKS           = storage_t::LOG_SMEM_BANKS;
+  static constexpr int TILE_ITEMS               = storage_t::TILE_ITEMS;
+  static constexpr int TIME_SLICES              = storage_t::TIME_SLICES;
+  static constexpr int TIME_SLICED_THREADS      = storage_t::TIME_SLICED_THREADS;
+  static constexpr int TIME_SLICED_ITEMS        = storage_t::TIME_SLICED_ITEMS;
+  static constexpr int WARP_TIME_SLICED_THREADS = storage_t::WARP_TIME_SLICED_THREADS;
+  static constexpr int WARP_TIME_SLICED_ITEMS   = storage_t::WARP_TIME_SLICED_ITEMS;
+  static constexpr bool INSERT_PADDING          = storage_t::INSERT_PADDING;
+  static constexpr int PADDING_ITEMS            = storage_t::PADDING_ITEMS;
+
+  using _TempStorage = typename storage_t::_TempStorage;
+
 public:
   /// @smemstorage{BlockExchange}
-  using TempStorage = Uninitialized<_TempStorage>;
+  using TempStorage = typename storage_t::TempStorage;
 
 private:
   _TempStorage& temp_storage;

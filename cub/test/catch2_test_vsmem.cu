@@ -57,8 +57,35 @@ struct agent_dummy_algorithm_policy_t
 // Agent template definition
 //----------------------------------------------------------------------------
 template <typename ActivePolicyT, typename InputIteratorT, typename OutputIteratorT, typename OffsetT>
-struct agent_dummy_algorithm_t
+struct agent_dummy_algorithm_temp_storage_t
 {
+  static constexpr auto threads_per_block = ActivePolicyT::BLOCK_THREADS;
+  static constexpr auto items_per_thread  = ActivePolicyT::ITEMS_PER_THREAD;
+
+  using item_t = cub::detail::it_value_t<InputIteratorT>;
+
+  // Keep load and store as distinct members so the test's shared memory is the sum of both layouts.
+  struct _temp_storage_t
+  {
+    typename cub::detail::
+      BlockLoadTempStorage<item_t, threads_per_block, items_per_thread, cub::BLOCK_LOAD_TRANSPOSE, 1, 1>::TempStorage
+        load;
+    typename cub::detail::
+      BlockStoreTempStorage<item_t, threads_per_block, items_per_thread, cub::BLOCK_STORE_TRANSPOSE, 1, 1>::TempStorage
+        store;
+  };
+
+  struct TempStorage : cub::Uninitialized<_temp_storage_t>
+  {};
+};
+
+template <typename ActivePolicyT, typename InputIteratorT, typename OutputIteratorT, typename OffsetT>
+struct agent_dummy_algorithm_t : agent_dummy_algorithm_temp_storage_t<ActivePolicyT, InputIteratorT, OutputIteratorT, OffsetT>
+{
+  using storage_t =
+    agent_dummy_algorithm_temp_storage_t<ActivePolicyT, InputIteratorT, OutputIteratorT, OffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+
   static constexpr auto threads_per_block = ActivePolicyT::BLOCK_THREADS;
   static constexpr auto items_per_thread  = ActivePolicyT::ITEMS_PER_THREAD;
   static constexpr auto tile_size         = threads_per_block * items_per_thread;
@@ -69,16 +96,7 @@ struct agent_dummy_algorithm_t
 
   using block_store_t = cub::BlockStore<item_t, threads_per_block, items_per_thread, cub::BLOCK_STORE_TRANSPOSE>;
 
-  // We are intentionally not aliasing the TempStorage here to double the required shared memory of the test and be able
-  // to use a smaller `large_custom_t`, as we experienced slow compilation times for large a `large_custom_t`.
-  struct _temp_storage_t
-  {
-    typename block_load_t::TempStorage load;
-    typename block_store_t::TempStorage store;
-  };
-
-  struct TempStorage : cub::Uninitialized<_temp_storage_t>
-  {};
+  using _temp_storage_t = typename storage_t::_temp_storage_t;
 
   _temp_storage_t& temp_storage; ///< Reference to temp_storage
   InputIteratorT d_in; ///< Input data
@@ -113,6 +131,7 @@ void __global__ __launch_bounds__(
   cub::detail::vsmem_helper_fallback_policy_t<
     typename ChainedPolicyT::ActivePolicy::DummyAlgorithmPolicy,
     typename ChainedPolicyT::ActivePolicy::FallbackDummyAlgorithmPolicy,
+    agent_dummy_algorithm_temp_storage_t,
     agent_dummy_algorithm_t,
     InputIteratorT,
     OutputIteratorT,
@@ -132,6 +151,7 @@ void __global__ __launch_bounds__(
   using vsmem_helper_t = cub::detail::vsmem_helper_fallback_policy_t<
     default_policy_t,
     fallback_policy_t,
+    agent_dummy_algorithm_temp_storage_t,
     agent_dummy_algorithm_t,
     InputIteratorT,
     OutputIteratorT,
@@ -253,6 +273,7 @@ struct dispatch_dummy_algorithm_t
     using vsmem_helper_t = cub::detail::vsmem_helper_fallback_policy_t<
       typename ActivePolicyT::DummyAlgorithmPolicy,
       typename ActivePolicyT::FallbackDummyAlgorithmPolicy,
+      agent_dummy_algorithm_temp_storage_t,
       agent_dummy_algorithm_t,
       InputIteratorT,
       OutputIteratorT,
@@ -400,13 +421,13 @@ CUB_TEST("Virtual shared memory works within algorithms", "[util][vsmem]", CUB_S
 
   // Query default and fallback policies and agents so we can confirm vsmem
   using default_policy_t  = typename device_dummy_algorithm_policy_t<item_t*>::policy_500::DummyAlgorithmPolicy;
-  using default_agent_t   = agent_dummy_algorithm_t<default_policy_t, item_t*, item_t*, offset_t>;
+  using default_storage_t = agent_dummy_algorithm_temp_storage_t<default_policy_t, item_t*, item_t*, offset_t>;
   using fallback_policy_t = typename device_dummy_algorithm_policy_t<item_t*>::policy_500::FallbackDummyAlgorithmPolicy;
-  using fallback_agent_t  = agent_dummy_algorithm_t<fallback_policy_t, item_t*, item_t*, offset_t>;
+  using fallback_storage_t = agent_dummy_algorithm_temp_storage_t<fallback_policy_t, item_t*, item_t*, offset_t>;
 
   // Get the information as it is expected from the vsmem helper to work as expected
-  constexpr std::size_t default_smem_size  = sizeof(typename default_agent_t::TempStorage);
-  constexpr std::size_t fallback_smem_size = sizeof(typename fallback_agent_t::TempStorage);
+  constexpr std::size_t default_smem_size  = sizeof(typename default_storage_t::TempStorage);
+  constexpr std::size_t fallback_smem_size = sizeof(typename fallback_storage_t::TempStorage);
   constexpr bool expected_to_use_fallback =
     default_smem_size > cub::detail::max_smem_per_block && fallback_smem_size <= cub::detail::max_smem_per_block;
   constexpr std::size_t expected_smem_per_block = expected_to_use_fallback ? fallback_smem_size : default_smem_size;

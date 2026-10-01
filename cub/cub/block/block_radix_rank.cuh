@@ -236,37 +236,23 @@ struct warp_in_block_matcher_t<Bits, 0, PartialWarpId>
 //! @tparam BlockDimZ
 //!   **[optional]** The thread block length in threads along the Z dimension (default: 1)
 //!
+namespace detail
+{
 template <int BlockDimX,
           int RadixBits,
           bool IsDescending,
-          bool MemoizeOuterScan                 = true,
-          BlockScanAlgorithm InnerScanAlgorithm = BLOCK_SCAN_WARP_SCANS,
-          cudaSharedMemConfig SMemConfig        = cudaSharedMemBankSizeFourByte,
-          int BlockDimY                         = 1,
-          int BlockDimZ                         = 1>
-class BlockRadixRank
+          bool MemoizeOuterScan,
+          BlockScanAlgorithm InnerScanAlgorithm,
+          cudaSharedMemConfig SMemConfig,
+          int BlockDimY,
+          int BlockDimZ>
+struct BlockRadixRankTempStorage
 {
-private:
-  // Integer type for digit counters (to be packed into words of type PackedCounters)
   using DigitCounter = unsigned short;
-
-  // Integer type for packing DigitCounters into columns of shared memory banks
   using PackedCounter =
     ::cuda::std::_If<SMemConfig == cudaSharedMemBankSizeEightByte, unsigned long long, unsigned int>;
 
-  static constexpr DigitCounter max_tile_size = ::cuda::std::numeric_limits<DigitCounter>::max();
-
-  // The thread block size in threads
   static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
-
-  static constexpr int RADIX_DIGITS = 1 << RadixBits;
-
-  static constexpr int LOG_WARP_THREADS = detail::log2_warp_threads;
-  static constexpr int WARP_THREADS     = 1 << LOG_WARP_THREADS;
-  static constexpr int WARPS            = (BLOCK_THREADS + WARP_THREADS - 1) / WARP_THREADS;
-
-  static constexpr int BYTES_PER_COUNTER     = sizeof(DigitCounter);
-  static constexpr int LOG_BYTES_PER_COUNTER = Log2<BYTES_PER_COUNTER>::VALUE;
 
   static constexpr int PACKING_RATIO     = static_cast<int>(sizeof(PackedCounter) / sizeof(DigitCounter));
   static constexpr int LOG_PACKING_RATIO = Log2<PACKING_RATIO>::VALUE;
@@ -279,16 +265,6 @@ private:
   static constexpr int PADDED_COUNTER_LANES = COUNTER_LANES + 1;
   static constexpr int RAKING_SEGMENT       = PADDED_COUNTER_LANES;
 
-public:
-  /// Number of bin-starting offsets tracked per thread
-  static constexpr int BINS_TRACKED_PER_THREAD =
-    ::cuda::std::max(1, (RADIX_DIGITS + BLOCK_THREADS - 1) / BLOCK_THREADS);
-
-private:
-  /// BlockScan type
-  using BlockScan = BlockScan<PackedCounter, BlockDimX, InnerScanAlgorithm, BlockDimY, BlockDimZ>;
-
-#ifndef _CCCL_DOXYGEN_INVOKED // Do not document
   struct __align__(16) _TempStorage
   {
     union Aliasable
@@ -299,9 +275,81 @@ private:
     } aliasable;
 
     // Storage for scanning local ranks
-    typename BlockScan::TempStorage block_scan;
+    typename BlockScanTempStorage<PackedCounter, BlockDimX, InnerScanAlgorithm, BlockDimY, BlockDimZ>::TempStorage
+      block_scan;
   };
-#endif // !_CCCL_DOXYGEN_INVOKED
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
+template <int BlockDimX,
+          int RadixBits,
+          bool IsDescending,
+          bool MemoizeOuterScan                 = true,
+          BlockScanAlgorithm InnerScanAlgorithm = BLOCK_SCAN_WARP_SCANS,
+          cudaSharedMemConfig SMemConfig        = cudaSharedMemBankSizeFourByte,
+          int BlockDimY                         = 1,
+          int BlockDimZ                         = 1>
+class BlockRadixRank
+    : private detail::BlockRadixRankTempStorage<
+        BlockDimX,
+        RadixBits,
+        IsDescending,
+        MemoizeOuterScan,
+        InnerScanAlgorithm,
+        SMemConfig,
+        BlockDimY,
+        BlockDimZ>
+{
+  using storage_t = detail::BlockRadixRankTempStorage<
+    BlockDimX,
+    RadixBits,
+    IsDescending,
+    MemoizeOuterScan,
+    InnerScanAlgorithm,
+    SMemConfig,
+    BlockDimY,
+    BlockDimZ>;
+
+  // Integer type for digit counters (to be packed into words of type PackedCounters)
+  using DigitCounter = typename storage_t::DigitCounter;
+
+  // Integer type for packing DigitCounters into columns of shared memory banks
+  using PackedCounter = typename storage_t::PackedCounter;
+
+  static constexpr DigitCounter max_tile_size = ::cuda::std::numeric_limits<DigitCounter>::max();
+
+  // The thread block size in threads
+  static constexpr int BLOCK_THREADS = storage_t::BLOCK_THREADS;
+
+  static constexpr int RADIX_DIGITS = 1 << RadixBits;
+
+  static constexpr int LOG_WARP_THREADS = detail::log2_warp_threads;
+  static constexpr int WARP_THREADS     = 1 << LOG_WARP_THREADS;
+  static constexpr int WARPS            = (BLOCK_THREADS + WARP_THREADS - 1) / WARP_THREADS;
+
+  static constexpr int BYTES_PER_COUNTER     = sizeof(DigitCounter);
+  static constexpr int LOG_BYTES_PER_COUNTER = Log2<BYTES_PER_COUNTER>::VALUE;
+
+  static constexpr int PACKING_RATIO        = storage_t::PACKING_RATIO;
+  static constexpr int LOG_PACKING_RATIO    = storage_t::LOG_PACKING_RATIO;
+  static constexpr int LOG_COUNTER_LANES    = storage_t::LOG_COUNTER_LANES;
+  static constexpr int COUNTER_LANES        = storage_t::COUNTER_LANES;
+  static constexpr int PADDED_COUNTER_LANES = storage_t::PADDED_COUNTER_LANES;
+  static constexpr int RAKING_SEGMENT       = storage_t::RAKING_SEGMENT;
+
+public:
+  /// Number of bin-starting offsets tracked per thread
+  static constexpr int BINS_TRACKED_PER_THREAD =
+    ::cuda::std::max(1, (RADIX_DIGITS + BLOCK_THREADS - 1) / BLOCK_THREADS);
+
+private:
+  /// BlockScan type
+  using BlockScan = BlockScan<PackedCounter, BlockDimX, InnerScanAlgorithm, BlockDimY, BlockDimZ>;
+
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /// Shared storage reference
   _TempStorage& temp_storage;
@@ -416,8 +464,7 @@ private:
 
 public:
   /// @smemstorage{BlockScan}
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{
@@ -575,6 +622,41 @@ public:
 /**
  * Radix-rank using match.any
  */
+namespace detail
+{
+template <int BlockDimX, int RadixBits, bool IsDescending, BlockScanAlgorithm InnerScanAlgorithm, int BlockDimY, int BlockDimZ>
+struct BlockRadixRankMatchTempStorage
+{
+  using DigitCounterT = int32_t;
+
+  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
+  static constexpr int RADIX_DIGITS  = 1 << RadixBits;
+
+  static constexpr int LOG_WARP_THREADS      = log2_warp_threads;
+  static constexpr int WARP_THREADS          = 1 << LOG_WARP_THREADS;
+  static constexpr int WARPS                 = (BLOCK_THREADS + WARP_THREADS - 1) / WARP_THREADS;
+  static constexpr int PADDED_WARPS          = ((WARPS & 0x1) == 0) ? WARPS + 1 : WARPS;
+  static constexpr int COUNTERS              = PADDED_WARPS * RADIX_DIGITS;
+  static constexpr int RAKING_SEGMENT        = (COUNTERS + BLOCK_THREADS - 1) / BLOCK_THREADS;
+  static constexpr int PADDED_RAKING_SEGMENT = ((RAKING_SEGMENT & 0x1) == 0) ? RAKING_SEGMENT + 1 : RAKING_SEGMENT;
+
+  struct __align__(16) _TempStorage
+  {
+    typename BlockScanTempStorage<DigitCounterT, BLOCK_THREADS, InnerScanAlgorithm, BlockDimY, BlockDimZ>::TempStorage
+      block_scan;
+
+    union __align__(16) Aliasable
+    {
+      volatile DigitCounterT warp_digit_counters[RADIX_DIGITS][PADDED_WARPS];
+      DigitCounterT raking_grid[BLOCK_THREADS][PADDED_RAKING_SEGMENT];
+    } aliasable;
+  };
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
 template <int BlockDimX,
           int RadixBits,
           bool IsDescending,
@@ -582,26 +664,26 @@ template <int BlockDimX,
           int BlockDimY                         = 1,
           int BlockDimZ                         = 1>
 class BlockRadixRankMatch
+    : private detail::
+        BlockRadixRankMatchTempStorage<BlockDimX, RadixBits, IsDescending, InnerScanAlgorithm, BlockDimY, BlockDimZ>
 {
+  using storage_t =
+    detail::BlockRadixRankMatchTempStorage<BlockDimX, RadixBits, IsDescending, InnerScanAlgorithm, BlockDimY, BlockDimZ>;
+
 private:
   using RankT         = int32_t;
-  using DigitCounterT = int32_t;
+  using DigitCounterT = typename storage_t::DigitCounterT;
 
-  // The thread block size in threads
-  static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
-
-  static constexpr int RADIX_DIGITS = 1 << RadixBits;
-
-  static constexpr int LOG_WARP_THREADS     = detail::log2_warp_threads;
-  static constexpr int WARP_THREADS         = 1 << LOG_WARP_THREADS;
-  static constexpr int PARTIAL_WARP_THREADS = BLOCK_THREADS % WARP_THREADS;
-  static constexpr int WARPS                = (BLOCK_THREADS + WARP_THREADS - 1) / WARP_THREADS;
-
-  static constexpr int PADDED_WARPS = ((WARPS & 0x1) == 0) ? WARPS + 1 : WARPS;
-
-  static constexpr int COUNTERS              = PADDED_WARPS * RADIX_DIGITS;
-  static constexpr int RAKING_SEGMENT        = (COUNTERS + BLOCK_THREADS - 1) / BLOCK_THREADS;
-  static constexpr int PADDED_RAKING_SEGMENT = ((RAKING_SEGMENT & 0x1) == 0) ? RAKING_SEGMENT + 1 : RAKING_SEGMENT;
+  static constexpr int BLOCK_THREADS         = storage_t::BLOCK_THREADS;
+  static constexpr int RADIX_DIGITS          = storage_t::RADIX_DIGITS;
+  static constexpr int LOG_WARP_THREADS      = storage_t::LOG_WARP_THREADS;
+  static constexpr int WARP_THREADS          = storage_t::WARP_THREADS;
+  static constexpr int PARTIAL_WARP_THREADS  = BLOCK_THREADS % WARP_THREADS;
+  static constexpr int WARPS                 = storage_t::WARPS;
+  static constexpr int PADDED_WARPS          = storage_t::PADDED_WARPS;
+  static constexpr int COUNTERS              = storage_t::COUNTERS;
+  static constexpr int RAKING_SEGMENT        = storage_t::RAKING_SEGMENT;
+  static constexpr int PADDED_RAKING_SEGMENT = storage_t::PADDED_RAKING_SEGMENT;
 
 public:
   /// Number of bin-starting offsets tracked per thread
@@ -612,18 +694,7 @@ private:
   /// BlockScan type
   using BlockScanT = BlockScan<DigitCounterT, BLOCK_THREADS, InnerScanAlgorithm, BlockDimY, BlockDimZ>;
 
-#ifndef _CCCL_DOXYGEN_INVOKED // Do not document
-  struct __align__(16) _TempStorage
-  {
-    typename BlockScanT::TempStorage block_scan;
-
-    union __align__(16) Aliasable
-    {
-      volatile DigitCounterT warp_digit_counters[RADIX_DIGITS][PADDED_WARPS];
-      DigitCounterT raking_grid[BLOCK_THREADS][PADDED_RAKING_SEGMENT];
-    } aliasable;
-  };
-#endif // !_CCCL_DOXYGEN_INVOKED
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /// Shared storage reference
   _TempStorage& temp_storage;
@@ -633,8 +704,7 @@ private:
 
 public:
   /// @smemstorage{BlockRadixRankMatch}
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{
@@ -910,31 +980,23 @@ enum WarpMatchAlgorithm
  * decoupled look-back, where it reduces the time other thread blocks need to
  * wait for digit counts to become available.
  */
+namespace detail
+{
 template <int BlockDimX,
           int RadixBits,
           bool IsDescending,
-          BlockScanAlgorithm InnerScanAlgorithm = BLOCK_SCAN_WARP_SCANS,
-          WarpMatchAlgorithm MatchAlgorithm     = WARP_MATCH_ANY,
-          int NumParts                          = 1>
-struct BlockRadixRankMatchEarlyCounts
+          BlockScanAlgorithm InnerScanAlgorithm,
+          WarpMatchAlgorithm MatchAlgorithm,
+          int NumParts>
+struct BlockRadixRankMatchEarlyCountsTempStorage
 {
-  // constants
-  static constexpr int BLOCK_THREADS           = BlockDimX;
-  static constexpr int RADIX_DIGITS            = 1 << RadixBits;
-  static constexpr int BINS_PER_THREAD         = (RADIX_DIGITS + BLOCK_THREADS - 1) / BLOCK_THREADS;
-  static constexpr int BINS_TRACKED_PER_THREAD = BINS_PER_THREAD;
-  static constexpr int FULL_BINS               = BINS_PER_THREAD * BLOCK_THREADS == RADIX_DIGITS;
-  static constexpr int WARP_THREADS            = detail::warp_threads;
-  static constexpr int PARTIAL_WARP_THREADS    = BLOCK_THREADS % WARP_THREADS;
-  static constexpr int BLOCK_WARPS             = BLOCK_THREADS / WARP_THREADS;
-  static constexpr int PARTIAL_WARP_ID         = BLOCK_WARPS - 1;
-  static constexpr int WARP_MASK               = ~0;
-  static constexpr int NUM_MATCH_MASKS         = MatchAlgorithm == WARP_MATCH_ATOMIC_OR ? BLOCK_WARPS : 0;
+  static constexpr int BLOCK_THREADS   = BlockDimX;
+  static constexpr int RADIX_DIGITS    = 1 << RadixBits;
+  static constexpr int WARP_THREADS    = warp_threads;
+  static constexpr int BLOCK_WARPS     = BLOCK_THREADS / WARP_THREADS;
+  static constexpr int NUM_MATCH_MASKS = MatchAlgorithm == WARP_MATCH_ATOMIC_OR ? BLOCK_WARPS : 0;
   // Guard against declaring zero-sized array:
   static constexpr int MATCH_MASKS_ALLOC_SIZE = NUM_MATCH_MASKS < 1 ? 1 : NUM_MATCH_MASKS;
-
-  // types
-  using BlockScan = cub::BlockScan<int, BLOCK_THREADS, InnerScanAlgorithm>;
 
   struct TempStorage
   {
@@ -946,8 +1008,50 @@ struct BlockRadixRankMatchEarlyCounts
 
     ::cuda::std::uint32_t match_masks[MATCH_MASKS_ALLOC_SIZE][RADIX_DIGITS];
 
-    typename BlockScan::TempStorage prefix_tmp;
+    typename BlockScanTempStorage<int, BLOCK_THREADS, InnerScanAlgorithm>::TempStorage prefix_tmp;
   };
+};
+} // namespace detail
+
+template <int BlockDimX,
+          int RadixBits,
+          bool IsDescending,
+          BlockScanAlgorithm InnerScanAlgorithm = BLOCK_SCAN_WARP_SCANS,
+          WarpMatchAlgorithm MatchAlgorithm     = WARP_MATCH_ANY,
+          int NumParts                          = 1>
+struct BlockRadixRankMatchEarlyCounts
+    : private detail::BlockRadixRankMatchEarlyCountsTempStorage<
+        BlockDimX,
+        RadixBits,
+        IsDescending,
+        InnerScanAlgorithm,
+        MatchAlgorithm,
+        NumParts>
+{
+  using storage_t = detail::BlockRadixRankMatchEarlyCountsTempStorage<
+    BlockDimX,
+    RadixBits,
+    IsDescending,
+    InnerScanAlgorithm,
+    MatchAlgorithm,
+    NumParts>;
+
+  // constants
+  static constexpr int BLOCK_THREADS           = storage_t::BLOCK_THREADS;
+  static constexpr int RADIX_DIGITS            = storage_t::RADIX_DIGITS;
+  static constexpr int BINS_PER_THREAD         = (RADIX_DIGITS + BLOCK_THREADS - 1) / BLOCK_THREADS;
+  static constexpr int BINS_TRACKED_PER_THREAD = BINS_PER_THREAD;
+  static constexpr int FULL_BINS               = BINS_PER_THREAD * BLOCK_THREADS == RADIX_DIGITS;
+  static constexpr int WARP_THREADS            = storage_t::WARP_THREADS;
+  static constexpr int PARTIAL_WARP_THREADS    = BLOCK_THREADS % WARP_THREADS;
+  static constexpr int BLOCK_WARPS             = storage_t::BLOCK_WARPS;
+  static constexpr int PARTIAL_WARP_ID         = BLOCK_WARPS - 1;
+  static constexpr int WARP_MASK               = ~0;
+
+  // types
+  using BlockScan = cub::BlockScan<int, BLOCK_THREADS, InnerScanAlgorithm>;
+
+  using TempStorage = typename storage_t::TempStorage;
 
   TempStorage& temp_storage;
 

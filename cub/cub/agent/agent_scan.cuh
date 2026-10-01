@@ -148,6 +148,47 @@ _CCCL_IKET_CREATE_PUSH_POP_RANGE(Store);
  * @tparam AccumT
  *   The type of intermediate accumulator (according to P2322R6)
  */
+template <typename AgentScanPolicyT, typename AccumT>
+struct AgentScanTempStorage
+{
+  // Shared memory type for this thread block
+  union _TempStorage
+  {
+    // Smem needed for tile loading
+    typename BlockLoadTempStorage<AccumT,
+                                  AgentScanPolicyT::BLOCK_THREADS,
+                                  AgentScanPolicyT::ITEMS_PER_THREAD,
+                                  AgentScanPolicyT::LOAD_ALGORITHM,
+                                  1,
+                                  1>::TempStorage load;
+
+    // Smem needed for tile storing
+    typename BlockStoreTempStorage<AccumT,
+                                   AgentScanPolicyT::BLOCK_THREADS,
+                                   AgentScanPolicyT::ITEMS_PER_THREAD,
+                                   AgentScanPolicyT::STORE_ALGORITHM,
+                                   1,
+                                   1>::TempStorage store;
+
+    struct ScanStorage
+    {
+      // Smem needed for cooperative prefix callback
+      typename TilePrefixCallbackOpTempStorage<AccumT>::TempStorage prefix;
+
+      // Smem needed for tile scanning
+      typename BlockScanTempStorage<AccumT,
+                                    AgentScanPolicyT::BLOCK_THREADS,
+                                    AgentScanPolicyT::SCAN_ALGORITHM,
+                                    1,
+                                    1>::TempStorage scan;
+    } scan_storage;
+  };
+
+  // Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename AgentScanPolicyT,
           typename InputIteratorT,
           typename OutputIteratorT,
@@ -158,8 +199,12 @@ template <typename AgentScanPolicyT,
           bool ForceInclusive       = false,
           bool UsePDL               = false,
           bool StableReductionOrder = false>
-struct AgentScan
+struct AgentScan : public AgentScanTempStorage<AgentScanPolicyT, AccumT>
 {
+  using storage_t   = AgentScanTempStorage<AgentScanPolicyT, AccumT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Types and constants
   //---------------------------------------------------------------------
@@ -212,29 +257,6 @@ struct AgentScan
   // Stateful BlockScan prefix callback type for managing a running total while
   // scanning consecutive tiles
   using RunningPrefixCallbackOp = BlockScanRunningPrefixOp<AccumT, ScanOpT>;
-
-  // Shared memory type for this thread block
-  union _TempStorage
-  {
-    // Smem needed for tile loading
-    typename BlockLoadT::TempStorage load;
-
-    // Smem needed for tile storing
-    typename BlockStoreT::TempStorage store;
-
-    struct ScanStorage
-    {
-      // Smem needed for cooperative prefix callback
-      typename TilePrefixCallbackOpT::TempStorage prefix;
-
-      // Smem needed for tile scanning
-      typename BlockScanT::TempStorage scan;
-    } scan_storage;
-  };
-
-  // Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   //---------------------------------------------------------------------
   // Per-thread fields

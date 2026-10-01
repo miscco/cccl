@@ -228,11 +228,11 @@ CUB_NAMESPACE_BEGIN
 //! @tparam BlockDimZ
 //!   **[optional]** The thread block length in threads along the Z dimension (default: 1)
 //!
-template <typename T, int BlockDimX, BlockScanAlgorithm Algorithm = BLOCK_SCAN_RAKING, int BlockDimY = 1, int BlockDimZ = 1>
-class BlockScan
+namespace detail
 {
-private:
-  /// The thread block size in threads
+template <typename T, int BlockDimX, BlockScanAlgorithm Algorithm, int BlockDimY = 1, int BlockDimZ = 1>
+struct BlockScanTempStorage
+{
   static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
 
   /**
@@ -242,9 +242,30 @@ private:
    * architectural warp size.
    */
   static constexpr BlockScanAlgorithm SAFE_ALGORITHM =
-    ((Algorithm == BLOCK_SCAN_WARP_SCANS) && (BLOCK_THREADS % detail::warp_threads != 0))
-      ? BLOCK_SCAN_RAKING
-      : Algorithm;
+    ((Algorithm == BLOCK_SCAN_WARP_SCANS) && (BLOCK_THREADS % warp_threads != 0)) ? BLOCK_SCAN_RAKING : Algorithm;
+
+  using internal_t = ::cuda::std::_If<
+    SAFE_ALGORITHM == BLOCK_SCAN_WARP_SCANS,
+    BlockScanWarpScansTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>,
+    BlockScanRakingTempStorage<T, BlockDimX, BlockDimY, BlockDimZ, (SAFE_ALGORITHM == BLOCK_SCAN_RAKING_MEMOIZE)>>;
+
+  using _TempStorage = typename internal_t::TempStorage;
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
+template <typename T, int BlockDimX, BlockScanAlgorithm Algorithm = BLOCK_SCAN_RAKING, int BlockDimY = 1, int BlockDimZ = 1>
+class BlockScan : private detail::BlockScanTempStorage<T, BlockDimX, Algorithm, BlockDimY, BlockDimZ>
+{
+  using storage_t = detail::BlockScanTempStorage<T, BlockDimX, Algorithm, BlockDimY, BlockDimZ>;
+
+private:
+  /// The thread block size in threads
+  static constexpr int BLOCK_THREADS = storage_t::BLOCK_THREADS;
+
+  static constexpr BlockScanAlgorithm SAFE_ALGORITHM = storage_t::SAFE_ALGORITHM;
 
   using WarpScans = detail::BlockScanWarpScans<T, BlockDimX, BlockDimY, BlockDimZ>;
   using Raking =
@@ -254,7 +275,7 @@ private:
   using InternalBlockScan = ::cuda::std::_If<SAFE_ALGORITHM == BLOCK_SCAN_WARP_SCANS, WarpScans, Raking>;
 
   /// Shared memory storage layout type for BlockScan
-  using _TempStorage = typename InternalBlockScan::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /// Shared storage reference
   _TempStorage& temp_storage;
@@ -271,8 +292,7 @@ private:
 
 public:
   /// @smemstorage{BlockScan}
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{

@@ -96,6 +96,52 @@ namespace detail::unique_by_key
  * @tparam OffsetT
  *   Signed integer type for global offsets
  */
+template <typename AgentUniqueByKeyPolicyT, typename KeyInputIteratorT, typename ValueInputIteratorT, typename OffsetT>
+struct AgentUniqueByKeyTempStorage
+{
+  using KeyT   = cub::detail::it_value_t<KeyInputIteratorT>;
+  using ValueT = cub::detail::it_value_t<ValueInputIteratorT>;
+
+  static constexpr int BLOCK_THREADS    = AgentUniqueByKeyPolicyT::BLOCK_THREADS;
+  static constexpr int ITEMS_PER_THREAD = AgentUniqueByKeyPolicyT::ITEMS_PER_THREAD;
+  static constexpr int ITEMS_PER_TILE   = BLOCK_THREADS * ITEMS_PER_THREAD;
+
+  using KeyExchangeT   = KeyT[ITEMS_PER_TILE];
+  using ValueExchangeT = ValueT[ITEMS_PER_TILE];
+
+  // Shared memory type for this thread block
+  union _TempStorage
+  {
+    struct ScanStorage
+    {
+      typename BlockScanTempStorage<OffsetT, BLOCK_THREADS, AgentUniqueByKeyPolicyT::SCAN_ALGORITHM, 1, 1>::TempStorage
+        scan;
+      typename TilePrefixCallbackOpTempStorage<OffsetT>::TempStorage prefix;
+      typename BlockDiscontinuityTempStorage<KeyT, BLOCK_THREADS, 1, 1>::TempStorage discontinuity;
+    } scan_storage;
+
+    // Smem needed for loading keys
+    typename BlockLoadTempStorage<KeyT, BLOCK_THREADS, ITEMS_PER_THREAD, AgentUniqueByKeyPolicyT::LOAD_ALGORITHM, 1, 1>::
+      TempStorage load_keys;
+
+    // Smem needed for loading values
+    typename BlockLoadTempStorage<ValueT,
+                                  BLOCK_THREADS,
+                                  ITEMS_PER_THREAD,
+                                  AgentUniqueByKeyPolicyT::LOAD_ALGORITHM,
+                                  1,
+                                  1>::TempStorage load_values;
+
+    // Smem needed for compacting items (allows non POD items in this union)
+    Uninitialized<KeyExchangeT> shared_keys;
+    Uninitialized<ValueExchangeT> shared_values;
+  };
+
+  // Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename AgentUniqueByKeyPolicyT,
           typename KeyInputIteratorT,
           typename ValueInputIteratorT,
@@ -104,7 +150,13 @@ template <typename AgentUniqueByKeyPolicyT,
           typename EqualityOpT,
           typename OffsetT>
 struct AgentUniqueByKey
+    : public AgentUniqueByKeyTempStorage<AgentUniqueByKeyPolicyT, KeyInputIteratorT, ValueInputIteratorT, OffsetT>
 {
+  using storage_t =
+    AgentUniqueByKeyTempStorage<AgentUniqueByKeyPolicyT, KeyInputIteratorT, ValueInputIteratorT, OffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Types and constants
   //---------------------------------------------------------------------
@@ -158,31 +210,6 @@ struct AgentUniqueByKey
 
   // Value exchange type
   using ValueExchangeT = ValueT[ITEMS_PER_TILE];
-
-  // Shared memory type for this thread block
-  union _TempStorage
-  {
-    struct ScanStorage
-    {
-      typename BlockScanT::TempStorage scan;
-      typename TilePrefixCallback::TempStorage prefix;
-      typename BlockDiscontinuityKeys::TempStorage discontinuity;
-    } scan_storage;
-
-    // Smem needed for loading keys
-    typename BlockLoadKeys::TempStorage load_keys;
-
-    // Smem needed for loading values
-    typename BlockLoadValues::TempStorage load_values;
-
-    // Smem needed for compacting items (allows non POD items in this union)
-    Uninitialized<KeyExchangeT> shared_keys;
-    Uninitialized<ValueExchangeT> shared_values;
-  };
-
-  // Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   //---------------------------------------------------------------------
   // Per-thread fields

@@ -286,13 +286,36 @@ CUB_NAMESPACE_BEGIN
 //! @tparam BlockDimZ
 //!   **[optional]** The thread block length in threads along the Z dimension (default: 1)
 //!
+namespace detail
+{
+template <typename T, int BlockDimX, BlockReduceAlgorithm Algorithm, int BlockDimY, int BlockDimZ>
+struct BlockReduceTempStorage
+{
+  using internal_t = ::cuda::std::_If<
+    Algorithm == BLOCK_REDUCE_WARP_REDUCTIONS,
+    BlockReduceWarpReductionsTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>,
+    ::cuda::std::_If<Algorithm == BLOCK_REDUCE_WARP_REDUCTIONS_NONDETERMINISTIC,
+                     BlockReduceWarpReductionsTempStorage<T, BlockDimX, BlockDimY, BlockDimZ, false>,
+                     ::cuda::std::_If<Algorithm == BLOCK_REDUCE_RAKING_COMMUTATIVE_ONLY,
+                                      BlockReduceRakingCommutativeOnlyTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>,
+                                      BlockReduceRakingTempStorage<T, BlockDimX, BlockDimY, BlockDimZ>>>>;
+
+  using _TempStorage = typename internal_t::TempStorage;
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
 template <typename T,
           int BlockDimX,
           BlockReduceAlgorithm Algorithm = BLOCK_REDUCE_WARP_REDUCTIONS,
           int BlockDimY                  = 1,
           int BlockDimZ                  = 1>
-class BlockReduce
+class BlockReduce : private detail::BlockReduceTempStorage<T, BlockDimX, Algorithm, BlockDimY, BlockDimZ>
 {
+  using storage_t = detail::BlockReduceTempStorage<T, BlockDimX, Algorithm, BlockDimY, BlockDimZ>;
+
 private:
   /// The thread block size in threads
   static constexpr int BLOCK_THREADS = BlockDimX * BlockDimY * BlockDimZ;
@@ -313,7 +336,7 @@ private:
                                                        Raking>>>; // BlockReduceRaking
 
   /// Shared memory storage layout type for BlockReduce
-  using _TempStorage = typename InternalBlockReduce::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /// Internal storage allocator
   _CCCL_DEVICE _CCCL_FORCEINLINE _TempStorage& PrivateStorage()
@@ -330,8 +353,7 @@ private:
 
 public:
   /// @smemstorage{BlockReduce}
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   //! @name Collective constructors
   //! @{

@@ -205,24 +205,13 @@ _CCCL_DEVICE _CCCL_FORCEINLINE void SerialMerge(
  *   Provides a way of synchronizing threads. Should be derived from
  *   `BlockMergeSortStrategy`.
  */
-template <typename KeyT,
-          typename ValueT,
-          int NumThreads,
-          int ItemsPerThread,
-          typename SynchronizationPolicy,
-          bool Unroll = true>
-class BlockMergeSortStrategy
+namespace detail
 {
-  static_assert(::cuda::is_power_of_two(NumThreads), "NumThreads must be a power of two");
-
-private:
+template <typename KeyT, typename ValueT, int NumThreads, int ItemsPerThread, typename SynchronizationPolicy, bool Unroll>
+struct BlockMergeSortStrategyTempStorage
+{
   static constexpr int ITEMS_PER_TILE = ItemsPerThread * NumThreads;
 
-  // Whether or not there are values to be trucked along with keys
-  static constexpr bool KEYS_ONLY = ::cuda::std::is_same_v<ValueT, NullType>;
-
-#ifndef _CCCL_DOXYGEN_INVOKED // Do not document
-  /// Shared memory type required by this thread block.
   /// The tile is padded by one element because the serial merge prefetches one element past the
   /// end of a run without using its value. ITEMS_PER_TILE is a tight bound for every other read:
   /// when a partial tile truncates a run, the serial merge may walk up to ItemsPerThread
@@ -236,8 +225,35 @@ private:
   {
     KeyT keys_shared[ITEMS_PER_TILE + 1];
     ValueT items_shared[ITEMS_PER_TILE + 1];
-  }; // union TempStorage
-#endif // _CCCL_DOXYGEN_INVOKED
+  };
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+} // namespace detail
+
+template <typename KeyT,
+          typename ValueT,
+          int NumThreads,
+          int ItemsPerThread,
+          typename SynchronizationPolicy,
+          bool Unroll = true>
+class BlockMergeSortStrategy
+    : private detail::
+        BlockMergeSortStrategyTempStorage<KeyT, ValueT, NumThreads, ItemsPerThread, SynchronizationPolicy, Unroll>
+{
+  using storage_t =
+    detail::BlockMergeSortStrategyTempStorage<KeyT, ValueT, NumThreads, ItemsPerThread, SynchronizationPolicy, Unroll>;
+
+  static_assert(::cuda::is_power_of_two(NumThreads), "NumThreads must be a power of two");
+
+private:
+  static constexpr int ITEMS_PER_TILE = storage_t::ITEMS_PER_TILE;
+
+  // Whether or not there are values to be trucked along with keys
+  static constexpr bool KEYS_ONLY = ::cuda::std::is_same_v<ValueT, NullType>;
+
+  using _TempStorage = typename storage_t::_TempStorage;
 
   /// Shared storage reference
   _TempStorage& temp_storage;
@@ -253,8 +269,7 @@ private:
 
 public:
   /// \smemstorage{BlockMergeSort}
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
+  using TempStorage = typename storage_t::TempStorage;
 
   BlockMergeSortStrategy() = delete;
   explicit _CCCL_DEVICE _CCCL_FORCEINLINE BlockMergeSortStrategy(unsigned int linear_tid)

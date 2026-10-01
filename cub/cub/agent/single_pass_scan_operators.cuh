@@ -1203,20 +1203,15 @@ _CCCL_IKET_CREATE_PUSH_POP_RANGE(WaitAnchor);
 _CCCL_IKET_CREATE_PUSH_POP_RANGE(SetInclusive);
 _CCCL_IKET_CREATE_PUSH_POP_RANGE(WaitForValid);
 
-template <typename T,
-          typename ScanOpT,
-          typename ScanTileStateT,
-          typename DelayConstructorT = detail::default_delay_constructor_t<T>,
-          bool StableReductionOrder  = false>
-struct TilePrefixCallbackOp
+namespace detail
 {
-  // Parameterized warp reduce
-  using WarpReduceT = WarpReduce<T, (1 << (5))>;
-
+template <typename T>
+struct TilePrefixCallbackOpTempStorage
+{
   // Temporary storage type
   struct _TempStorage
   {
-    typename WarpReduceT::TempStorage warp_reduce;
+    typename WarpReduceTempStorage<T, (1 << (5))>::TempStorage warp_reduce;
     T exclusive_prefix;
     T inclusive_prefix;
     T block_aggregate;
@@ -1225,6 +1220,24 @@ struct TilePrefixCallbackOp
   // Alias wrapper allowing temporary storage to be unioned
   struct TempStorage : Uninitialized<_TempStorage>
   {};
+};
+} // namespace detail
+
+template <typename T,
+          typename ScanOpT,
+          typename ScanTileStateT,
+          typename DelayConstructorT = detail::default_delay_constructor_t<T>,
+          bool StableReductionOrder  = false>
+struct TilePrefixCallbackOp : private detail::TilePrefixCallbackOpTempStorage<T>
+{
+  using storage_t = detail::TilePrefixCallbackOpTempStorage<T>;
+
+  // Parameterized warp reduce
+  using WarpReduceT = WarpReduce<T, (1 << (5))>;
+
+  // Alias wrapper allowing temporary storage to be unioned
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
 
   // Type of status word
   using StatusWord = typename ScanTileStateT::StatusWord;

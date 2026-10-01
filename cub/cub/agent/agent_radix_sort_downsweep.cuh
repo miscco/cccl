@@ -142,6 +142,82 @@ namespace detail::radix_sort
  * @tparam OffsetT
  *   Signed integer type for global offsets
  */
+template <typename AgentRadixSortDownsweepPolicy, bool IsDescending, typename KeyT, typename ValueT, typename OffsetT>
+struct AgentRadixSortDownsweepTempStorage
+{
+  using traits           = radix::traits_t<KeyT>;
+  using bit_ordered_type = typename traits::bit_ordered_type;
+
+  static constexpr BlockLoadAlgorithm LOAD_ALGORITHM = AgentRadixSortDownsweepPolicy::LOAD_ALGORITHM;
+  static constexpr RadixRankAlgorithm RANK_ALGORITHM = AgentRadixSortDownsweepPolicy::RANK_ALGORITHM;
+  static constexpr BlockScanAlgorithm SCAN_ALGORITHM = AgentRadixSortDownsweepPolicy::SCAN_ALGORITHM;
+
+  static constexpr int BLOCK_THREADS    = AgentRadixSortDownsweepPolicy::BLOCK_THREADS;
+  static constexpr int ITEMS_PER_THREAD = AgentRadixSortDownsweepPolicy::ITEMS_PER_THREAD;
+  static constexpr int RADIX_BITS       = AgentRadixSortDownsweepPolicy::RADIX_BITS;
+  static constexpr int TILE_ITEMS       = BLOCK_THREADS * ITEMS_PER_THREAD;
+  static constexpr int RADIX_DIGITS     = 1 << RADIX_BITS;
+
+  using BlockRadixRankStorageT = ::cuda::std::_If<
+    RANK_ALGORITHM == RADIX_RANK_BASIC,
+    BlockRadixRankTempStorage<BLOCK_THREADS,
+                              RADIX_BITS,
+                              IsDescending,
+                              false,
+                              SCAN_ALGORITHM,
+                              cudaSharedMemBankSizeFourByte,
+                              1,
+                              1>,
+    ::cuda::std::_If<
+      RANK_ALGORITHM == RADIX_RANK_MEMOIZE,
+      BlockRadixRankTempStorage<BLOCK_THREADS,
+                                RADIX_BITS,
+                                IsDescending,
+                                true,
+                                SCAN_ALGORITHM,
+                                cudaSharedMemBankSizeFourByte,
+                                1,
+                                1>,
+      ::cuda::std::_If<
+        RANK_ALGORITHM == RADIX_RANK_MATCH,
+        BlockRadixRankMatchTempStorage<BLOCK_THREADS, RADIX_BITS, IsDescending, SCAN_ALGORITHM, 1, 1>,
+        ::cuda::std::_If<
+          RANK_ALGORITHM == RADIX_RANK_MATCH_EARLY_COUNTS_ANY,
+          BlockRadixRankMatchEarlyCountsTempStorage<BLOCK_THREADS, RADIX_BITS, IsDescending, SCAN_ALGORITHM, WARP_MATCH_ANY, 1>,
+          BlockRadixRankMatchEarlyCountsTempStorage<BLOCK_THREADS,
+                                                    RADIX_BITS,
+                                                    IsDescending,
+                                                    SCAN_ALGORITHM,
+                                                    WARP_MATCH_ATOMIC_OR,
+                                                    1>>>>>;
+  using ValueExchangeT = ValueT[TILE_ITEMS];
+
+  /**
+   * Shared memory storage layout
+   */
+  union __align__(16) _TempStorage
+  {
+    typename BlockLoadTempStorage<bit_ordered_type, BLOCK_THREADS, ITEMS_PER_THREAD, LOAD_ALGORITHM, 1, 1>::TempStorage
+      load_keys;
+    typename BlockLoadTempStorage<ValueT, BLOCK_THREADS, ITEMS_PER_THREAD, LOAD_ALGORITHM, 1, 1>::TempStorage load_values;
+    typename BlockRadixRankStorageT::TempStorage radix_rank;
+
+    struct KeysAndOffsets
+    {
+      bit_ordered_type exchange_keys[TILE_ITEMS];
+      OffsetT relative_bin_offsets[RADIX_DIGITS];
+    } keys_and_offsets;
+
+    Uninitialized<ValueExchangeT> exchange_values;
+
+    OffsetT exclusive_digit_prefix[RADIX_DIGITS];
+  };
+
+  /// Alias wrapper allowing storage to be unioned
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename AgentRadixSortDownsweepPolicy,
           bool IsDescending,
           typename KeyT,
@@ -149,7 +225,13 @@ template <typename AgentRadixSortDownsweepPolicy,
           typename OffsetT,
           typename DecomposerT = identity_decomposer_t>
 struct AgentRadixSortDownsweep
+    : public AgentRadixSortDownsweepTempStorage<AgentRadixSortDownsweepPolicy, IsDescending, KeyT, ValueT, OffsetT>
 {
+  using storage_t =
+    AgentRadixSortDownsweepTempStorage<AgentRadixSortDownsweepPolicy, IsDescending, KeyT, ValueT, OffsetT>;
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
   //---------------------------------------------------------------------
   // Type definitions and constants
   //---------------------------------------------------------------------
@@ -196,30 +278,6 @@ struct AgentRadixSortDownsweep
 
   // Value exchange array type
   using ValueExchangeT = ValueT[TILE_ITEMS];
-
-  /**
-   * Shared memory storage layout
-   */
-  union __align__(16) _TempStorage
-  {
-    typename BlockLoadKeysT::TempStorage load_keys;
-    typename BlockLoadValuesT::TempStorage load_values;
-    typename BlockRadixRankT::TempStorage radix_rank;
-
-    struct KeysAndOffsets
-    {
-      bit_ordered_type exchange_keys[TILE_ITEMS];
-      OffsetT relative_bin_offsets[RADIX_DIGITS];
-    } keys_and_offsets;
-
-    Uninitialized<ValueExchangeT> exchange_values;
-
-    OffsetT exclusive_digit_prefix[RADIX_DIGITS];
-  };
-
-  /// Alias wrapper allowing storage to be unioned
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
 
   //---------------------------------------------------------------------
   // Thread fields

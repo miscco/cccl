@@ -41,6 +41,17 @@ using InternalWarpExchangeImpl =
   ::cuda::std::_If<Algorithm == WARP_EXCHANGE_SMEM,
                    WarpExchangeSmem<InputT, ItemsPerThread, LogicalWarpThreads>,
                    WarpExchangeShfl<InputT, ItemsPerThread, LogicalWarpThreads>>;
+
+template <typename InputT, int ItemsPerThread, int LogicalWarpThreads, WarpExchangeAlgorithm Algorithm>
+struct WarpExchangeTempStorage
+{
+  using internal_t =
+    ::cuda::std::_If<Algorithm == WARP_EXCHANGE_SMEM,
+                     WarpExchangeSmemTempStorage<InputT, ItemsPerThread, LogicalWarpThreads>,
+                     WarpExchangeShflTempStorage<InputT, ItemsPerThread, LogicalWarpThreads>>;
+
+  using TempStorage = typename internal_t::TempStorage;
+};
 } // namespace detail
 
 /**

@@ -486,6 +486,120 @@ private:
   BackingUnitT data[NUM_TOTAL_UNITS] = {};
 };
 
+template <typename AgentMemcpySmallBuffersPolicyT, typename BufferSizeIteratorT, typename BufferOffsetT, typename BlockOffsetT>
+struct AgentBatchMemcpyTempStorage
+{
+  static constexpr uint32_t BLOCK_THREADS         = AgentMemcpySmallBuffersPolicyT::BLOCK_THREADS;
+  static constexpr uint32_t BUFFERS_PER_THREAD    = AgentMemcpySmallBuffersPolicyT::BUFFERS_PER_THREAD;
+  static constexpr uint32_t TLEV_BYTES_PER_THREAD = AgentMemcpySmallBuffersPolicyT::TLEV_BYTES_PER_THREAD;
+  static constexpr prefer_power_of_two_bits_option PREFER_POW2_BITS =
+    (AgentMemcpySmallBuffersPolicyT::PREFER_POW2_BITS)
+      ? prefer_power_of_two_bits_option::yes
+      : prefer_power_of_two_bits_option::no;
+  static constexpr uint32_t BUFFERS_PER_BLOCK       = BUFFERS_PER_THREAD * BLOCK_THREADS;
+  static constexpr uint32_t TLEV_BUFFERS_PER_THREAD = BUFFERS_PER_THREAD;
+  static constexpr uint32_t NUM_SIZE_CLASSES        = 3;
+  static constexpr uint32_t BUFFER_STABLE_PARTITION = false;
+
+  using BufferSizeT        = it_value_t<BufferSizeIteratorT>;
+  using BlockBufferOffsetT = uint16_t;
+  using TLevBufferSizeT    = uint16_t;
+
+  /**
+   * @brief Helper struct to simplify BlockExchange within a single four-byte word
+   */
+  struct ZippedTLevByteAssignment
+  {
+    // The buffer id within this tile
+    BlockBufferOffsetT tile_buffer_id;
+
+    // Byte-offset within that buffer
+    TLevBufferSizeT buffer_byte_offset;
+  };
+
+  /**
+   * POD to keep track of <buffer_id, buffer_size> pairs after having partitioned this tile's
+   * buffers by their size.
+   */
+  struct BufferTuple
+  {
+    // Size is only valid (and relevant) for buffers that are use thread-level collaboration
+    TLevBufferSizeT size;
+
+    // The buffer id relative to this tile (i.e., the buffer id within this tile)
+    BlockBufferOffsetT buffer_id;
+  };
+
+  using VectorizedSizeClassCounterT = bit_packed_counter<NUM_SIZE_CLASSES, BUFFERS_PER_BLOCK, PREFER_POW2_BITS>;
+
+  //-----------------------------------------------------------------------------
+  // SHARED MEMORY DECLARATIONS
+  //-----------------------------------------------------------------------------
+  struct _TempStorage
+  {
+    union
+    {
+      typename BlockLoadTempStorage<BufferSizeT,
+                                    static_cast<int32_t>(BLOCK_THREADS),
+                                    static_cast<int32_t>(BUFFERS_PER_THREAD),
+                                    BUFFER_STABLE_PARTITION ? BLOCK_LOAD_WARP_TRANSPOSE : BLOCK_LOAD_STRIPED,
+                                    1,
+                                    1>::TempStorage load_storage;
+
+      // Stage 1: histogram over the size classes in preparation for partitioning buffers by size
+      typename BlockScanTempStorage<VectorizedSizeClassCounterT,
+                                    static_cast<int32_t>(BLOCK_THREADS),
+                                    BLOCK_SCAN_RAKING,
+                                    1,
+                                    1>::TempStorage size_scan_storage;
+
+      // Stage 2: Communicate the number ofer buffers requiring block-level collaboration
+      typename TilePrefixCallbackOpTempStorage<BufferOffsetT>::TempStorage buffer_scan_callback;
+
+      // Stage 3; batch memcpy buffers that require only thread-level collaboration
+      struct
+      {
+        BufferTuple buffers_by_size_class[BUFFERS_PER_BLOCK];
+
+        // Stage 3.1: Write buffers requiring block-level collaboration to queue
+        union
+        {
+          struct
+          {
+            typename TilePrefixCallbackOpTempStorage<BlockOffsetT>::TempStorage block_scan_callback;
+            typename BlockScanTempStorage<BlockOffsetT, static_cast<int32_t>(BLOCK_THREADS), BLOCK_SCAN_RAKING, 1, 1>::
+              TempStorage block_scan_storage;
+          } blev;
+
+          // Stage 3.3: run-length decode & block exchange for tlev
+          // rld_state needs to be persistent across loop iterations (RunLengthDecode calls) and,
+          // hence, cannot alias block_exchange_storage
+          struct
+          {
+            typename BlockRunLengthDecodeTempStorage<BlockBufferOffsetT,
+                                                     static_cast<int32_t>(BLOCK_THREADS),
+                                                     static_cast<int32_t>(TLEV_BUFFERS_PER_THREAD),
+                                                     static_cast<int32_t>(TLEV_BYTES_PER_THREAD),
+                                                     uint32_t,
+                                                     1,
+                                                     1>::TempStorage rld_state;
+            typename BlockExchangeTempStorage<ZippedTLevByteAssignment,
+                                              static_cast<int32_t>(BLOCK_THREADS),
+                                              static_cast<int32_t>(TLEV_BYTES_PER_THREAD),
+                                              false,
+                                              1,
+                                              1>::TempStorage block_exchange_storage;
+          } tlev;
+        };
+      } staged;
+    };
+    BufferOffsetT blev_buffer_offset;
+  };
+
+  struct TempStorage : Uninitialized<_TempStorage>
+  {};
+};
+
 template <typename AgentMemcpySmallBuffersPolicyT,
           typename InputBufferIt,
           typename OutputBufferIt,
@@ -500,7 +614,15 @@ template <typename AgentMemcpySmallBuffersPolicyT,
           typename BLevBlockOffsetTileState,
           bool IsMemcpy>
 class AgentBatchMemcpy
+    : public AgentBatchMemcpyTempStorage<AgentMemcpySmallBuffersPolicyT, BufferSizeIteratorT, BufferOffsetT, BlockOffsetT>
 {
+  using storage_t =
+    AgentBatchMemcpyTempStorage<AgentMemcpySmallBuffersPolicyT, BufferSizeIteratorT, BufferOffsetT, BlockOffsetT>;
+
+public:
+  using TempStorage = typename storage_t::TempStorage;
+  using _TempStorage = typename storage_t::_TempStorage;
+
 private:
   //---------------------------------------------------------------------
   // CONFIGS / CONSTANTS
@@ -556,30 +678,8 @@ private:
   /// Internal type used to index into the bytes of and represent size of a TLEV buffer
   using TLevBufferSizeT = uint16_t;
 
-  /**
-   * @brief Helper struct to simplify BlockExchange within a single four-byte word
-   */
-  struct ZippedTLevByteAssignment
-  {
-    // The buffer id within this tile
-    BlockBufferOffsetT tile_buffer_id;
-
-    // Byte-offset within that buffer
-    TLevBufferSizeT buffer_byte_offset;
-  };
-
-  /**
-   * POD to keep track of <buffer_id, buffer_size> pairs after having partitioned this tile's
-   * buffers by their size.
-   */
-  struct BufferTuple
-  {
-    // Size is only valid (and relevant) for buffers that are use thread-level collaboration
-    TLevBufferSizeT size;
-
-    // The buffer id relative to this tile (i.e., the buffer id within this tile)
-    BlockBufferOffsetT buffer_id;
-  };
+  using ZippedTLevByteAssignment = typename storage_t::ZippedTLevByteAssignment;
+  using BufferTuple              = typename storage_t::BufferTuple;
 
   // Load buffers in a striped arrangement if we do not want to perform a stable partitioning into
   // small, medium, and large buffers, otherwise load them in a blocked arrangement
@@ -630,62 +730,6 @@ private:
                          BLevBlockOffsetTileState,
                          typename AgentMemcpySmallBuffersPolicyT::block_delay_constructor>;
 
-  //-----------------------------------------------------------------------------
-  // SHARED MEMORY DECLARATIONS
-  //-----------------------------------------------------------------------------
-  struct _TempStorage
-  {
-    union
-    {
-      typename BufferLoadT::TempStorage load_storage;
-
-      // Stage 1: histogram over the size classes in preparation for partitioning buffers by size
-      typename BlockSizeClassScanT::TempStorage size_scan_storage;
-
-      // Stage 2: Communicate the number ofer buffers requiring block-level collaboration
-      typename BLevBuffScanPrefixCallbackOpT::TempStorage buffer_scan_callback;
-
-      // Stage 3; batch memcpy buffers that require only thread-level collaboration
-      struct
-      {
-        BufferTuple buffers_by_size_class[BUFFERS_PER_BLOCK];
-
-        // Stage 3.1: Write buffers requiring block-level collaboration to queue
-        union
-        {
-          struct
-          {
-            typename BLevBlockScanPrefixCallbackOpT::TempStorage block_scan_callback;
-            typename BlockBLevTileCountScanT::TempStorage block_scan_storage;
-          } blev;
-
-          // Stage 3.3: run-length decode & block exchange for tlev
-          // rld_state needs to be persistent across loop iterations (RunLengthDecode calls) and,
-          // hence, cannot alias block_exchange_storage
-          struct
-          {
-            typename BlockRunLengthDecodeT::TempStorage rld_state;
-            typename BlockExchangeTLevT::TempStorage block_exchange_storage;
-          } tlev;
-        };
-      } staged;
-    };
-    BufferOffsetT blev_buffer_offset;
-  };
-
-  //-----------------------------------------------------------------------------
-  // PUBLIC TYPE MEMBERS
-  //-----------------------------------------------------------------------------
-
-public:
-  struct TempStorage : Uninitialized<_TempStorage>
-  {};
-
-  //-----------------------------------------------------------------------------
-  // PRIVATE MEMBER FUNCTIONS
-  //-----------------------------------------------------------------------------
-
-private:
   /// Shared storage reference
   _TempStorage& temp_storage;
 
