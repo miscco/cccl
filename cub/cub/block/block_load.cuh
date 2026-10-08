@@ -24,6 +24,7 @@
 #include <cub/util_ptx.cuh>
 #include <cub/util_type.cuh>
 
+#include <cuda/__iterator/contiguous_iterator_adaptor.h>
 #include <cuda/std/__concepts/same_as.h>
 #include <cuda/std/__fwd/format.h>
 #include <cuda/std/__host_stdlib/ostream>
@@ -228,6 +229,48 @@ InternalLoadDirectBlockedVectorized(int linear_tid, const T* block_src_ptr, T (&
   else
   {
     LoadDirectBlocked(linear_tid, block_src_ptr, dst_items);
+  }
+}
+
+//! @brief Vectorized load for a contiguous iterator adaptor
+//!
+//! Unwraps @p block_src_it, vectorizes that base pointer into a local array, then reads @p dst_items through the
+//! adaptor rebased onto that array.
+_CCCL_TEMPLATE(CacheLoadModifier MODIFIER, typename T, int ItemsPerThread, typename InputIterator)
+_CCCL_REQUIRES(::cuda::__iterator_can_rebase<InputIterator>)
+_CCCL_DEVICE _CCCL_FORCEINLINE void
+InternalLoadDirectBlockedVectorized(int linear_tid, InputIterator& block_src_it, T (&dst_items)[ItemsPerThread])
+{
+  using storage_t                = ::cuda::__unwrapped_iter_value_t<InputIterator>;
+  const storage_t* block_src_ptr = ::cuda::std::to_address(::cuda::__unwrap_iterator_adaptor(block_src_it));
+
+  using device_word_t              = typename UnitWord<storage_t>::DeviceWord;
+  constexpr int total_words        = static_cast<int>(ItemsPerThread * sizeof(storage_t) / sizeof(device_word_t));
+  constexpr int vector_size        = (total_words % 4 == 0) ? 4 : (total_words % 2 == 0) ? 2 : 1;
+  constexpr int vectors_per_thread = total_words / vector_size;
+  using vector_t                   = typename CubVector<device_word_t, vector_size>::Type;
+
+  if (::cuda::std::is_sufficiently_aligned<alignof(vector_t)>(block_src_ptr))
+  {
+    vector_t vec_items[vectors_per_thread];
+    const vector_t* vec_ptr = reinterpret_cast<const vector_t*>(block_src_ptr) + linear_tid * vectors_per_thread;
+
+    _CCCL_PRAGMA_UNROLL_FULL()
+    for (int i = 0; i < vectors_per_thread; i++)
+    {
+      vec_items[i] = ThreadLoad<MODIFIER>(vec_ptr + i);
+    }
+
+    block_src_it.__rebase(reinterpret_cast<storage_t*>(vec_items));
+    _CCCL_PRAGMA_UNROLL_FULL()
+    for (int i = 0; i < ItemsPerThread; i++)
+    {
+      dst_items[i] = block_src_it[i];
+    }
+  }
+  else
+  {
+    LoadDirectBlocked(linear_tid, block_src_it, dst_items);
   }
 }
 
@@ -1014,6 +1057,10 @@ public:
       else if constexpr (THRUST_NS_QUALIFIER::is_contiguous_iterator_v<RandomAccessIterator>)
       {
         InternalLoadDirectBlockedVectorized<LOAD_DEFAULT>(linear_tid, ::cuda::std::to_address(block_src_it), dst_items);
+      }
+      else if constexpr (::cuda::__iterator_can_rebase<RandomAccessIterator>)
+      {
+        InternalLoadDirectBlockedVectorized<LOAD_DEFAULT>(linear_tid, block_src_it, dst_items);
       }
       else
       {

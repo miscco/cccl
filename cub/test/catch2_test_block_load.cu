@@ -6,7 +6,33 @@
 #include <cub/util_allocator.cuh>
 #include <cub/util_arch.cuh>
 
+#include <cuda/iterator>
+
 #include "cub_test_macros.h"
+
+struct widen_and_increment
+{
+  _CCCL_HOST_DEVICE ::cuda::std::uint32_t operator()(char value) const
+  {
+    return static_cast<::cuda::std::uint32_t>(value) + 1;
+  }
+};
+
+struct double_value
+{
+  _CCCL_HOST_DEVICE ::cuda::std::uint32_t operator()(::cuda::std::uint32_t value) const
+  {
+    return value * 2;
+  }
+};
+
+struct plus_one
+{
+  _CCCL_HOST_DEVICE int operator()(int value) const
+  {
+    return value + 1;
+  }
+};
 
 template <int ItemsPerThread, int ThreadsInBlock, cub::BlockLoadAlgorithm LoadAlgorithm>
 static __device__ int get_output_idx(int item)
@@ -204,6 +230,67 @@ CUB_TEST("Block load works with caching iterators", "[load][block]", CUB_SMALL, 
     thrust::raw_pointer_cast(d_input.data()));
   test_block_load<items_per_thread, threads_in_block, load_algorithm>(d_input, in);
 }
+
+template <int ItemsPerThread, int ThreadsInBlock>
+void test_widening_adaptor(int offset)
+{
+  constexpr int tile_size = ItemsPerThread * ThreadsInBlock;
+
+  c2h::host_vector<char> h_storage(static_cast<std::size_t>(tile_size + offset));
+  c2h::host_vector<::cuda::std::uint32_t> h_expected(tile_size);
+  for (int item = 0; item < tile_size + offset; ++item)
+  {
+    h_storage[item] = static_cast<char>(item % 100);
+  }
+  for (int item = 0; item < tile_size; ++item)
+  {
+    h_expected[item] = (static_cast<::cuda::std::uint32_t>(h_storage[item + offset]) + 1) * 2;
+  }
+
+  c2h::device_vector<char> d_storage                   = h_storage;
+  c2h::device_vector<::cuda::std::uint32_t> d_expected = h_expected;
+  const char* base                                     = thrust::raw_pointer_cast(d_storage.data()) + offset;
+  auto inner = ::cuda::transform_iterator<widen_and_increment, const char*>{base, widen_and_increment{}};
+  auto input = ::cuda::transform_iterator<double_value, decltype(inner)>{inner, double_value{}};
+
+  test_block_load<ItemsPerThread, ThreadsInBlock, cub::BlockLoadAlgorithm::BLOCK_LOAD_VECTORIZE>(d_expected, input);
+}
+
+template <int ItemsPerThread, int ThreadsInBlock>
+void test_same_size_adaptor(int offset)
+{
+  constexpr int tile_size = ItemsPerThread * ThreadsInBlock;
+
+  c2h::host_vector<int> h_storage(static_cast<std::size_t>(tile_size + offset));
+  for (int item = 0; item < tile_size + offset; ++item)
+  {
+    h_storage[item] = item * 17 + 3;
+  }
+  c2h::device_vector<int> d_storage = h_storage;
+  c2h::host_vector<int> h_expected(tile_size);
+  for (int item = 0; item < tile_size; ++item)
+  {
+    h_expected[item] = h_storage[item + offset] + 1;
+  }
+
+  c2h::device_vector<int> d_expected = h_expected;
+  auto input =
+    ::cuda::transform_iterator<plus_one, int*>{thrust::raw_pointer_cast(d_storage.data()) + offset, plus_one{}};
+
+  test_block_load<ItemsPerThread, ThreadsInBlock, cub::BlockLoadAlgorithm::BLOCK_LOAD_VECTORIZE>(d_expected, input);
+}
+
+#if IPT == 1
+// Offset 0 takes the vectorized load. Offset 1 is misaligned for the wider vector types and uses the scalar fallback.
+CUB_TEST("Vectorized block load works with contiguous iterator adaptors", "[load][block]", CUB_SMALL, c2h::type_list<int>)
+{
+  const int offset = GENERATE(0, 1);
+  test_widening_adaptor<1, 32>(offset);
+  test_widening_adaptor<4, 64>(offset);
+  test_widening_adaptor<8, 128>(offset);
+  test_same_size_adaptor<4, 64>(offset);
+}
+#endif
 
 #if IPT == 1
 CUB_TEST("Vectorized block load with const and non-const datatype and different alignment cases",
