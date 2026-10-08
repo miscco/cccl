@@ -152,11 +152,16 @@ public:
   /*! \endcond
    */
 
-  /*! \return A \p const reference to the \p Base iterator this \p iterator_adaptor adapts.
-   */
-  _CCCL_HOST_DEVICE Base const& base() const
+  //! @brief A \p const reference to the \p Base iterator this \p iterator_adaptor adapts
+  _CCCL_HOST_DEVICE Base const& base() const&
   {
     return m_iterator;
+  }
+
+  //! @brief Extracts the \p Base iterator this \p iterator_adaptor adapts
+  _CCCL_HOST_DEVICE Base base() &&
+  {
+    return ::cuda::std::move(m_iterator);
   }
 
 protected:
