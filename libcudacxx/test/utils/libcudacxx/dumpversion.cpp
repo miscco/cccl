@@ -26,6 +26,12 @@ int main()
   major_version = __NVCOMPILER;
   minor_version = ___NVCOMPILER_MINOR__;
   patch_level   = ___NVCOMPILER_PATCHLEVEL__;
+#elif defined(__CIRCLE_LANG__)
+  // Circle defines __clang__. Identify it before the Clang branch.
+  compiler_type = "circle";
+  major_version = __circle_major__;
+  minor_version = __circle_minor__;
+  patch_level   = __circle_build__;
 #elif defined(__clang__)
   compiler_type = "clang";
   major_version = __clang_major__;

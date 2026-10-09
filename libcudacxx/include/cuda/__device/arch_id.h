@@ -192,7 +192,7 @@ _CCCL_DEVICE_API ::cuda::arch_id __unknown_cuda_architecture();
 template <class _Dummy = void>
 [[nodiscard]] _CCCL_DEVICE_API inline _CCCL_TARGET_CONSTEXPR ::cuda::arch_id current_arch_id() noexcept
 {
-#  if _CCCL_CUDA_COMPILER(NVHPC)
+#  if _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE)
   const auto __cc = ::cuda::device::current_compute_capability();
   if (::cuda::__has_known_arch(__cc))
   {

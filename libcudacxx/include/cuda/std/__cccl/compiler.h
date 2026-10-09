@@ -62,6 +62,7 @@
 #define _CCCL_COMPILER_MSVC2022() _CCCL_VERSION_INVALID()
 #define _CCCL_COMPILER_MSVC2026() _CCCL_VERSION_INVALID()
 #define _CCCL_COMPILER_NVRTC()    _CCCL_VERSION_INVALID()
+#define _CCCL_COMPILER_CIRCLE()   _CCCL_VERSION_INVALID()
 
 // Determine the host compiler and its version
 #if defined(__INTEL_COMPILER)
@@ -69,6 +70,9 @@
 #    warning \
       "The Intel C++ Compiler Classic (icc/icpc) is not supported by CCCL. Define CCCL_IGNORE_DEPRECATED_COMPILER to suppress this message."
 #  endif // !CCCL_IGNORE_DEPRECATED_COMPILER
+#elif defined(__CIRCLE_LANG__)
+#  undef _CCCL_COMPILER_CIRCLE
+#  define _CCCL_COMPILER_CIRCLE() (__circle_major__, __circle_minor__)
 #elif defined(__NVCOMPILER)
 #  undef _CCCL_COMPILER_NVHPC
 #  define _CCCL_COMPILER_NVHPC() (__NVCOMPILER_MAJOR__, __NVCOMPILER_MINOR__)
@@ -115,16 +119,20 @@
 #define _CCCL_CUDA_COMPILER_MAKE_VERSION(_MAJOR, _MINOR) _CCCL_COMPILER_MAKE_VERSION(_MAJOR, _MINOR)
 #define _CCCL_CUDA_COMPILER(...) _CCCL_VERSION_COMPARE(_CCCL_CUDA_COMPILER_, _CCCL_CUDA_COMPILER_##__VA_ARGS__)
 
-#define _CCCL_CUDA_COMPILER_NVCC()  _CCCL_VERSION_INVALID()
-#define _CCCL_CUDA_COMPILER_NVHPC() _CCCL_VERSION_INVALID()
-#define _CCCL_CUDA_COMPILER_CLANG() _CCCL_VERSION_INVALID()
-#define _CCCL_CUDA_COMPILER_NVRTC() _CCCL_VERSION_INVALID()
+#define _CCCL_CUDA_COMPILER_NVCC()   _CCCL_VERSION_INVALID()
+#define _CCCL_CUDA_COMPILER_NVHPC()  _CCCL_VERSION_INVALID()
+#define _CCCL_CUDA_COMPILER_CLANG()  _CCCL_VERSION_INVALID()
+#define _CCCL_CUDA_COMPILER_NVRTC()  _CCCL_VERSION_INVALID()
+#define _CCCL_CUDA_COMPILER_CIRCLE() _CCCL_VERSION_INVALID()
 
 // Determine the cuda compiler
 #if _CCCL_CUDA_COMPILATION()
 #  if defined(__NVCC__)
 #    undef _CCCL_CUDA_COMPILER_NVCC
 #    define _CCCL_CUDA_COMPILER_NVCC() (__CUDACC_VER_MAJOR__, __CUDACC_VER_MINOR__)
+#  elif defined(__CIRCLE_LANG__) && (defined(__CIRCLE_CUDA_SINGLE_PASS__) || defined(__CIRCLE_CUDA_MULTI_PASS__))
+#    undef _CCCL_CUDA_COMPILER_CIRCLE
+#    define _CCCL_CUDA_COMPILER_CIRCLE() _CCCL_COMPILER_CIRCLE()
 #  elif defined(_NVHPC_CUDA)
 #    undef _CCCL_CUDA_COMPILER_NVHPC
 #    define _CCCL_CUDA_COMPILER_NVHPC() _CCCL_COMPILER_NVHPC()
@@ -145,7 +153,7 @@
 #  define _CCCL_HOST_COMPILATION() 0
 #endif // ^^^ not compiling host code ^^^
 
-#if (_CCCL_CUDA_COMPILATION() && defined(__CUDA_ARCH__)) || _CCCL_CUDA_COMPILER(NVHPC)
+#if (_CCCL_CUDA_COMPILATION() && defined(__CUDA_ARCH__)) || _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE)
 #  define _CCCL_DEVICE_COMPILATION() 1
 #else // ^^^ compiling device code ^^^ / vvv not compiling device code vvv
 #  define _CCCL_DEVICE_COMPILATION() 0
@@ -162,7 +170,7 @@
 
 // clang-cuda does not define __CUDACC_VER_MAJOR__ and friends. They are instead retrieved from the CUDA_VERSION macro
 // defined in "cuda.h". clang-cuda automatically pre-includes "__clang_cuda_runtime_wrapper.h" which includes "cuda.h"
-#if _CCCL_CUDA_COMPILER(NVCC) || _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(NVRTC)
+#if _CCCL_CUDA_COMPILER(NVCC) || _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(NVRTC) || _CCCL_CUDA_COMPILER(CIRCLE)
 #  define _CCCL_CUDACC() (__CUDACC_VER_MAJOR__, __CUDACC_VER_MINOR__)
 #elif _CCCL_CUDA_COMPILER(CLANG)
 #  define _CCCL_CUDACC() (CUDA_VERSION / 1000, (CUDA_VERSION % 1000) / 10)

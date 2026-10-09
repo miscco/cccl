@@ -761,6 +761,15 @@ class Configuration(object):
             real_arch_format = "--cuda-gpu-arch=sm_{0}"
             virt_arch_format = "--cuda-gpu-arch=compute_{0}"
             self.cxx.compile_flags += ["-O1"]
+        elif self.cxx.type == "circle":
+            # --cuda-path enables CUDA for any input extension. -sm_XX is required
+            # alongside it (Circle errors if the path is set and no target is).
+            # Each -sm_XX target emits both SASS and PTX, so virtual architectures
+            # use the same flag.
+            real_arch_format = "-sm_{0}"
+            virt_arch_format = "-sm_{0}"
+            if self.cxx.cuda_path:
+                self.cxx.compile_flags += ["--cuda-path=" + self.cxx.cuda_path]
         pre_sm_32 = True
         pre_sm_60 = True
         pre_sm_70 = True
@@ -770,6 +779,7 @@ class Configuration(object):
         if compute_archs and (
             self.cxx.type == "nvcc"
             or self.cxx.type == "clang"
+            or self.cxx.type == "circle"
             or self.cxx.type == "nvrtcc"
         ):
             pre_sm_32 = False
@@ -815,7 +825,12 @@ class Configuration(object):
                 arch_flags += [real_arch_format.format(arch)]
                 if mode.count("virtual"):
                     arch_flags += [virt_arch_format.format(arch)]
-            self.cxx.compile_flags += sorted(arch_flags)
+            # Circle's real and virtual targets are the same -sm_XX flag.
+            if self.cxx.type == "circle":
+                arch_flags = sorted(set(arch_flags))
+            else:
+                arch_flags = sorted(arch_flags)
+            self.cxx.compile_flags += arch_flags
         if pre_sm_32:
             self.config.available_features.add("pre-sm-32")
         if pre_sm_60:
@@ -1127,6 +1142,18 @@ class Configuration(object):
         nvcc_host_compiler = self.get_lit_conf("nvcc_host_compiler")
         if nvcc_host_compiler and self.cxx.type == "nvcc":
             self.cxx.link_flags += ["-ccbin={0}".format(nvcc_host_compiler)]
+
+        if self.cxx.type == "circle":
+            # Circle links libcudart implicitly, but only for a CUDA link:
+            # --cuda-path plus at least one -sm_XX. Those flags live on the
+            # compile step; the separate link of the .o must repeat them or
+            # ld.lld reports undefined cudaLaunchKernel / __cudaRegisterFatBinary.
+            # https://github.com/seanbaxter/circle/blob/master/cuda/README.md
+            self.cxx.link_flags += [
+                flag
+                for flag in self.cxx.compile_flags
+                if flag.startswith("--cuda-path=") or flag.startswith("-sm_")
+            ]
 
         if self.is_windows:
             self.cxx.link_flags += ["--use-local-env"]

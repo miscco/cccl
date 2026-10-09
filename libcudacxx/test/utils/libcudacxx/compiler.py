@@ -119,6 +119,12 @@ class CXXCompiler(object):
                 major_ver = int(macros["__NVCOMPILER_MAJOR__"].strip())
                 minor_ver = int(macros["__NVCOMPILER_MINOR__"].strip())
                 patchlevel = int(macros["__NVCOMPILER_PATCHLEVEL__"].strip())
+            elif "__CIRCLE_LANG__" in macros.keys():
+                # Circle defines __clang__. Detect it first so it is not treated as Clang.
+                compiler_type = "circle"
+                major_ver = int(macros["__circle_major__"])
+                minor_ver = int(macros["__circle_minor__"])
+                patchlevel = int(macros.get("__circle_build__", "0") or "0")
             elif "__clang__" in macros.keys():
                 compiler_type = "clang"
                 major_ver = int(macros["__clang_major__"])
@@ -179,6 +185,9 @@ class CXXCompiler(object):
         elif self.type == "clang":
             # Treat C++ as clang-cuda when the compiler is Clang.
             self.source_lang = "cu"
+        # Circle stays source_lang "c++". CUDA is enabled by --cuda-path, not by
+        # a language mode: Circle rejects `-x cu` / `-x cuda`, and a .cu extension
+        # is not required. See cuda/README.md "Circle as a heterogeneous compiler".
 
     def _basicCmdCl(
         self, source_files, out, mode=CM_Default, flags=[], input_is_cxx=False
@@ -515,7 +524,10 @@ class CXXCompiler(object):
         """
         assert isinstance(flag, str)
         assert flag.startswith("-W")
-        if not flag.startswith("-Wno-"):
+        # Circle rejects unknown arguments outright, so the GCC -Wno- probe that
+        # compiles "-" from stdin is unnecessary. Circle also rejects "-" as an
+        # input file.
+        if self.type == "circle" or not flag.startswith("-Wno-"):
             return self.hasCompileFlag(flag)
         flags = ["-Werror", flag]
         old_use_warnings = self.use_warnings

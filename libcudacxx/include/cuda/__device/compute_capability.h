@@ -254,7 +254,7 @@ _CCCL_BEGIN_NAMESPACE_CUDA_DEVICE
 [[nodiscard]] _CCCL_DEVICE_API inline _CCCL_TARGET_CONSTEXPR ::cuda::compute_capability
 current_compute_capability() noexcept
 {
-#  if _CCCL_CUDA_COMPILER(NVHPC)
+#  if _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE)
   return ::cuda::compute_capability{__builtin_current_device_sm()};
 #  elif _CCCL_DEVICE_COMPILATION()
   return ::cuda::compute_capability{__CUDA_ARCH__ / 10};

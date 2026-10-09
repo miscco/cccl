@@ -21,9 +21,9 @@
 #  pragma system_header
 #endif // no system header
 
-#if _CCCL_DEVICE_COMPILATION() && _CCCL_PTX_ARCH() < 700 && !_CCCL_CUDA_COMPILER(NVHPC)
+#if _CCCL_DEVICE_COMPILATION() && _CCCL_PTX_ARCH() < 700 && !_CCCL_CUDA_COMPILER(NVHPC) && !_CCCL_CUDA_COMPILER(CIRCLE)
 #  error "CUDA synchronization primitives are only supported for sm_70 and up."
-#endif // _CCCL_DEVICE_COMPILATION() && _CCCL_PTX_ARCH() < 700 && !_CCCL_CUDA_COMPILER(NVHPC)
+#endif // _CCCL_DEVICE_COMPILATION() && _CCCL_PTX_ARCH() < 700 && !_CCCL_CUDA_COMPILER(NVHPC) && !_CCCL_CUDA_COMPILER(CIRCLE)
 
 // IWYU pragma: begin_exports
 #include <cuda/std/__latch/latch.h>

@@ -182,7 +182,7 @@ struct NoScaling
 
 [[nodiscard]] _CCCL_HOST_DEVICE_API constexpr ::cuda::compute_capability current_tuning_cc() noexcept
 {
-#  if _CCCL_CUDA_COMPILER(NVHPC)
+#  if _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE)
   return ::cuda::compute_capability(NV_TARGET_MINIMUM_SM_INTEGER);
 #  elif _CCCL_DEVICE_COMPILATION()
   return ::cuda::device::current_compute_capability();

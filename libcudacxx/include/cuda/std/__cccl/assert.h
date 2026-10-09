@@ -145,8 +145,9 @@ void __assert_fail(const char* __assertion, const char* __file, unsigned int __l
 
 //! _CCCL_VERIFY is enabled unconditionally and reserved for critical checks that are required to always be on
 //! _CCCL_ASSERT is enabled conditionally depending on CCCL_ENABLE_HOST_ASSERTIONS and CCCL_ENABLE_DEVICE_ASSERTIONS
-#if _CCCL_CUDA_COMPILER(NVHPC) // NVHPC can't have different behavior for host and device.
-                               // The host version of the assert will also work in device code.
+#if _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE)
+// NVHPC can't have different behavior for host and device. The host version of the assert will also work in device
+// code.
 #  define _CCCL_VERIFY(expression, message) _CCCL_ASSERT_IMPL_HOST(expression, message)
 #  if defined(CCCL_ENABLE_HOST_ASSERTIONS) || defined(CCCL_ENABLE_DEVICE_ASSERTIONS)
 #    define _CCCL_ASSERT(expression, message) _CCCL_ASSERT_HOST(expression, message)

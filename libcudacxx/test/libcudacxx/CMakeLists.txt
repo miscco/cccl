@@ -182,6 +182,10 @@ elseif (${CMAKE_CUDA_COMPILER_ID} STREQUAL "NVIDIA")
     " ${LIBCUDACXX_WARNING_LEVEL}"
     " -Wno-deprecated-gpu-targets"
   )
+elseif (${CMAKE_CUDA_COMPILER_ID} STREQUAL "Circle")
+  # Circle is not NVCC, so it does not take --compiler-options. It still needs
+  # the forced include that defines cuda_thread_count and renames main.
+  string(APPEND LIBCUDACXX_TEST_COMPILER_FLAGS " ${LIBCUDACXX_FORCE_INCLUDE}")
 elseif (${CMAKE_CUDA_COMPILER_ID} STREQUAL "NVHPC")
   string(APPEND LIBCUDACXX_TEST_COMPILER_FLAGS " -stdpar")
   string(APPEND LIBCUDACXX_TEST_LINKER_FLAGS " -stdpar")
