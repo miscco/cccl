@@ -1,0 +1,47 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file LICENSE.rst or https://cmake.org/licensing for details.
+
+include(Compiler/Circle)
+__compiler_circle(CUDA)
+
+set(CMAKE_CUDA_COMPILE_OPTIONS_VISIBILITY_INLINES_HIDDEN "-fvisibility-inlines-hidden")
+
+set(CMAKE_CUDA11_STANDARD_COMPILE_OPTION "-std=c++11")
+set(CMAKE_CUDA11_EXTENSION_COMPILE_OPTION "-std=gnu++11")
+set(CMAKE_CUDA14_STANDARD_COMPILE_OPTION "-std=c++14")
+set(CMAKE_CUDA14_EXTENSION_COMPILE_OPTION "-std=gnu++14")
+set(CMAKE_CUDA17_STANDARD_COMPILE_OPTION "-std=c++17")
+set(CMAKE_CUDA17_EXTENSION_COMPILE_OPTION "-std=gnu++17")
+set(CMAKE_CUDA20_STANDARD_COMPILE_OPTION "-std=c++20")
+set(CMAKE_CUDA20_EXTENSION_COMPILE_OPTION "-std=gnu++20")
+set(CMAKE_CUDA23_STANDARD_COMPILE_OPTION "-std=c++23")
+set(CMAKE_CUDA23_EXTENSION_COMPILE_OPTION "-std=gnu++23")
+set(CMAKE_CUDA_STANDARD_LATEST 23)
+
+# Circle compiles .cu as CUDA when --cuda-path / CUDA_PATH and -sm_XX are set.
+# It rejects Clang's `-x cuda` and `--cuda-gpu-arch`. Architecture flags are
+# supplied via CUDAFLAGS (see the devcontainer environment).
+set(_CMAKE_COMPILE_AS_CUDA_FLAG "")
+set(_CMAKE_CUDA_WHOLE_FLAG "-c")
+set(_CMAKE_CUDA_RDC_FLAG "")
+set(_CMAKE_CUDA_PTX_FLAG "-S")
+
+set(CMAKE_CUDA_COMPILER_HAS_DEVICE_LINK_PHASE FALSE)
+set(CMAKE_CUDA_DEVICE_LINK_MODE DRIVER)
+
+set(_CMAKE_CUDA_IPO_SUPPORTED_BY_CMAKE NO)
+set(_CMAKE_CUDA_IPO_MAY_BE_SUPPORTED_BY_COMPILER NO)
+
+# Circle links libcudart itself. Drive the host link with Circle so that
+# implicit CUDA runtime dependency is preserved.
+set(CMAKE_CUDA_LINK_EXECUTABLE "<CMAKE_CUDA_COMPILER> <FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> <LINK_LIBRARIES>")
+set(CMAKE_CUDA_CREATE_SHARED_LIBRARY "<CMAKE_CUDA_COMPILER> <CMAKE_SHARED_LIBRARY_CUDA_FLAGS> <LANGUAGE_COMPILE_FLAGS> <LINK_FLAGS> -o <TARGET> <OBJECTS> <LINK_LIBRARIES>")
+
+set(CMAKE_CUDA_RUNTIME_LIBRARY_DEFAULT "SHARED")
+set(CMAKE_CUDA_RUNTIME_LIBRARY_LINK_OPTIONS_STATIC "cudadevrt;cudart_static")
+set(CMAKE_CUDA_RUNTIME_LIBRARY_LINK_OPTIONS_SHARED "cudart")
+set(CMAKE_CUDA_RUNTIME_LIBRARY_LINK_OPTIONS_NONE "")
+
+if(UNIX)
+  list(APPEND CMAKE_CUDA_RUNTIME_LIBRARY_LINK_OPTIONS_STATIC "rt" "pthread" "dl")
+endif()

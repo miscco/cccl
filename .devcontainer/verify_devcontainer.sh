@@ -47,6 +47,11 @@ check_host_compiler_version() {
         local actual_version
         actual_version=$(echo "$version_output" | head -n 2 | cut -d ' ' -f 2 | cut -d '-' -f 1 | tail -n 1)
         local expected_compiler="nvhpc"
+    elif [[ "$CXX" == "circle" ]]; then
+        local actual_version
+        # `circle --version` prints "Circle build N"; -dumpversion is 1.0.N.
+        actual_version=$("$CXX" -dumpversion)
+        local expected_compiler="circle"
     else
         echo "::error:: Unexpected CXX value ($CXX)."
         exit 1

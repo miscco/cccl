@@ -192,6 +192,9 @@ for rapids_container in *rapids*; do
     valid_subdirs+=("${rapids_container}")
 done
 
+# Hand-maintained image. Circle is not in ci/matrix.yaml.
+valid_subdirs+=("cuda13.4-circle")
+
 # Inject ctk version 99.9
 make_compiler_entry() {
     local compiler_name="$1"

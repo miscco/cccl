@@ -85,6 +85,17 @@ def load_devcontainer_json(path):
         return json.load(devcontainer_file)
 
 
+def image_exists_locally(tag):
+    return (
+        subprocess.run(
+            ["docker", "image", "inspect", tag],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        ).returncode
+        == 0
+    )
+
+
 def load_devcontainer_meta(tag):
     import time
 
@@ -100,6 +111,10 @@ def load_devcontainer_meta(tag):
             ).check_returncode()
             break
         except Exception as e:
+            # Local-only images (the Circle devcontainer) are not in a registry.
+            if image_exists_locally(tag):
+                print(f"Using local image {tag}", file=sys.stderr)
+                break
             if attempts < 10:
                 attempts += 1
                 time.sleep(5)
