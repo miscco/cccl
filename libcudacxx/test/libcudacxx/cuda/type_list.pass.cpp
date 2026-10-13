@@ -103,7 +103,10 @@ static_assert(::cuda::std::is_same<::cuda::std::__type_call2<Fn2, Incomplete, Em
 
 // __type_indirect
 #if !defined(SKIP_SFINAE_TESTS)
-static_assert(!::cuda::std::__type_callable<ForwardFn<Fn2>, Incomplete, Empty>::value);
+// ForwardFn<Fn2> itself is ill-formed: its dependent pack expands into
+// fixed alias parameters. Test arity substitution failures on Fn2 directly.
+static_assert(!::cuda::std::__type_callable<Fn2, Incomplete>::value);
+static_assert(!::cuda::std::__type_callable<Fn2, Incomplete, Empty, int>::value);
 static_assert(!::cuda::std::__type_callable<ForwardFn<::cuda::std::__type_indirect<Fn2>>, Incomplete>::value);
 #endif
 static_assert(::cuda::std::__type_callable<ForwardFn<::cuda::std::__type_indirect<Fn2>>, Incomplete, Empty>::value);

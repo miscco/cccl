@@ -110,12 +110,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 // We need to treat host and device separately
-#if _CCCL_DEVICE_COMPILATION() && !_CCCL_CUDA_COMPILER(NVHPC)
+#if _CCCL_DEVICE_COMPILATION() && !_CCCL_CUDA_COMPILER(NVHPC) && !_CCCL_CUDA_COMPILER(CIRCLE_SINGLE_PASS)
 #  define _CCCL_GLOBAL_CONSTANT _CCCL_DEVICE constexpr
-#else // ^^^ _CCCL_DEVICE_COMPILATION() && !_CCCL_CUDA_COMPILER(NVHPC) ^^^ /
-      // vvv !_CCCL_DEVICE_COMPILATION() || _CCCL_CUDA_COMPILER(NVHPC) vvv
+#else // ^^^ multi-pass device compilation ^^^ / vvv host or single-pass compilation vvv
 #  define _CCCL_GLOBAL_CONSTANT inline constexpr
-#endif // !_CCCL_DEVICE_COMPILATION() || _CCCL_CUDA_COMPILER(NVHPC)
+#endif // ^^^ host or single-pass compilation ^^^
 
 #if _CCCL_STD_VER >= 2020 && __cpp_constinit >= 201907L
 #  define _CCCL_CONSTINIT constinit

@@ -105,7 +105,7 @@ TEST_FUNC void test()
      static_assert(__CUDA_MINIMUM_ARCH__ == __CUDA_ARCH__, "arch mismatch");))
 }
 
-#elif TEST_CUDA_COMPILER(NVHPC)
+#elif TEST_CUDA_COMPILER(NVHPC) || TEST_CUDA_COMPILER(CIRCLE)
 
 TEST_FUNC void test()
 {
@@ -141,7 +141,9 @@ TEST_FUNC void test()
   invoke_count = 0;
 
   NV_DISPATCH_TARGET(
-    NV_IS_EXACTLY_SM_80, invoke_count += 1; invoke_count += threadIdx.x;, NV_IS_EXACTLY_SM_75, invoke_count += 1;
+    NV_IS_EXACTLY_SM_110, (invoke_count += 1; invoke_count += threadIdx.x;), NV_IS_EXACTLY_SM_80, invoke_count += 1;
+    invoke_count += threadIdx.x;
+    , NV_IS_EXACTLY_SM_75, invoke_count += 1;
     invoke_count += threadIdx.x;
     , NV_IS_EXACTLY_SM_72, invoke_count += 1;
     invoke_count += threadIdx.x;
@@ -159,6 +161,8 @@ TEST_FUNC void test()
     NV_IS_EXACTLY_SM_52,
     (invoke_count += 1; invoke_count += threadIdx.x;),
     NV_IS_EXACTLY_SM_50,
+    (invoke_count += 1; invoke_count += threadIdx.x;),
+    NV_IS_DEVICE,
     (invoke_count += 1; invoke_count += threadIdx.x;),
     NV_IS_HOST,
     (invoke_count += 1;))

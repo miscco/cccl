@@ -8,6 +8,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// The complete overload test requires this PTX ISA version.
+// REQUIRES: ptx-isa-940
+
 // UNSUPPORTED: force-tile
 // error: asm statement is unsupported in tile code
 

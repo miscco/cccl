@@ -113,6 +113,11 @@ class LibcxxTestFormat(object):
                 if oe.errno != errno.ETXTBSY:
                     raise
                 time.sleep(0.1)
+            except libcudacxx.util.ExecuteCommandTimeoutException as error:
+                report = libcudacxx.util.makeReport(
+                    [], error.out, error.err, error.exitCode
+                )
+                return lit.Test.Result(lit.Test.TIMEOUT, report + error.msg)
 
     def _execute(self, test, lit_config):
         name = test.path_in_suite[-1]
@@ -397,7 +402,9 @@ class LibcxxTestFormat(object):
         # are dependant on a template parameter when '-fsyntax-only' is passed.
         # This is fixed in GCC 6. However for now we only pass "-fsyntax-only"
         # when using Clang.
-        if test_cxx.type != "gcc" and test_cxx.type != "nvcc":
+        # Circle diagnoses host/device calls and unsupported PTX during code
+        # generation, so syntax-only checking can miss the intended failure.
+        if test_cxx.type not in ("gcc", "nvcc", "circle"):
             test_cxx.flags += ["-fsyntax-only"]
         if use_verify:
             test_cxx.useVerify()

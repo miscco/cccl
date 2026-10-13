@@ -49,34 +49,26 @@ __global__ void ptr_timing(int* in, int* out)
 
 TEST_HOST_DEVICE_FUNC __noinline__ void bench()
 {
-#ifndef __CUDA_ARCH__
-  static const size_t ARR_SZ     = 1 << 22;
+  size_t ARR_SZ = 1 << 10;
+  NV_IF_TARGET(NV_IS_HOST, (ARR_SZ = 1 << 22;))
   static const size_t THREAD_CNT = 128;
-  static const size_t BLOCK_CNT  = ARR_SZ / THREAD_CNT;
+  const size_t BLOCK_CNT         = ARR_SZ / THREAD_CNT;
   const dim3 threads(THREAD_CNT, 1, 1), blocks(BLOCK_CNT, 1, 1);
   cudaEvent_t start, stop;
-#else
-  static const size_t ARR_SZ = 1 << 10;
-#endif
   int* arr0            = nullptr;
   int* arr1            = nullptr;
   float annotated_time = 0.f, pointer_time = 0.f;
 
-#ifdef __CUDA_ARCH__
-  arr0 = (int*) malloc(ARR_SZ * sizeof(int));
-  arr1 = (int*) malloc(ARR_SZ * sizeof(int));
-#else
-  assert_rt(cudaMallocManaged((void**) &arr0, ARR_SZ * sizeof(int)));
-  assert_rt(cudaMallocManaged((void**) &arr1, ARR_SZ * sizeof(int)));
-  assert_rt(cudaDeviceSynchronize());
-#endif
+  NV_IF_ELSE_TARGET(
+    NV_IS_DEVICE,
+    (arr0 = (int*) malloc(ARR_SZ * sizeof(int)); arr1 = (int*) malloc(ARR_SZ * sizeof(int));),
+    (assert_rt(cudaMallocManaged((void**) &arr0, ARR_SZ * sizeof(int)));
+     assert_rt(cudaMallocManaged((void**) &arr1, ARR_SZ * sizeof(int)));
+     assert_rt(cudaDeviceSynchronize());))
 
-#ifdef __CUDA_ARCH__
-  ptr_timing_dev(arr0, arr1);
-#else
-  ptr_timing<<<blocks, threads>>>(arr0, arr1);
-  assert_rt(cudaDeviceSynchronize());
-#endif
+  NV_IF_ELSE_TARGET(NV_IS_DEVICE,
+                    (ptr_timing_dev(arr0, arr1);),
+                    (ptr_timing<<<blocks, threads>>>(arr0, arr1); assert_rt(cudaDeviceSynchronize());))
 
   for (size_t i = 0; i < ARR_SZ; ++i)
   {
@@ -84,32 +76,28 @@ TEST_HOST_DEVICE_FUNC __noinline__ void bench()
     arr1[i] = 0;
   }
 
-#ifdef __CUDA_ARCH__
-  ptr_timing_dev(arr0, arr1);
-#else
-  assert_rt(cudaDeviceSynchronize());
-  assert_rt(cudaEventCreate(&start));
-  assert_rt(cudaEventCreate(&stop));
-  assert_rt(cudaEventRecord(start));
-  ptr_timing<<<blocks, threads>>>(arr0, arr1);
-  assert_rt(cudaEventRecord(stop));
-  assert_rt(cudaEventSynchronize(stop));
-  assert_rt(cudaEventElapsedTime(&pointer_time, start, stop));
-  assert_rt(cudaEventDestroy(start));
-  assert_rt(cudaEventDestroy(stop));
-  assert_rt(cudaDeviceSynchronize());
+  NV_IF_ELSE_TARGET(
+    NV_IS_DEVICE,
+    (ptr_timing_dev(arr0, arr1);),
+    (assert_rt(cudaDeviceSynchronize()); assert_rt(cudaEventCreate(&start)); assert_rt(cudaEventCreate(&stop));
+     assert_rt(cudaEventRecord(start));
+     ptr_timing<<<blocks, threads>>>(arr0, arr1);
+     assert_rt(cudaEventRecord(stop));
+     assert_rt(cudaEventSynchronize(stop));
+     assert_rt(cudaEventElapsedTime(&pointer_time, start, stop));
+     assert_rt(cudaEventDestroy(start));
+     assert_rt(cudaEventDestroy(stop));
+     assert_rt(cudaDeviceSynchronize());
 
-  for (size_t i = 0; i < ARR_SZ; ++i)
-  {
-    if (arr1[i] != (int) i)
-    {
-      DPRINTF("arr1[%d] == %d, should be:%d\n", i, arr1[i], i);
-      assert(arr1[i] == static_cast<int>(i));
-    }
+     for (size_t i = 0; i < ARR_SZ; ++i) {
+       if (arr1[i] != (int) i)
+       {
+         DPRINTF("arr1[%d] == %d, should be:%d\n", i, arr1[i], i);
+         assert(arr1[i] == static_cast<int>(i));
+       }
 
-    arr1[i] = 0;
-  }
-#endif
+       arr1[i] = 0;
+     }))
 
   NV_IF_ELSE_TARGET(NV_IS_DEVICE,
                     (annotated_ptr_timing_dev(arr0, arr1);),

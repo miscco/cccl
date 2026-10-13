@@ -286,6 +286,9 @@ int main(int, char**)
   static_assert(
     clang_disallows_valid_static_cast_bug != cuda::std::__cccl_is_constructible<int&&, ExplicitTo<int>>::value);
   static_assert(cuda::std::is_constructible<int&&, ExplicitTo<int>>::value);
+#elif TEST_COMPILER(CIRCLE)
+  test_is_constructible<const int&, ExplicitTo<int>>();
+  test_is_constructible<int&&, ExplicitTo<int>>();
 #elif TEST_COMPILER(MSVC) && TEST_CUDA_COMPILER(NVCC)
   // FIXME NVCC and MSVC disagree about the validity of these tests, and give
   //       different answers in host and device code, which is just wonderful.

@@ -41,13 +41,13 @@ CUB_NAMESPACE_BEGIN
 /// compiling. In host code, CUB_PTX_ARCH's value is implementation defined.
 #  ifndef CUB_PTX_ARCH
 // deprecated in 3.1
-#    if _CCCL_CUDA_COMPILER(NVHPC)
+#    if _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE_SINGLE_PASS)
 // NV_TARGET_MINIMUM_SM_INTEGER is the oldest target PTX version, and is defined when compiling both host code and
 // device code.
 #      define CUB_PTX_ARCH (NV_TARGET_MINIMUM_SM_INTEGER * 10)
-#    else // ^^^ _CCCL_CUDA_COMPILER(NVHPC) ^^^ / vvv !_CCCL_CUDA_COMPILER(NVHPC) vvv
+#    else // ^^^ single-pass compilers ^^^ / vvv multi-pass compilers vvv
 #      define CUB_PTX_ARCH _CCCL_PTX_ARCH()
-#    endif // ^^^ !_CCCL_CUDA_COMPILER(NVHPC) ^^^
+#    endif // ^^^ multi-pass compilers ^^^
 #  endif
 
 /// Maximum number of devices supported.
@@ -182,7 +182,7 @@ struct NoScaling
 
 [[nodiscard]] _CCCL_HOST_DEVICE_API constexpr ::cuda::compute_capability current_tuning_cc() noexcept
 {
-#  if _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE)
+#  if _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE_SINGLE_PASS)
   return ::cuda::compute_capability(NV_TARGET_MINIMUM_SM_INTEGER);
 #  elif _CCCL_DEVICE_COMPILATION()
   return ::cuda::device::current_compute_capability();
@@ -193,11 +193,11 @@ struct NoScaling
   // ChainedPolicy (e.g. test cub.test.device.histogram_custom_policy_hub.lid_0), it will fail to compile during
   // constant evaluation, since it cannot find a policy for a PTX version of zero. As a workaround, we return the oldest
   // CC we are compiling for during the host pass. And for consistency, we do the same for all compilers.
-#    if _CCCL_CUDA_COMPILER(CLANG)
+#    if _CCCL_CUDA_COMPILER(CLANG) || _CCCL_CUDA_COMPILER(CIRCLE_MULTI_PASS)
   return ::cuda::__target_compute_capabilities().front();
-#    else // ^^^ _CCCL_CUDA_COMPILER(CLANG) ^^^ / vvv !_CCCL_CUDA_COMPILER(CLANG) vvv
+#    else // ^^^ clang or Circle multi-pass ^^^ / vvv other compilers vvv
   return {};
-#    endif // ^^^ !_CCCL_CUDA_COMPILER(CLANG) ^^^
+#    endif // ^^^ other compilers ^^^
 #  endif
 }
 

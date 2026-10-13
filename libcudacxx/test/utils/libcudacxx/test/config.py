@@ -361,12 +361,11 @@ class Configuration(object):
                 )
         else:
             te = LocalExecutor()
-            te.timeout = 0
-            if exec_timeout:
-                te.timeout = exec_timeout
             if self.lit_config.useValgrind:
                 # te = ValgrindExecutor(self.lit_config.valgrindArgs, te)
                 self.lit_config.fatal("ValgrindExecutor never existed in CCCL.")
+        if isinstance(te, LocalExecutor):
+            te.timeout = int(exec_timeout) if exec_timeout not in (None, "None") else 0
         self.executor = te
 
     def configure_target_info(self):
@@ -634,6 +633,23 @@ class Configuration(object):
         self.config.available_features.add("%s=%s%s" % (feature, name, version))
 
     def configure_features(self):
+        # Use Circle's selected backend version rather than the toolkit version.
+        # LLVM NVPTX can support an older ISA than the installed CUDA toolkit.
+        if self.cxx.type == "circle":
+            macros = self._dump_macros_verbose()
+            ptx_version = macros.get("__CIRCLE_PTX_VERSION__", "0")
+        else:
+            macros = self._dump_macros_verbose(
+                flags=["-include", "cuda/std/__cccl/ptx_isa.h"]
+            )
+            ptx_version = macros.get("__cccl_ptx_isa", "0")
+        match = re.fullmatch(r"(\d+)(?:[uUlL]+)?", ptx_version.strip())
+        if match:
+            version = int(match.group(1))
+            for required in (930, 940):
+                if version >= required:
+                    self.config.available_features.add("ptx-isa-%d" % required)
+
         additional_features = self.get_lit_conf("additional_features")
         if additional_features:
             for f in additional_features.split(","):

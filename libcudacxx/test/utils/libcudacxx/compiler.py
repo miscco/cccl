@@ -107,7 +107,13 @@ class CXXCompiler(object):
             compiler_type = None
             major_ver = minor_ver = patchlevel = None
 
-            if "__NVCC__" in macros.keys():
+            if "__CIRCLE_LANG__" in macros.keys():
+                # Circle also defines __NVCC__ in multi-pass mode and __clang__.
+                compiler_type = "circle"
+                major_ver = int(macros["__circle_major__"])
+                minor_ver = int(macros["__circle_minor__"])
+                patchlevel = int(macros.get("__circle_build__", "0") or "0")
+            elif "__NVCC__" in macros.keys():
                 compiler_type = "nvcc"
                 major_ver = int(macros["__CUDACC_VER_MAJOR__"])
                 minor_ver = int(macros["__CUDACC_VER_MINOR__"])
@@ -119,12 +125,6 @@ class CXXCompiler(object):
                 major_ver = int(macros["__NVCOMPILER_MAJOR__"].strip())
                 minor_ver = int(macros["__NVCOMPILER_MINOR__"].strip())
                 patchlevel = int(macros["__NVCOMPILER_PATCHLEVEL__"].strip())
-            elif "__CIRCLE_LANG__" in macros.keys():
-                # Circle defines __clang__. Detect it first so it is not treated as Clang.
-                compiler_type = "circle"
-                major_ver = int(macros["__circle_major__"])
-                minor_ver = int(macros["__circle_minor__"])
-                patchlevel = int(macros.get("__circle_build__", "0") or "0")
             elif "__clang__" in macros.keys():
                 compiler_type = "clang"
                 major_ver = int(macros["__clang_major__"])

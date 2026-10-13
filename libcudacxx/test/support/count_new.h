@@ -12,6 +12,7 @@
 #include <cuda/std/__exception/exception_macros.h>
 #include <cuda/std/cassert>
 #include <cuda/std/cstdlib>
+#include <nv/target>
 
 #if _CCCL_HOSTED()
 #  include <new>
@@ -29,6 +30,14 @@ TEST_GLOBAL_VARIABLE const bool MemCounter_disable_checking = true;
 #else
 TEST_GLOBAL_VARIABLE const bool MemCounter_disable_checking = false;
 #endif
+
+// Device allocations do not use the host replacement allocation functions.
+// Select this behavior per target, including for single-pass CUDA compilers.
+TEST_FUNC inline bool isMemCounterCheckingDisabled()
+{
+  NV_IF_TARGET(NV_IS_DEVICE, (return true;))
+  return MemCounter_disable_checking;
+}
 
 // number of allocations to throw after. Default (unsigned)-1. If
 // throw_after has the default value it will never be decremented.
@@ -187,167 +196,167 @@ public:
 public:
   TEST_FUNC bool checkOutstandingNewEq(int n) const
   {
-    return MemCounter_disable_checking || n == outstanding_new;
+    return isMemCounterCheckingDisabled() || n == outstanding_new;
   }
 
   TEST_FUNC bool checkOutstandingNewNotEq(int n) const
   {
-    return MemCounter_disable_checking || n != outstanding_new;
+    return isMemCounterCheckingDisabled() || n != outstanding_new;
   }
 
   TEST_FUNC bool checkNewCalledEq(int n) const
   {
-    return MemCounter_disable_checking || n == new_called;
+    return isMemCounterCheckingDisabled() || n == new_called;
   }
 
   TEST_FUNC bool checkNewCalledNotEq(int n) const
   {
-    return MemCounter_disable_checking || n != new_called;
+    return isMemCounterCheckingDisabled() || n != new_called;
   }
 
   TEST_FUNC bool checkNewCalledGreaterThan(int n) const
   {
-    return MemCounter_disable_checking || new_called > n;
+    return isMemCounterCheckingDisabled() || new_called > n;
   }
 
   TEST_FUNC bool checkDeleteCalledEq(int n) const
   {
-    return MemCounter_disable_checking || n == delete_called;
+    return isMemCounterCheckingDisabled() || n == delete_called;
   }
 
   TEST_FUNC bool checkDeleteCalledNotEq(int n) const
   {
-    return MemCounter_disable_checking || n != delete_called;
+    return isMemCounterCheckingDisabled() || n != delete_called;
   }
 
   TEST_FUNC bool checkAlignedNewCalledEq(int n) const
   {
-    return MemCounter_disable_checking || n == aligned_new_called;
+    return isMemCounterCheckingDisabled() || n == aligned_new_called;
   }
 
   TEST_FUNC bool checkAlignedNewCalledNotEq(int n) const
   {
-    return MemCounter_disable_checking || n != aligned_new_called;
+    return isMemCounterCheckingDisabled() || n != aligned_new_called;
   }
 
   TEST_FUNC bool checkAlignedNewCalledGreaterThan(int n) const
   {
-    return MemCounter_disable_checking || aligned_new_called > n;
+    return isMemCounterCheckingDisabled() || aligned_new_called > n;
   }
 
   TEST_FUNC bool checkAlignedDeleteCalledEq(int n) const
   {
-    return MemCounter_disable_checking || n == aligned_delete_called;
+    return isMemCounterCheckingDisabled() || n == aligned_delete_called;
   }
 
   TEST_FUNC bool checkAlignedDeleteCalledNotEq(int n) const
   {
-    return MemCounter_disable_checking || n != aligned_delete_called;
+    return isMemCounterCheckingDisabled() || n != aligned_delete_called;
   }
 
   TEST_FUNC bool checkLastNewSizeEq(cuda::std::size_t n) const
   {
-    return MemCounter_disable_checking || n == last_new_size;
+    return isMemCounterCheckingDisabled() || n == last_new_size;
   }
 
   TEST_FUNC bool checkLastNewSizeNotEq(cuda::std::size_t n) const
   {
-    return MemCounter_disable_checking || n != last_new_size;
+    return isMemCounterCheckingDisabled() || n != last_new_size;
   }
 
   TEST_FUNC bool checkLastNewAlignEq(cuda::std::size_t n) const
   {
-    return MemCounter_disable_checking || n == last_new_align;
+    return isMemCounterCheckingDisabled() || n == last_new_align;
   }
 
   TEST_FUNC bool checkLastNewAlignNotEq(cuda::std::size_t n) const
   {
-    return MemCounter_disable_checking || n != last_new_align;
+    return isMemCounterCheckingDisabled() || n != last_new_align;
   }
 
   TEST_FUNC bool checkLastDeleteAlignEq(cuda::std::size_t n) const
   {
-    return MemCounter_disable_checking || n == last_delete_align;
+    return isMemCounterCheckingDisabled() || n == last_delete_align;
   }
 
   TEST_FUNC bool checkLastDeleteAlignNotEq(cuda::std::size_t n) const
   {
-    return MemCounter_disable_checking || n != last_delete_align;
+    return isMemCounterCheckingDisabled() || n != last_delete_align;
   }
 
   TEST_FUNC bool checkOutstandingArrayNewEq(int n) const
   {
-    return MemCounter_disable_checking || n == outstanding_array_new;
+    return isMemCounterCheckingDisabled() || n == outstanding_array_new;
   }
 
   TEST_FUNC bool checkOutstandingArrayNewNotEq(int n) const
   {
-    return MemCounter_disable_checking || n != outstanding_array_new;
+    return isMemCounterCheckingDisabled() || n != outstanding_array_new;
   }
 
   TEST_FUNC bool checkNewArrayCalledEq(int n) const
   {
-    return MemCounter_disable_checking || n == new_array_called;
+    return isMemCounterCheckingDisabled() || n == new_array_called;
   }
 
   TEST_FUNC bool checkNewArrayCalledNotEq(int n) const
   {
-    return MemCounter_disable_checking || n != new_array_called;
+    return isMemCounterCheckingDisabled() || n != new_array_called;
   }
 
   TEST_FUNC bool checkDeleteArrayCalledEq(int n) const
   {
-    return MemCounter_disable_checking || n == delete_array_called;
+    return isMemCounterCheckingDisabled() || n == delete_array_called;
   }
 
   TEST_FUNC bool checkDeleteArrayCalledNotEq(int n) const
   {
-    return MemCounter_disable_checking || n != delete_array_called;
+    return isMemCounterCheckingDisabled() || n != delete_array_called;
   }
 
   TEST_FUNC bool checkAlignedNewArrayCalledEq(int n) const
   {
-    return MemCounter_disable_checking || n == aligned_new_array_called;
+    return isMemCounterCheckingDisabled() || n == aligned_new_array_called;
   }
 
   TEST_FUNC bool checkAlignedNewArrayCalledNotEq(int n) const
   {
-    return MemCounter_disable_checking || n != aligned_new_array_called;
+    return isMemCounterCheckingDisabled() || n != aligned_new_array_called;
   }
 
   TEST_FUNC bool checkAlignedNewArrayCalledGreaterThan(int n) const
   {
-    return MemCounter_disable_checking || aligned_new_array_called > n;
+    return isMemCounterCheckingDisabled() || aligned_new_array_called > n;
   }
 
   TEST_FUNC bool checkAlignedDeleteArrayCalledEq(int n) const
   {
-    return MemCounter_disable_checking || n == aligned_delete_array_called;
+    return isMemCounterCheckingDisabled() || n == aligned_delete_array_called;
   }
 
   TEST_FUNC bool checkAlignedDeleteArrayCalledNotEq(int n) const
   {
-    return MemCounter_disable_checking || n != aligned_delete_array_called;
+    return isMemCounterCheckingDisabled() || n != aligned_delete_array_called;
   }
 
   TEST_FUNC bool checkLastNewArraySizeEq(cuda::std::size_t n) const
   {
-    return MemCounter_disable_checking || n == last_new_array_size;
+    return isMemCounterCheckingDisabled() || n == last_new_array_size;
   }
 
   TEST_FUNC bool checkLastNewArraySizeNotEq(cuda::std::size_t n) const
   {
-    return MemCounter_disable_checking || n != last_new_array_size;
+    return isMemCounterCheckingDisabled() || n != last_new_array_size;
   }
 
   TEST_FUNC bool checkLastNewArrayAlignEq(cuda::std::size_t n) const
   {
-    return MemCounter_disable_checking || n == last_new_array_align;
+    return isMemCounterCheckingDisabled() || n == last_new_array_align;
   }
 
   TEST_FUNC bool checkLastNewArrayAlignNotEq(cuda::std::size_t n) const
   {
-    return MemCounter_disable_checking || n != last_new_array_align;
+    return isMemCounterCheckingDisabled() || n != last_new_array_align;
   }
 };
 
@@ -361,7 +370,7 @@ TEST_FUNC inline constexpr MemCounter* getGlobalMemCounter()
 TEST_GLOBAL_VARIABLE MemCounter& globalMemCounter = *getGlobalMemCounter();
 
 #ifndef DISABLE_NEW_COUNT
-void* operator new(cuda::std::size_t s)
+_CCCL_HOST void* operator new(cuda::std::size_t s)
 {
   getGlobalMemCounter()->newCalled(s);
   void* ret = malloc(s);
@@ -372,34 +381,34 @@ void* operator new(cuda::std::size_t s)
   return ret;
 }
 
-void operator delete(void* p) noexcept
+_CCCL_HOST void operator delete(void* p) noexcept
 {
   getGlobalMemCounter()->deleteCalled(p);
   free(p);
 }
 
 #  if TEST_COMPILER(GCC)
-void operator delete(void* p, cuda::std::size_t) noexcept
+_CCCL_HOST void operator delete(void* p, cuda::std::size_t) noexcept
 {
   getGlobalMemCounter()->deleteCalled(p);
   free(p);
 }
 #  endif // TEST_COMPILER(GCC)
 
-void* operator new[](cuda::std::size_t s)
+_CCCL_HOST void* operator new[](cuda::std::size_t s)
 {
   getGlobalMemCounter()->newArrayCalled(s);
   return operator new(s);
 }
 
-void operator delete[](void* p) noexcept
+_CCCL_HOST void operator delete[](void* p) noexcept
 {
   getGlobalMemCounter()->deleteArrayCalled(p);
   operator delete(p);
 }
 
 #  if TEST_COMPILER(GCC)
-void operator delete[](void* p, cuda::std::size_t) noexcept
+_CCCL_HOST void operator delete[](void* p, cuda::std::size_t) noexcept
 {
   getGlobalMemCounter()->deleteArrayCalled(p);
   operator delete(p);
@@ -410,7 +419,7 @@ void operator delete[](void* p, cuda::std::size_t) noexcept
 #    define USE_ALIGNED_ALLOC
 #  endif
 
-void* operator new(cuda::std::size_t s, cuda::std::align_val_t av)
+_CCCL_HOST void* operator new(cuda::std::size_t s, cuda::std::align_val_t av)
 {
   const cuda::std::size_t a = static_cast<cuda::std::size_t>(av);
   getGlobalMemCounter()->alignedNewCalled(s, a);
@@ -427,7 +436,7 @@ void* operator new(cuda::std::size_t s, cuda::std::align_val_t av)
   return ret;
 }
 
-void operator delete(void* p, cuda::std::align_val_t av) noexcept
+_CCCL_HOST void operator delete(void* p, cuda::std::align_val_t av) noexcept
 {
   const cuda::std::size_t a = static_cast<cuda::std::size_t>(av);
   getGlobalMemCounter()->alignedDeleteCalled(p, a);
@@ -441,14 +450,14 @@ void operator delete(void* p, cuda::std::align_val_t av) noexcept
   }
 }
 
-void* operator new[](cuda::std::size_t s, cuda::std::align_val_t av)
+_CCCL_HOST void* operator new[](cuda::std::size_t s, cuda::std::align_val_t av)
 {
   const cuda::std::size_t a = static_cast<cuda::std::size_t>(av);
   getGlobalMemCounter()->alignedNewArrayCalled(s, a);
   return operator new(s, av);
 }
 
-void operator delete[](void* p, cuda::std::align_val_t av) noexcept
+_CCCL_HOST void operator delete[](void* p, cuda::std::align_val_t av) noexcept
 {
   const cuda::std::size_t a = static_cast<cuda::std::size_t>(av);
   getGlobalMemCounter()->alignedDeleteArrayCalled(p, a);

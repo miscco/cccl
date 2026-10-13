@@ -30,6 +30,7 @@
 #include <cuda/std/__type_traits/is_void.h>
 #include <cuda/std/__type_traits/negation.h>
 #include <cuda/std/__type_traits/remove_cvref.h>
+#include <cuda/std/__type_traits/void_t.h>
 #include <cuda/std/__utility/declval.h>
 
 #include <cuda/std/__cccl/prologue.h>
@@ -49,14 +50,48 @@ struct __nat
 template <class _Tp, class... _Args>
 struct __cccl_is_constructible;
 
+template <class _To, class _From, class _Conversion, class = void>
+struct __is_explicit_reference_conversion : false_type
+{};
+
+template <class _To, class _From, class _Conversion>
+struct __is_explicit_reference_conversion<_To,
+                                          _From,
+                                          _Conversion,
+                                          void_t<decltype(::cuda::std::declval<_From>().operator _Conversion())>>
+    : __cccl_is_constructible<_To, _Conversion>
+{};
+
+template <class _To,
+          class _From,
+          bool = !is_same_v<remove_cvref_t<_From>, remove_cvref_t<_To>>
+              && is_base_of_v<remove_cvref_t<_From>, remove_cvref_t<_To>>>
+struct __is_invalid_base_to_derived_cast : false_type
+{};
+
 template <class _To, class _From>
-struct __is_invalid_base_to_derived_cast
+struct __is_invalid_base_to_derived_cast<_To, _From, true>
 {
   static_assert(is_reference_v<_To>, "Wrong specialization");
-  using _RawFrom = remove_cvref_t<_From>;
-  using _RawTo   = remove_cvref_t<_To>;
-  static constexpr bool value =
-    !is_same_v<_RawFrom, _RawTo> && is_base_of_v<_RawFrom, _RawTo> && !__cccl_is_constructible<_RawTo, _From>::value;
+  using _RawTo = remove_cvref_t<_To>;
+  // static_cast permits a downcast that reference initialization does not.
+  // Implicit conversions have already been accepted by __eat. Here only an
+  // explicit conversion function can establish a valid reference binding.
+  // Constructing _RawTo is insufficient: C++20 aggregate initialization can
+  // construct a derived object from its base without permitting this binding.
+  static constexpr bool value = !disjunction_v<
+    __is_explicit_reference_conversion<_To, _From, _RawTo>,
+    __is_explicit_reference_conversion<_To, _From, const _RawTo>,
+    __is_explicit_reference_conversion<_To, _From, volatile _RawTo>,
+    __is_explicit_reference_conversion<_To, _From, const volatile _RawTo>,
+    __is_explicit_reference_conversion<_To, _From, _RawTo&>,
+    __is_explicit_reference_conversion<_To, _From, const _RawTo&>,
+    __is_explicit_reference_conversion<_To, _From, volatile _RawTo&>,
+    __is_explicit_reference_conversion<_To, _From, const volatile _RawTo&>,
+    __is_explicit_reference_conversion<_To, _From, _RawTo&&>,
+    __is_explicit_reference_conversion<_To, _From, const _RawTo&&>,
+    __is_explicit_reference_conversion<_To, _From, volatile _RawTo&&>,
+    __is_explicit_reference_conversion<_To, _From, const volatile _RawTo&&>>;
 };
 
 template <class _To, class _From>
@@ -138,12 +173,23 @@ template <class _Tp, class _A0>
 struct __cccl_is_constructible<_Tp, _A0> : public decltype(__is_constructible_helper::__test_unary<_Tp, _A0>(0))
 {};
 
-template <class _Tp, class _A0>
-struct __cccl_is_constructible<_Tp&, _A0> : public decltype(__is_constructible_helper::__test_cast<_Tp&, _A0>(0))
+template <class _To, class _From>
+struct __is_explicit_base_reference_conversion
+    : bool_constant<!is_same_v<remove_cvref_t<_To>, remove_cvref_t<_From>>
+                    && is_base_of_v<remove_cvref_t<_From>, remove_cvref_t<_To>>
+                    && !__is_invalid_base_to_derived_cast<_To, _From>::value>
 {};
 
 template <class _Tp, class _A0>
-struct __cccl_is_constructible<_Tp&&, _A0> : public decltype(__is_constructible_helper::__test_cast<_Tp&&, _A0>(0))
+struct __cccl_is_constructible<_Tp&, _A0>
+    : disjunction<__is_explicit_base_reference_conversion<_Tp&, _A0>,
+                  decltype(__is_constructible_helper::__test_cast<_Tp&, _A0>(0))>
+{};
+
+template <class _Tp, class _A0>
+struct __cccl_is_constructible<_Tp&&, _A0>
+    : disjunction<__is_explicit_base_reference_conversion<_Tp&&, _A0>,
+                  decltype(__is_constructible_helper::__test_cast<_Tp&&, _A0>(0))>
 {};
 
 #endif

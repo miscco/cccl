@@ -25,14 +25,14 @@ TEST_DEVICE_FUNC void test_current()
   static_assert(cuda::std::is_same_v<cuda::compute_capability, decltype(cuda::device::current_compute_capability())>);
   static_assert(noexcept(cuda::device::current_compute_capability()));
 
-  // 1. Test cuda::device::current_compute_capability() in constexpr context. Unsupported with nvc++ -cuda.
-#if !_CCCL_CUDA_COMPILER(NVHPC)
+  // 1. Test cuda::device::current_compute_capability() in constexpr context. Unsupported with single-pass compilers.
+#if !TEST_CUDA_COMPILER(NVHPC) && !TEST_CUDA_COMPILER(CIRCLE)
   if constexpr (cuda::device::current_compute_capability() == cuda::compute_capability{})
   {
     // cuda::current_compute_capability{} is an invalid compute capability, so this statement should be unrachable.
     assert(false);
   }
-#endif // !_CCCL_CUDA_COMPILER(NVHPC)
+#endif // !TEST_CUDA_COMPILER(NVHPC) && !TEST_CUDA_COMPILER(CIRCLE)
 
   // 2. Test cuda::device::current_compute_capability() against the NV_IF_TARGET macros
   [[maybe_unused]] cuda::compute_capability cc = cuda::device::current_compute_capability();

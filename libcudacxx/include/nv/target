@@ -17,7 +17,9 @@
 
 // IWYU pragma: always_keep
 
-#if defined(__NVCC__) || defined(__CUDACC_RTC__)
+#if defined(_NVHPC_CUDA)
+#  define _NV_COMPILER_NVCXX
+#elif defined(__NVCC__) || defined(__CUDACC_RTC__)
 #  define _NV_COMPILER_NVCC
 #elif defined(__NVCOMPILER) && __cplusplus >= 201103L
 #  define _NV_COMPILER_NVCXX

@@ -412,6 +412,13 @@ using __type_info_ref = ::std::type_info const&;
 
 #else // ^^^ _CCCL_BROKEN_MSVC_FUNCSIG ^^^ / vvv !__CUDA_ARCH__ && !_CCCL_BROKEN_MSVC_FUNCSIG vvv
 
+// Single-pass CUDA compilers share this fallback between host and device code.
+#  if defined(_NVHPC_CUDA)
+#    define _CCCL_TYPEID_FALLBACK_API
+#  else // ^^^ _NVHPC_CUDA ^^^ / vvv !_NVHPC_CUDA vvv
+#    define _CCCL_TYPEID_FALLBACK_API _CCCL_HOST_API
+#  endif // !_NVHPC_CUDA
+
 /// @brief A minimal implementation of `std::type_info` for platforms that do
 /// not support RTTI.
 struct __type_info
@@ -420,32 +427,32 @@ struct __type_info
   __type_info(__type_info const&)            = delete;
   __type_info& operator=(__type_info const&) = delete;
 
-  _CCCL_HOST_API constexpr __type_info(string_view __name) noexcept
+  _CCCL_TYPEID_FALLBACK_API constexpr __type_info(string_view __name) noexcept
       : __name_(__name)
   {}
 
-  [[nodiscard]] _CCCL_HOST_API constexpr char const* name() const noexcept
+  [[nodiscard]] _CCCL_TYPEID_FALLBACK_API constexpr char const* name() const noexcept
   {
     return __name_.begin();
   }
 
-  [[nodiscard]] _CCCL_HOST_API constexpr string_view __name_view() const noexcept
+  [[nodiscard]] _CCCL_TYPEID_FALLBACK_API constexpr string_view __name_view() const noexcept
   {
     return __name_;
   }
 
-  [[nodiscard]] _CCCL_HOST_API constexpr bool before(const __type_info& __other) const noexcept
+  [[nodiscard]] _CCCL_TYPEID_FALLBACK_API constexpr bool before(const __type_info& __other) const noexcept
   {
     return __name_ < __other.__name_;
   }
 
   // Not yet implemented:
-  // [[nodiscard]] _CCCL_HOST_API constexpr size_t hash_code() const noexcept
+  // [[nodiscard]] _CCCL_TYPEID_FALLBACK_API constexpr size_t hash_code() const noexcept
   // {
   //   return ;
   // }
 
-  [[nodiscard]] _CCCL_HOST_API friend constexpr bool
+  [[nodiscard]] _CCCL_TYPEID_FALLBACK_API friend constexpr bool
   operator==(const __type_info& __lhs, const __type_info& __rhs) noexcept
   {
     return &__lhs == &__rhs || __lhs.__name_ == __rhs.__name_;
@@ -453,7 +460,7 @@ struct __type_info
 
 #  if _CCCL_STD_VER <= 2017
   [[nodiscard]]
-  _CCCL_HOST_API friend constexpr bool operator!=(const __type_info& __lhs, const __type_info& __rhs) noexcept
+  _CCCL_TYPEID_FALLBACK_API friend constexpr bool operator!=(const __type_info& __lhs, const __type_info& __rhs) noexcept
   {
     return !(__lhs == __rhs);
   }
@@ -475,10 +482,12 @@ _CCCL_GLOBAL_CONSTANT __type_info __typeid_v{::cuda::std::__pretty_nameof<_Tp>()
 // When inline variables are available, this indirection through an inline function
 // is not necessary, but it doesn't hurt either.
 template <class _Tp>
-[[nodiscard]] _CCCL_HOST_API constexpr __type_info const& __typeid() noexcept
+[[nodiscard]] _CCCL_TYPEID_FALLBACK_API constexpr __type_info const& __typeid() noexcept
 {
   return __typeid_v<_Tp>;
 }
+
+#  undef _CCCL_TYPEID_FALLBACK_API
 
 #  define _CCCL_TYPEID_FALLBACK(...) ::cuda::std::__typeid<::cuda::std::remove_cv_t<__VA_ARGS__>>()
 
