@@ -150,13 +150,13 @@ struct __nv_fp4x4_e2m1;
 #  endif // Host compiler support
 #endif // !defined(CCCL_DISABLE_FLOAT128_SUPPORT) && _CCCL_HAS_INT128() && _CCCL_OS(LINUX) && !_CCCL_HOST_ARCH(ARM64)
 
-// gcc does not allow to use q/Q floating point literals when __STRICT_ANSI__ is defined. They may be allowed by
+// gcc and Circle do not allow q/Q floating point literals when __STRICT_ANSI__ is defined. They may be allowed by
 // -fext-numeric-literals, but there is no way to detect it in the preprocessor. The user is required to define
 // CCCL_GCC_HAS_EXTENDED_NUMERIC_LITERALS in this case. Otherwise, we disable the __float128 support.
 //
 // Note: since GCC 13, we could use f128/F128 literals, but for values > DBL_MAX, the compilation with nvcc fails due to
 //       "floating constant is out of range".
-#if _CCCL_HAS_FLOAT128() && _CCCL_COMPILER(GCC) && defined(__STRICT_ANSI__) \
+#if _CCCL_HAS_FLOAT128() && (_CCCL_COMPILER(GCC) || _CCCL_COMPILER(CIRCLE)) && defined(__STRICT_ANSI__) \
   && !defined(CCCL_GCC_HAS_EXTENDED_NUMERIC_LITERALS)
 #  undef _CCCL_HAS_FLOAT128
 #  define _CCCL_HAS_FLOAT128() 0

@@ -32,9 +32,9 @@
 #include <unittest/random.h>
 #include <unittest/special_types.h>
 
-#if _CCCL_COMPILER(GCC) || _CCCL_COMPILER(CLANG)
+#if _CCCL_COMPILER(GCC) || _CCCL_COMPILER(CLANG) || defined(__CIRCLE_LANG__)
 #  include <cxxabi.h>
-#endif // _CCCL_COMPILER(GCC) || _CCCL_COMPILER(CLANG)
+#endif // _CCCL_COMPILER(GCC) || _CCCL_COMPILER(CLANG) || defined(__CIRCLE_LANG__)
 
 // workaround for error #3185-D: no '#pragma diagnostic push' was found to match this 'diagnostic pop'
 #if _CCCL_COMPILER(NVHPC)
@@ -355,7 +355,7 @@ namespace unittest
 inline std::string demangle(const char* name)
 {
   // for demangling the result of type_info.name() with msvc, type_info.name() is already demangled
-#if _CCCL_COMPILER(GCC) || _CCCL_COMPILER(CLANG)
+#if _CCCL_COMPILER(GCC) || _CCCL_COMPILER(CLANG) || defined(__CIRCLE_LANG__)
   int status = 0;
   const std::unique_ptr<char, decltype(&std::free)> realname{
     abi::__cxa_demangle(name, nullptr, nullptr, &status), &std::free};

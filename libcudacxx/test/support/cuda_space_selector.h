@@ -27,7 +27,7 @@
 #  define LAMBDA [=] TEST_HOST_DEVICE_FUNC
 #endif
 
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || TEST_CUDA_COMPILER(CIRCLE)
 #  define SHARED __shared__
 #else
 #  define SHARED
@@ -44,7 +44,7 @@ private:
   TEST_HOST_DEVICE_FUNC T*& get_pointer()
   {
     alignas(T*)
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) || TEST_CUDA_COMPILER(CIRCLE)
       __shared__
 #else
       static

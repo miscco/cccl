@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// UNSUPPORTED: msvc
+// UNSUPPORTED: windows
 
 // cuda::std::ranges::begin
 // cuda::std::ranges::cbegin

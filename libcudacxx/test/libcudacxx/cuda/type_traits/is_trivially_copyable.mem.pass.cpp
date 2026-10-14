@@ -83,7 +83,22 @@ TEST_HOST_DEVICE_FUNC void test_memcpy_roundtrip(T from)
   assert(from == to);
 }
 
-#define CAST(base_type, val) static_cast<decltype(base_type##1 ::x)>(val)
+template <class T>
+TEST_FUNC T cast_vector_component(double value)
+{
+  if constexpr (cuda::std::is_unsigned_v<T>)
+  {
+    // Negative floating-point values cannot be converted directly to unsigned
+    // integers. Convert to a representable signed value before wrapping.
+    return static_cast<T>(static_cast<long long>(value));
+  }
+  else
+  {
+    return static_cast<T>(value);
+  }
+}
+
+#define CAST(base_type, val) cast_vector_component<decltype(base_type##1 ::x)>(val)
 
 #define REPEAT_1(base_type, index) CAST(base_type, input[index][0])
 #define REPEAT_2(base_type, index) REPEAT_1(base_type, index), CAST(base_type, input[index][1])

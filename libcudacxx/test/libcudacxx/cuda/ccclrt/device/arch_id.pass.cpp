@@ -24,14 +24,14 @@ TEST_DEVICE_FUNC void test_current()
   static_assert(cuda::std::is_same_v<cuda::arch_id, decltype(cuda::device::current_arch_id())>);
   static_assert(noexcept(cuda::device::current_arch_id()));
 
-  // 2. Test cuda::device::current_arch_id() in constexpr context. Unsupported with nvc++ -cuda.
-#if !_CCCL_CUDA_COMPILER(NVHPC)
+  // 2. Test cuda::device::current_arch_id() in constexpr context. Unsupported with single-pass compilers.
+#if !TEST_CUDA_COMPILER(NVHPC) && !TEST_CUDA_COMPILER(CIRCLE)
   if constexpr (cuda::device::current_arch_id() == cuda::arch_id{})
   {
     // cuda::arch_id{} is an invalid architecture, so this statement should be unrachable.
     assert(false);
   }
-#endif // !_CCCL_CUDA_COMPILER(NVHPC)
+#endif // !TEST_CUDA_COMPILER(NVHPC) && !TEST_CUDA_COMPILER(CIRCLE)
 
   // 3. Test cuda::device::current_arch_id() against the NV_IF_TARGET macros
   [[maybe_unused]] cuda::arch_id arch = cuda::device::current_arch_id();

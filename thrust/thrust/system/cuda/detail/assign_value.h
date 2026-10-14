@@ -43,6 +43,14 @@ _CCCL_HOST_DEVICE void assign_value(execution_policy<DerivedPolicy>& exec, Point
 {
   using V1 = thrust::detail::it_value_t<Pointer1>;
   using V2 = thrust::detail::it_value_t<Pointer2>;
+#  if defined(__CIRCLE_LANG__) && defined(__CUDA_ARCH__)
+  // Circle's CUDA multi-pass device compilation cannot see the host-only launch below. Referencing the specialization
+  // from the device pass ensures that it is emitted into the device image.
+  if constexpr (!::cuda::std::is_same_v<V1, V2>)
+  {
+    [[maybe_unused]] auto* const kernel = &detail::assign_value_kernel<V1, V2>;
+  }
+#  endif // defined(__CIRCLE_LANG__) && defined(__CUDA_ARCH__)
   // Because of https://docs.nvidia.com/cuda/cuda-programming-guide/05-appendices/cpp-language-extensions.html#cuda-arch
   // point 2., if a call from a __host__
   // __device__ function leads to the template instantiation of a __global__ function, then this instantiation needs to

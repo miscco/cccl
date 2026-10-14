@@ -7,6 +7,9 @@
 // SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES.
 //
 //===----------------------------------------------------------------------===//
+// The complete overload test requires this PTX ISA version.
+// REQUIRES: ptx-isa-930
+
 // UNSUPPORTED: libcpp-has-no-threads
 
 // <cuda/ptxs/fabric_wait.h>

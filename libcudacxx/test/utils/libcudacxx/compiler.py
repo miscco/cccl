@@ -107,7 +107,13 @@ class CXXCompiler(object):
             compiler_type = None
             major_ver = minor_ver = patchlevel = None
 
-            if "__NVCC__" in macros.keys():
+            if "__CIRCLE_LANG__" in macros.keys():
+                # Circle also defines __NVCC__ in multi-pass mode and __clang__.
+                compiler_type = "circle"
+                major_ver = int(macros["__circle_major__"])
+                minor_ver = int(macros["__circle_minor__"])
+                patchlevel = int(macros.get("__circle_build__", "0") or "0")
+            elif "__NVCC__" in macros.keys():
                 compiler_type = "nvcc"
                 major_ver = int(macros["__CUDACC_VER_MAJOR__"])
                 minor_ver = int(macros["__CUDACC_VER_MINOR__"])
@@ -119,12 +125,6 @@ class CXXCompiler(object):
                 major_ver = int(macros["__NVCOMPILER_MAJOR__"].strip())
                 minor_ver = int(macros["__NVCOMPILER_MINOR__"].strip())
                 patchlevel = int(macros["__NVCOMPILER_PATCHLEVEL__"].strip())
-            elif "__CIRCLE_LANG__" in macros.keys():
-                # Circle defines __clang__. Detect it first so it is not treated as Clang.
-                compiler_type = "circle"
-                major_ver = int(macros["__circle_major__"])
-                minor_ver = int(macros["__circle_minor__"])
-                patchlevel = int(macros.get("__circle_build__", "0") or "0")
             elif "__clang__" in macros.keys():
                 compiler_type = "clang"
                 major_ver = int(macros["__clang_major__"])
@@ -142,7 +142,7 @@ class CXXCompiler(object):
                 patchlevel = int(macros["_MSC_FULL_VER"]) % 100000
 
             if "__cplusplus" in macros.keys():
-                if "_MSVC_LANG" in macros.keys():
+                if "_MSVC_LANG" in macros.keys() and compiler_type != "circle":
                     msvc_lang = macros["_MSVC_LANG"]
                     if msvc_lang[-1] == "L":
                         msvc_lang = msvc_lang[:-1]
@@ -418,8 +418,12 @@ class CXXCompiler(object):
             )
 
         old_flags = flags
-        # Assume MSVC flags on Windows
-        if platform.system() == "Windows":
+        # Circle's Unix driver uses the same macro dump flag as GCC and Clang.
+        if platform.system() == "Windows" and self.first_arg == "--driver-mode=unix":
+            flags = ["-dM"] + flags
+            cmd, out, err, rc = self.preprocess(source_files, flags=flags, cwd=cwd)
+        # Assume MSVC flags for other Windows compiler drivers.
+        elif platform.system() == "Windows":
             flags = ["/Zc:preprocessor", "/PD"] + old_flags
             cmd, out, err, rc = self.preprocess(source_files, flags=flags, cwd=cwd)
             # Older MSVC does not support dumping macros

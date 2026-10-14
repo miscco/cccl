@@ -48,12 +48,14 @@
 #endif // ^^ !_CCCL_CUDA_COMPILER(CLANG, <, 22) ^^^
 
 // Global variables of non builtin types are only device accessible if they are marked as `__device__`
-#if _CCCL_DEVICE_COMPILATION() && !_CCCL_CUDA_COMPILER(NVHPC) && !_CCCL_CUDA_COMPILER(CIRCLE)
+#if _CCCL_CUDA_COMPILER(CIRCLE) && _CCCL_CUDA_COMPILATION()
 #  define _CCCL_GLOBAL_VARIABLE _CCCL_DEVICE
-#else // ^^^ _CCCL_DEVICE_COMPILATION() && !_CCCL_CUDA_COMPILER(NVHPC) && !_CCCL_CUDA_COMPILER(CIRCLE) ^^^ /
-      // vvv !_CCCL_DEVICE_COMPILATION() || _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE) vvv
+#elif _CCCL_DEVICE_COMPILATION() && !_CCCL_CUDA_COMPILER(NVHPC)
+#  define _CCCL_GLOBAL_VARIABLE _CCCL_DEVICE
+#else // ^^^ _CCCL_DEVICE_COMPILATION() && !_CCCL_CUDA_COMPILER(NVHPC) ^^^ /
+      // vvv !_CCCL_DEVICE_COMPILATION() || _CCCL_CUDA_COMPILER(NVHPC) vvv
 #  define _CCCL_GLOBAL_VARIABLE
-#endif // ^^^ !_CCCL_DEVICE_COMPILATION() || _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE) ^^^
+#endif // ^^^ !_CCCL_DEVICE_COMPILATION() || _CCCL_CUDA_COMPILER(NVHPC) ^^^
 
 #if (_CCCL_CUDA_COMPILER(NVCC, >=, 12, 8) || _CCCL_CUDA_COMPILER(NVRTC) || _CCCL_CUDA_COMPILER(CLANG, >=, 20)) \
   && _CCCL_PTX_ARCH() >= 700
@@ -72,12 +74,11 @@
 #  endif // _CCCL_CUDA_COMPILER(NVCC)
 #endif // !_CCCL_EXEC_CHECK_DISABLE
 
-#if _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE)
+#if _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE_SINGLE_PASS)
 #  define _CCCL_TARGET_CONSTEXPR
-#else // ^^^ _CCCL_CUDA_COMPILER(NVHPC) || _CCCL_CUDA_COMPILER(CIRCLE) ^^^ / vvv !_CCCL_CUDA_COMPILER(NVHPC) ||
-      // _CCCL_CUDA_COMPILER(CIRCLE) vvv
+#else // ^^^ single-pass compilers ^^^ / vvv multi-pass compilers vvv
 #  define _CCCL_TARGET_CONSTEXPR constexpr
-#endif // ^^^ !_CCCL_CUDA_COMPILER(NVHPC) && !_CCCL_CUDA_COMPILER(CIRCLE) ^^^
+#endif // ^^^ multi-pass compilers ^^^
 
 //! @brief List of all known PTX architectures supported by this CCCL version.
 #define _CCCL_KNOWN_CUDA_ARCH_LIST 50, 52, 53, 60, 61, 62, 70, 75, 80, 86, 87, 88, 89, 90, 100, 103, 107, 110, 120, 121
