@@ -9,6 +9,7 @@
 
 // UNSUPPORTED: force-tile
 // UNSUPPORTED: enable-tile
+// UNSUPPORTED: circle
 // No int128 in tile mode
 
 #include <cuda/std/__cccl/extended_data_types.h>

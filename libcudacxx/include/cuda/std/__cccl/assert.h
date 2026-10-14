@@ -146,10 +146,30 @@ void __assert_fail(const char* __assertion, const char* __file, unsigned int __l
 //! _CCCL_VERIFY is enabled unconditionally and reserved for critical checks that are required to always be on
 //! _CCCL_ASSERT is enabled conditionally depending on CCCL_ENABLE_HOST_ASSERTIONS and CCCL_ENABLE_DEVICE_ASSERTIONS
 #if _CCCL_CUDA_COMPILER(CIRCLE_SINGLE_PASS)
-#  define _CCCL_VERIFY(expression, message) \
-    (__is_host_target ? _CCCL_ASSERT_IMPL_HOST(expression, message) : _CCCL_ASSERT_IMPL_DEVICE(expression, message))
-#  define _CCCL_ASSERT(expression, message) \
-    (__is_host_target ? _CCCL_ASSERT_HOST(expression, message) : _CCCL_ASSERT_DEVICE(expression, message))
+#  define _CCCL_VERIFY(expression, message)            \
+    do                                                 \
+    {                                                  \
+      if (__is_host_target)                            \
+      {                                                \
+        _CCCL_ASSERT_IMPL_HOST(expression, message);   \
+      }                                                \
+      else                                             \
+      {                                                \
+        _CCCL_ASSERT_IMPL_DEVICE(expression, message); \
+      }                                                \
+    } while (false)
+#  define _CCCL_ASSERT(expression, message)       \
+    do                                            \
+    {                                             \
+      if (__is_host_target)                       \
+      {                                           \
+        _CCCL_ASSERT_HOST(expression, message);   \
+      }                                           \
+      else                                        \
+      {                                           \
+        _CCCL_ASSERT_DEVICE(expression, message); \
+      }                                           \
+    } while (false)
 #elif _CCCL_CUDA_COMPILER(NVHPC)
 // NVHPC can't have different behavior for host and device. The host version of the assert will also work in device
 // code.

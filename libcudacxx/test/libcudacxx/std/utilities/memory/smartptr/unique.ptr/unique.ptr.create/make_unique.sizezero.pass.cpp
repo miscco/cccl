@@ -8,7 +8,7 @@
 //
 //===----------------------------------------------------------------------===//
 // This code triggers https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104568
-// UNSUPPORTED: msvc
+// UNSUPPORTED: windows
 // UNSUPPORTED: nvrtc
 // UNSUPPORTED: nvhpc
 

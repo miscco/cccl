@@ -142,7 +142,7 @@ class CXXCompiler(object):
                 patchlevel = int(macros["_MSC_FULL_VER"]) % 100000
 
             if "__cplusplus" in macros.keys():
-                if "_MSVC_LANG" in macros.keys():
+                if "_MSVC_LANG" in macros.keys() and compiler_type != "circle":
                     msvc_lang = macros["_MSVC_LANG"]
                     if msvc_lang[-1] == "L":
                         msvc_lang = msvc_lang[:-1]
@@ -418,8 +418,12 @@ class CXXCompiler(object):
             )
 
         old_flags = flags
-        # Assume MSVC flags on Windows
-        if platform.system() == "Windows":
+        # Circle's Unix driver uses the same macro dump flag as GCC and Clang.
+        if platform.system() == "Windows" and self.first_arg == "--driver-mode=unix":
+            flags = ["-dM"] + flags
+            cmd, out, err, rc = self.preprocess(source_files, flags=flags, cwd=cwd)
+        # Assume MSVC flags for other Windows compiler drivers.
+        elif platform.system() == "Windows":
             flags = ["/Zc:preprocessor", "/PD"] + old_flags
             cmd, out, err, rc = self.preprocess(source_files, flags=flags, cwd=cwd)
             # Older MSVC does not support dumping macros

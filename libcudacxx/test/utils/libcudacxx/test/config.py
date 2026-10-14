@@ -727,7 +727,7 @@ class Configuration(object):
                 # using this feature. (Also see llvm.org/PR32730)
                 self.config.available_features.add("LIBCUDACXX-WINDOWS-FIXME")
 
-        if "msvc" not in self.config.available_features:
+        if "msvc" not in self.config.available_features and not self.is_windows:
             # Attempt to detect the glibc version by querying for __GLIBC__
             # in 'features.h'.
             macros = self.cxx.dumpMacros(flags=["-include", "features.h"])
@@ -754,7 +754,8 @@ class Configuration(object):
         if self.is_windows:
             # FIXME: Can we remove this?
             self.cxx.compile_flags += ["-D_CRT_SECURE_NO_WARNINGS"]
-            self.cxx.compile_flags += ["--use-local-env"]
+            if self.cxx.type != "circle":
+                self.cxx.compile_flags += ["--use-local-env"]
             # Required so that tests using min/max don't fail on Windows,
             # and so that those tests don't have to be changed to tolerate
             # this insanity.
@@ -1171,7 +1172,7 @@ class Configuration(object):
                 if flag.startswith("--cuda-path=") or flag.startswith("-sm_")
             ]
 
-        if self.is_windows:
+        if self.is_windows and self.cxx.type != "circle":
             self.cxx.link_flags += ["--use-local-env"]
 
         # Configure library path
