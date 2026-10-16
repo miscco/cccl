@@ -363,33 +363,33 @@ squadStoreBulkSync(Squad squad, CpAsyncOobInfo<OutputT> cpAsyncOobInfo, const ::
 
 #endif // __cccl_ptx_isa >= 860
 
-template <typename InputT, typename AccumT, int ElemPerThread>
-_CCCL_DEVICE_API void squadLoadSmem(Squad squad, AccumT (&outReg)[ElemPerThread], const InputT* smemBuf)
+template <typename InputIteratorT, typename AccumT, int ElemPerThread>
+_CCCL_DEVICE_API void squadLoadSmem(Squad squad, AccumT (&outReg)[ElemPerThread], InputIteratorT smemInput)
 {
   _CCCL_IKET_RANGE_PUSH(LoadSmem);
   for (int i = 0; i < ElemPerThread; ++i)
   {
     const int elem_idx = squad.threadRank() * ElemPerThread + i;
-    outReg[i]          = smemBuf[elem_idx];
+    outReg[i]          = smemInput[elem_idx];
   }
   _CCCL_IKET_RANGE_POP();
 }
 
-template <typename OutputT, typename AccumT, int ElemPerThread>
-_CCCL_DEVICE_API void squadStoreSmem(Squad squad, OutputT* smemBuf, const AccumT (&inReg)[ElemPerThread])
+template <typename OutputIteratorT, typename AccumT, int ElemPerThread>
+_CCCL_DEVICE_API void squadStoreSmem(Squad squad, OutputIteratorT smemOutput, const AccumT (&inReg)[ElemPerThread])
 {
   _CCCL_IKET_RANGE_PUSH(StoreSmem);
   for (int i = 0; i < ElemPerThread; ++i)
   {
-    const int elem_idx = squad.threadRank() * ElemPerThread + i;
-    smemBuf[elem_idx]  = inReg[i];
+    const int elem_idx   = squad.threadRank() * ElemPerThread + i;
+    smemOutput[elem_idx] = inReg[i];
   }
   _CCCL_IKET_RANGE_POP();
 }
 
-template <typename OutputT, typename AccumT, int ElemPerThread>
-_CCCL_DEVICE_API void
-squadStoreSmemPartial(Squad squad, OutputT* smemBuf, const AccumT (&inReg)[ElemPerThread], int beginIndex, int endIndex)
+template <typename OutputIteratorT, typename AccumT, int ElemPerThread>
+_CCCL_DEVICE_API void squadStoreSmemPartial(
+  Squad squad, OutputIteratorT smemOutput, const AccumT (&inReg)[ElemPerThread], int beginIndex, int endIndex)
 {
   _CCCL_IKET_RANGE_PUSH(StoreSmem);
   for (int i = 0; i < ElemPerThread; ++i)
@@ -397,7 +397,7 @@ squadStoreSmemPartial(Squad squad, OutputT* smemBuf, const AccumT (&inReg)[ElemP
     const int elem_idx = squad.threadRank() * ElemPerThread + i;
     if (beginIndex <= elem_idx && elem_idx < endIndex)
     {
-      smemBuf[elem_idx - beginIndex] = inReg[i];
+      smemOutput[elem_idx - beginIndex] = inReg[i];
     }
   }
   _CCCL_IKET_RANGE_POP();

@@ -40,6 +40,7 @@
 #include <thrust/type_traits/unwrap_contiguous_iterator.h>
 
 #include <cuda/__cmath/ceil_div.h>
+#include <cuda/__iterator/contiguous_iterator_adaptor.h>
 #include <cuda/std/__algorithm/min.h>
 #include <cuda/std/__functional/invoke.h>
 #include <cuda/std/__host_stdlib/sstream>
@@ -71,6 +72,8 @@ template <typename PolicySelector,
 struct DeviceScanKernelSource
 {
   using ScanTileStateT = ScanTileState<AccumT>;
+  using InputStorageT  = ::cuda::__unwrapped_iter_value_t<UnwrappedInputIteratorT>;
+  using OutputStorageT = ::cuda::__unwrapped_iter_value_t<UnwrappedOutputIteratorT>;
 
   CUB_DEFINE_KERNEL_GETTER(
     InitKernel,
@@ -91,22 +94,22 @@ struct DeviceScanKernelSource
 
   CUB_RUNTIME_FUNCTION static constexpr ::cuda::std::size_t InputSize()
   {
-    return sizeof(it_value_t<UnwrappedInputIteratorT>);
+    return sizeof(InputStorageT);
   }
 
   CUB_RUNTIME_FUNCTION static constexpr ::cuda::std::size_t InputAlign()
   {
-    return alignof(it_value_t<UnwrappedInputIteratorT>);
+    return alignof(InputStorageT);
   }
 
   CUB_RUNTIME_FUNCTION static constexpr ::cuda::std::size_t OutputSize()
   {
-    return sizeof(it_value_t<UnwrappedOutputIteratorT>);
+    return sizeof(OutputStorageT);
   }
 
   CUB_RUNTIME_FUNCTION static constexpr ::cuda::std::size_t OutputAlign()
   {
-    return alignof(it_value_t<UnwrappedOutputIteratorT>);
+    return alignof(OutputStorageT);
   }
 
   CUB_RUNTIME_FUNCTION static constexpr ::cuda::std::size_t AccumSize()

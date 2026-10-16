@@ -31,6 +31,7 @@
 #include <thrust/type_traits/is_contiguous_iterator.h>
 
 #include <cuda/__device/compute_capability.h>
+#include <cuda/__iterator/contiguous_iterator_adaptor.h>
 #include <cuda/__type_traits/is_trivially_copyable.h>
 #include <cuda/std/__algorithm/max.h>
 #include <cuda/std/__concepts/same_as.h>
@@ -41,6 +42,7 @@
 #include <cuda/std/__type_traits/enable_if.h>
 #include <cuda/std/__type_traits/is_trivially_copy_constructible.h>
 #include <cuda/std/__type_traits/void_t.h>
+#include <cuda/std/__utility/declval.h>
 #include <cuda/std/optional>
 
 CUB_NAMESPACE_BEGIN
@@ -1112,6 +1114,25 @@ struct policy_selector
     if (!require_stable_reduction_order || cc >= ::cuda::compute_capability{9, 0})
     {
       auto lookahead_policy_opt = get_lookahead_policy(cc);
+      // Copied input storage can be wider than the accumulator when a contiguous adaptor projects a narrower value.
+      // Shrink that tile until the bulk-copy buffer fits. Policies that already fit are left unchanged.
+      if (lookahead_policy_opt && input_value_size > accum_size)
+      {
+        while (
+          lookahead_policy_opt->items_per_thread > 1
+          && smem_for_stages(
+               *lookahead_policy_opt,
+               /* num_stages */ 1,
+               input_value_size,
+               input_value_alignment,
+               output_value_alignment,
+               accum_size,
+               accum_alignment)
+               > static_cast<int>(max_smem_per_block))
+        {
+          --lookahead_policy_opt->items_per_thread;
+        }
+      }
       if (lookahead_policy_opt && can_use_lookahead(cc, *lookahead_policy_opt))
       {
 #if _CCCL_COMPILER(NVHPC)
@@ -1536,8 +1557,10 @@ struct policy_selector_from_types
 {
   [[nodiscard]] _CCCL_HOST_DEVICE_API constexpr auto operator()(::cuda::compute_capability cc) const -> ScanPolicy
   {
-    using InputValueT  = it_value_t<InputIteratorT>;
-    using OutputValueT = it_value_t<OutputIteratorT>;
+    using InputValueT    = it_value_t<InputIteratorT>;
+    using OutputValueT   = it_value_t<OutputIteratorT>;
+    using InputStorageT  = ::cuda::__unwrapped_iter_value_t<InputIteratorT>;
+    using OutputStorageT = ::cuda::__unwrapped_iter_value_t<OutputIteratorT>;
 
     constexpr bool benchmark_match =
       benchmark_match_for_policy_selector<ScanOpT, InputValueT, OutputValueT, AccumT>::value;
@@ -1545,22 +1568,25 @@ struct policy_selector_from_types
     constexpr bool accum_is_primitive_or_trivially_copy_constructible =
       is_primitive<AccumT>::value || ::cuda::std::is_trivially_copy_constructible_v<AccumT>;
 
+    // Loads copy the unwrapped input storage, then rebase a contiguous adaptor onto that tile.
+    // Stores rebase a contiguous output adaptor onto the shared tile so its functor runs, then bulk-copy that storage.
     constexpr auto policies = policy_selector{
-      int{sizeof(InputValueT)},
-      int{alignof(InputValueT)},
-      int{sizeof(OutputValueT)},
-      int{alignof(OutputValueT)},
+      int{sizeof(InputStorageT)},
+      int{alignof(InputStorageT)},
+      int{sizeof(OutputStorageT)},
+      int{alignof(OutputStorageT)},
       int{sizeof(AccumT)},
       int{alignof(AccumT)},
       int{sizeof(OffsetT)},
       classify_type<InputValueT>,
       classify_type<AccumT>,
       classify_op<ScanOpT>,
-      THRUST_NS_QUALIFIER::is_contiguous_iterator_v<InputIteratorT>,
-      THRUST_NS_QUALIFIER::is_contiguous_iterator_v<OutputIteratorT>,
-      ::cuda::is_trivially_copyable_v<InputValueT>,
-      ::cuda::is_trivially_copyable_v<OutputValueT>,
-      ::cuda::std::is_default_constructible_v<OutputValueT>,
+      ::cuda::__is_contiguous_iterator_or_adaptor_v<InputIteratorT>,
+      ::cuda::__is_contiguous_iterator_or_adaptor_v<OutputIteratorT>
+        || THRUST_NS_QUALIFIER::is_contiguous_iterator_v<OutputIteratorT>,
+      ::cuda::is_trivially_copyable_v<InputStorageT>,
+      ::cuda::is_trivially_copyable_v<OutputStorageT>,
+      ::cuda::std::is_default_constructible_v<OutputStorageT>,
       accum_is_primitive_or_trivially_copy_constructible,
       benchmark_match,
       StableReductionOrder};

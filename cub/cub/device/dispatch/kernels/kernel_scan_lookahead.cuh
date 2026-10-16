@@ -32,6 +32,7 @@
 
 #include <cuda/__cmath/ceil_div.h>
 #include <cuda/__device/compute_capability.h>
+#include <cuda/__iterator/contiguous_iterator_adaptor.h>
 #include <cuda/__ptx/instructions/clusterlaunchcontrol.h>
 #include <cuda/std/__algorithm/clamp.h>
 #include <cuda/std/__algorithm/max.h>
@@ -73,11 +74,11 @@ _CCCL_HOST_DEVICE_API constexpr int num_total_threads(const ScanLookaheadPolicy&
   return num_total_warps * warp_threads;
 }
 
-template <typename InputT, typename OutputT, typename AccumT>
+template <typename InputIteratorT, typename OutputIteratorT, typename AccumT>
 struct scanKernelParams
 {
-  const InputT* ptrIn;
-  OutputT* ptrOut;
+  InputIteratorT input;
+  OutputIteratorT output;
   warpspeed::tile_state_t<AccumT>* ptrTileStates;
   ::cuda::std::uint32_t* atomicCounter;
   ::cuda::std::size_t numElem;
@@ -85,36 +86,40 @@ struct scanKernelParams
 };
 
 // holds all scan kernel resources
-template <typename PolicySelector, typename InputT, typename OutputT, typename AccumT>
+template <typename PolicySelector, typename InputIteratorT, typename OutputIteratorT, typename AccumT>
 struct ScanResources
 {
+  using input_storage_t  = ::cuda::__unwrapped_iter_value_t<InputIteratorT>;
+  using output_storage_t = ::cuda::__unwrapped_iter_value_t<OutputIteratorT>;
+
   static constexpr ScanLookaheadPolicy policy = current_policy<PolicySelector>().lookahead;
 
-  // align to at least 16 bytes (InputT/OutputT may be aligned higher) so each stage starts correctly aligned
-  struct alignas(::cuda::std::max({::cuda::std::size_t{16}, alignof(InputT), alignof(OutputT)})) in_out_t
+  // align to at least 16 bytes (the input/output storage may be aligned higher) so each stage starts correctly aligned
+  struct alignas(::cuda::std::max({::cuda::std::size_t{16}, alignof(input_storage_t), alignof(output_storage_t)}))
+    in_out_t
   {
     // the tile_size size is a multiple of the warp size, and thus for sure a multiple of 16
     static_assert(policy.tile_size() % 16 == 0, "tile_size must be multiple of 16");
 
     // therefore, unaligned inputs need exactly 16 bytes extra for overcopying (tail padding = 16 - head padding)
-    ::cuda::std::byte inout[policy.tile_size() * sizeof(InputT) + 16];
+    ::cuda::std::byte inout[policy.tile_size() * sizeof(input_storage_t) + 16];
   };
-  static_assert(alignof(in_out_t) >= alignof(InputT));
-  static_assert(alignof(in_out_t) >= alignof(OutputT));
+  static_assert(alignof(in_out_t) >= alignof(input_storage_t));
+  static_assert(alignof(in_out_t) >= alignof(output_storage_t));
   using thread_and_warp_aggr_t = AccumT[squad_reduce(policy).threadCount() + squad_reduce(policy).warpCount()];
 
-  warpspeed::SmemResource<in_out_t> smemInOut; // will also be used to stage the output (as OutputT) for the bulk copy
+  warpspeed::SmemResource<in_out_t> smemInOut; // also stages output storage for the bulk copy
   warpspeed::SmemResource<uint4> smemNextBlockIdx;
   warpspeed::SmemResource<AccumT> smemAggrExclusiveCta;
   warpspeed::SmemResource<thread_and_warp_aggr_t> smemThreadAndWarpAggr;
 };
 
-template <typename PolicySelector, typename InputT, typename OutputT, typename AccumT>
+template <typename PolicySelector, typename InputIteratorT, typename OutputIteratorT, typename AccumT>
 [[nodiscard]] _CCCL_HOST_DEVICE_API constexpr auto
 allocResources(warpspeed::SyncHandler& syncHandler, warpspeed::SmemAllocator& smemAllocator, int numStages)
-  -> ScanResources<PolicySelector, InputT, OutputT, AccumT>
+  -> ScanResources<PolicySelector, InputIteratorT, OutputIteratorT, AccumT>
 {
-  using ScanResourcesT         = ScanResources<PolicySelector, InputT, OutputT, AccumT>;
+  using ScanResourcesT         = ScanResources<PolicySelector, InputIteratorT, OutputIteratorT, AccumT>;
   using in_out_t               = typename ScanResourcesT::in_out_t;
   using thread_and_warp_aggr_t = typename ScanResourcesT::thread_and_warp_aggr_t;
 
@@ -270,8 +275,8 @@ threadScanPartial(Tp (&regAggrInclusive)[ElemPerThread], ScanOpT& scan_op, Tp pr
 // lookahead scan kernel can have lighter signatures. Each squad uses an instance of this to provide its context. In
 // principle, it does not hold any mutable state. But it refers to the shared scan resources (SMEM + barriers etc.).
 template <typename PolicySelector,
-          typename InputT,
-          typename OutputT,
+          typename InputIteratorT,
+          typename OutputIteratorT,
           typename AccumT,
           typename ScanOpT,
           typename RealInitValueT,
@@ -294,9 +299,12 @@ struct lookahead_scan_closure
     squad_store(policy),
   };
 
+  using input_storage_t  = ::cuda::__unwrapped_iter_value_t<InputIteratorT>;
+  using output_storage_t = ::cuda::__unwrapped_iter_value_t<OutputIteratorT>;
+
   // If the output elements are larger than the input elements, the output of a tile does not fit into the SMEM tile
   // buffer at once and the scan squad has to issue multiple bulk stores itself. Otherwise, the store squad does it.
-  static constexpr bool scanSquadStores = sizeof(OutputT) > sizeof(InputT);
+  static constexpr bool scanSquadStores = sizeof(output_storage_t) > sizeof(input_storage_t);
 
   static constexpr int tile_size                  = policy.tile_size();
   static constexpr int lookahead_items_per_thread = policy.lookahead_items_per_thread;
@@ -309,12 +317,12 @@ struct lookahead_scan_closure
   static constexpr bool hasInit     = !::cuda::std::is_same_v<RealInitValueT, NullType>;
   static constexpr bool isInclusive = ForceInclusive || !hasInit;
 
-  using scan_resources_t       = ScanResources<PolicySelector, InputT, OutputT, AccumT>;
+  using scan_resources_t       = ScanResources<PolicySelector, InputIteratorT, OutputIteratorT, AccumT>;
   using in_out_t               = typename scan_resources_t::in_out_t;
   using thread_and_warp_aggr_t = typename scan_resources_t::thread_and_warp_aggr_t;
 
   const warpspeed::SpecialRegisters specialRegisters;
-  const scanKernelParams<InputT, OutputT, AccumT> params;
+  const scanKernelParams<InputIteratorT, OutputIteratorT, AccumT> params;
   mutable ScanOpT scan_op; // mutable, so we can support non-const operator()
   const RealInitValueT real_init_value;
   scan_resources_t res; // this is the only shared mutable state
@@ -328,10 +336,25 @@ struct lookahead_scan_closure
                       (squadGetNextBlockIdxAtomic(squad, refNextBlockIdxW, params.atomicCounter);));
   }
 
+  // Rebase a contiguous adaptor onto a shared tile so its functor runs. A raw pointer is read or written directly.
+  template <class Iter, class Storage>
+  _CCCL_DEVICE_API _CCCL_FORCEINLINE auto retargeted(Iter iter, Storage* smem) const
+  {
+    if constexpr (::cuda::__iterator_can_rebase<Iter, Storage>)
+    {
+      ::cuda::__rebase_contiguous_iterator_adaptor(iter, smem);
+      return iter;
+    }
+    else
+    {
+      return smem;
+    }
+  }
+
   _CCCL_DEVICE_API _CCCL_FORCEINLINE void load_current_tile(
     const warpspeed::Squad& squad,
     warpspeed::SmemPhase<in_out_t>& phaseInOutL,
-    const warpspeed::CpAsyncOobInfo<InputT>& loadInfo) const
+    const warpspeed::CpAsyncOobInfo<input_storage_t>& loadInfo) const
   {
     warpspeed::SmemRef refInOutL = phaseInOutL.acquireRef();
     warpspeed::squadLoadBulk(squad, refInOutL, loadInfo);
@@ -381,7 +404,7 @@ struct lookahead_scan_closure
     int valid_items,
     bool is_first_tile,
     bool is_last_tile, // TODO(bgruber): should we dispatch on is_last_tile outside this function and compile it twice?
-    const warpspeed::CpAsyncOobInfo<InputT>& loadInfo,
+    const warpspeed::CpAsyncOobInfo<input_storage_t>& loadInfo,
     int idxTile,
     int num_tiles) const
   {
@@ -399,10 +422,10 @@ struct lookahead_scan_closure
       // Acquire phaseInOutRW only in this short scope
       warpspeed::SmemRef refInOutRW = phaseInOutRW.acquireRef();
       AccumT regInput[elemPerThread];
-      const auto* smem_data_start =
-        reinterpret_cast<const InputT*>(&refInOutRW.data().inout[0] + loadInfo.smemStartSkipBytes);
+      auto* smem_data_start =
+        reinterpret_cast<input_storage_t*>(&refInOutRW.data().inout[0] + loadInfo.smemStartSkipBytes);
       // in the last tile, we load some invalid elements, but don't process them later
-      warpspeed::squadLoadSmem(squad, regInput, smem_data_start);
+      warpspeed::squadLoadSmem(squad, regInput, retargeted(params.input, smem_data_start));
 
       // Reduce across thread and warp
       _CCCL_IKET_RANGE_PUSH(ReduceThreadWarp);
@@ -490,7 +513,7 @@ struct lookahead_scan_closure
     warpspeed::SmemPhase<in_out_t>& phaseInOutRW,
     bool is_first_tile,
     int valid_items,
-    const warpspeed::CpAsyncOobInfo<InputT>& loadInfo,
+    const warpspeed::CpAsyncOobInfo<input_storage_t>& loadInfo,
     ::cuda::std::size_t idxTileBase) /*const*/ // FIXME(bgruber): this const causes a large SASS diff
   {
     // need to init these to silence nvcc warning about reading uninitialized data
@@ -678,10 +701,9 @@ struct lookahead_scan_closure
     warpspeed::SmemRef refInOutRW = phaseInOutRW.acquireRef();
 
     // We are always loading a full tile even for the last tile, so we are loading invalid data
-    warpspeed::squadLoadSmem(
-      squad,
-      regAggrInclusive,
-      reinterpret_cast<const InputT*>(&refInOutRW.data().inout[0] + loadInfo.smemStartSkipBytes));
+    auto* smem_input_storage =
+      reinterpret_cast<input_storage_t*>(&refInOutRW.data().inout[0] + loadInfo.smemStartSkipBytes);
+    warpspeed::squadLoadSmem(squad, regAggrInclusive, retargeted(params.input, smem_input_storage));
 
     _CCCL_IKET_RANGE_PUSH(ThreadScan);
     // Perform inclusive scan of register array in current thread.
@@ -697,31 +719,37 @@ struct lookahead_scan_closure
     // Store result to shared memory
 
     ::cuda::std::byte* smem_output_tile = refInOutRW.data().inout;
-    if constexpr (sizeof(OutputT) <= sizeof(InputT))
+    if constexpr (sizeof(output_storage_t) <= sizeof(input_storage_t))
     {
-      warpspeed::CpAsyncOobInfo storeInfo = warpspeed::prepareCpAsyncOob(params.ptrOut + idxTileBase, valid_items);
+      auto output_storage = ::cuda::__unwrap_iterator_adaptor(params.output);
+      warpspeed::CpAsyncOobInfo storeInfo =
+        warpspeed::prepareCpAsyncOob(::cuda::std::to_address(output_storage) + idxTileBase, valid_items);
 
-      warpspeed::squadStoreSmem(
-        squad, reinterpret_cast<OutputT*>(smem_output_tile + storeInfo.smemStartSkipBytes), regAggrInclusive);
+      auto* smem_output_storage = reinterpret_cast<output_storage_t*>(smem_output_tile + storeInfo.smemStartSkipBytes);
+      warpspeed::squadStoreSmem(squad, retargeted(params.output, smem_output_storage), regAggrInclusive);
     }
     else
     {
       // otherwise, issue multiple bulk copies in chunks of the input tile size
       // TODO(bgruber): I am sure this could be implemented a lot more efficiently
-      static constexpr int elem_per_chunk = static_cast<int>(policy.tile_size() * sizeof(InputT) / sizeof(OutputT));
+      static constexpr int elem_per_chunk =
+        static_cast<int>(policy.tile_size() * sizeof(input_storage_t) / sizeof(output_storage_t));
+      auto output_storage = ::cuda::__unwrap_iterator_adaptor(params.output);
       for (int chunk_offset = 0; chunk_offset < valid_items; chunk_offset += elem_per_chunk)
       {
-        const int chunk_size = ::cuda::std::min(valid_items - chunk_offset, elem_per_chunk);
-        warpspeed::CpAsyncOobInfo storeInfo =
-          warpspeed::prepareCpAsyncOob(params.ptrOut + idxTileBase + chunk_offset, chunk_size);
+        const int chunk_size                = ::cuda::std::min(valid_items - chunk_offset, elem_per_chunk);
+        warpspeed::CpAsyncOobInfo storeInfo = warpspeed::prepareCpAsyncOob(
+          ::cuda::std::to_address(output_storage) + idxTileBase + chunk_offset, chunk_size);
 
         // only stage elements of the current chunk to SMEM
         // storeInfo.smemStartSkipBytes < 16 and smem_output_tile contains extra 16 bytes, so we should fit
-        _CCCL_ASSERT(storeInfo.smemStartSkipBytes + elem_per_chunk * sizeof(OutputT) <= res.smemInOut.mSizeBytes, "");
+        _CCCL_ASSERT(
+          storeInfo.smemStartSkipBytes + elem_per_chunk * sizeof(output_storage_t) <= res.smemInOut.mSizeBytes, "");
+        auto* smem_output_storage =
+          reinterpret_cast<output_storage_t*>(smem_output_tile + storeInfo.smemStartSkipBytes);
         warpspeed::squadStoreSmemPartial(
           squad,
-          reinterpret_cast<OutputT*>(smem_output_tile + storeInfo.smemStartSkipBytes), // different in each
-                                                                                       // iteration
+          retargeted(params.output, smem_output_storage),
           regAggrInclusive,
           chunk_offset,
           chunk_offset + chunk_size);
@@ -752,8 +780,9 @@ struct lookahead_scan_closure
     warpspeed::SmemRef refInOutS = phaseInOutS.acquireRef();
     if constexpr (!scanSquadStores)
     {
+      auto output_storage = ::cuda::__unwrap_iterator_adaptor(params.output);
       const warpspeed::CpAsyncOobInfo storeInfo =
-        warpspeed::prepareCpAsyncOob(params.ptrOut + idxTileBase, valid_items);
+        warpspeed::prepareCpAsyncOob(::cuda::std::to_address(output_storage) + idxTileBase, valid_items);
       // Blocks until the bulk store finished reading from shared memory, then refInOutS is released for the next load
       warpspeed::squadStoreBulkSync(squad, storeInfo, refInOutS.data().inout);
     }
@@ -822,9 +851,10 @@ struct lookahead_scan_closure
       _CCCL_ASSERT(idxTileBase < params.numElem, "");
       const int valid_items =
         static_cast<int>(cuda::std::min(params.numElem - idxTileBase, ::cuda::std::size_t(tile_size)));
-      const bool is_last_tile = valid_items < tile_size;
-      const warpspeed::CpAsyncOobInfo loadInfo =
-        warpspeed::prepareCpAsyncOob(const_cast<InputT*>(params.ptrIn) + idxTileBase, valid_items);
+      const bool is_last_tile                  = valid_items < tile_size;
+      auto input_storage                       = ::cuda::__unwrap_iterator_adaptor(params.input);
+      const warpspeed::CpAsyncOobInfo loadInfo = warpspeed::prepareCpAsyncOob(
+        const_cast<input_storage_t*>(::cuda::std::to_address(input_storage)) + idxTileBase, valid_items);
 
       // Async loading and async tile index stealing are very lightweight, so one squad is enough to do both
       // slice is intentional, see SquadDesc::operator==()
@@ -949,13 +979,15 @@ template <typename PolicySelector,
           bool ForceInclusive,
           typename RealInitValueT,
           bool StableReductionOrder,
-          typename InputT,
-          typename OutputT,
+          typename InputIteratorT,
+          typename OutputIteratorT,
           typename AccumT,
           typename ScanOpT,
           typename InitValueT>
 _CCCL_DEVICE_API _CCCL_FORCEINLINE void device_scan_lookahead_body(
-  const scanKernelParams<InputT, OutputT, AccumT>& params, const ScanOpT& scan_op, const InitValueT& init_value)
+  const scanKernelParams<InputIteratorT, OutputIteratorT, AccumT>& params,
+  const ScanOpT& scan_op,
+  const InitValueT& init_value)
 {
 #if __cccl_ptx_isa >= 860
   _CCCL_IKET_RANGE_PUSH(Prologue);
@@ -969,7 +1001,8 @@ _CCCL_DEVICE_API _CCCL_FORCEINLINE void device_scan_lookahead_body(
   auto res = [&] {
     warpspeed::SyncHandler syncHandler{};
     warpspeed::SmemAllocator smemAllocator{};
-    auto r = allocResources<PolicySelector, InputT, OutputT, AccumT>(syncHandler, smemAllocator, params.numStages);
+    auto r = allocResources<PolicySelector, InputIteratorT, OutputIteratorT, AccumT>(
+      syncHandler, smemAllocator, params.numStages);
     syncHandler.clusterInitSync<num_total_threads(policy)>(specialRegisters);
     return r;
   }();
@@ -977,8 +1010,8 @@ _CCCL_DEVICE_API _CCCL_FORCEINLINE void device_scan_lookahead_body(
   // Dispatch each warp to its respective squad
   using closure_t = lookahead_scan_closure<
     PolicySelector,
-    InputT,
-    OutputT,
+    InputIteratorT,
+    OutputIteratorT,
     AccumT,
     ScanOpT,
     RealInitValueT,

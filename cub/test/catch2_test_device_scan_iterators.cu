@@ -7,6 +7,7 @@
 
 #include <cuda/buffer>
 #include <cuda/iterator>
+#include <cuda/std/cstdint>
 #include <cuda/std/limits>
 
 #include <cstdint>
@@ -319,4 +320,34 @@ CUB_TEST("Device scan works complex accumulator types", "[scan][device]", CUB_SM
   device_exclusive_scan(d_in_it, d_out_it, cuda::std::plus<>{}, init, num_items);
 
   REQUIRE(d_ok_count[0] == num_items);
+}
+
+struct newline_flag
+{
+  __host__ __device__ ::cuda::std::uint32_t operator()(char symbol) const
+  {
+    return symbol == '\n' ? 1u : 0u;
+  }
+};
+
+CUB_TEST("Device scan loads a contiguous transform iterator from its underlying storage", "[scan][device]", CUB_SMALL)
+{
+  constexpr int num_items = 1 << 16;
+  c2h::host_vector<char> host_symbols(static_cast<size_t>(num_items));
+  c2h::host_vector<::cuda::std::uint32_t> expected(static_cast<size_t>(num_items));
+  ::cuda::std::uint32_t running = 0;
+  for (int i = 0; i < num_items; ++i)
+  {
+    host_symbols[static_cast<size_t>(i)] = (i % 8 == 0) ? '\n' : 'a';
+    running += newline_flag{}(host_symbols[static_cast<size_t>(i)]);
+    expected[static_cast<size_t>(i)] = running;
+  }
+
+  c2h::device_vector<char> symbols(static_cast<size_t>(num_items));
+  symbols.assign(host_symbols.begin(), host_symbols.end());
+  c2h::device_vector<::cuda::std::uint32_t> segments(static_cast<size_t>(num_items));
+  auto input = cuda::make_transform_iterator(thrust::raw_pointer_cast(symbols.data()), newline_flag{});
+  device_inclusive_sum(input, thrust::raw_pointer_cast(segments.data()), num_items);
+
+  REQUIRE(expected == segments);
 }
