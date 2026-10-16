@@ -399,8 +399,16 @@ struct policy_selector
       all_value_types_have_power_of_two_size &= ::cuda::is_power_of_two(input.value_type_size);
     }
     const bool can_memcpy_all_inputs = all_inputs_contiguous && all_input_values_trivially_reloc;
-    const bool fallback_to_prefetch  = requires_stable_address || !can_memcpy_contiguous_inputs || !dense_output;
-    const int min_bytes_in_flight    = cc_to_min_bytes_in_flight(cc);
+    // ublockcopy can also move the stored elements of a contiguous adaptor. The functor still runs on the copy, so
+    // this stays off the Ampere ldgsts path, which would pass the stored elements to the user operation directly.
+    bool can_memcpy_for_ublkcp = !no_input_streams;
+    for (const auto& input : inputs)
+    {
+      can_memcpy_for_ublkcp &=
+        (input.is_contiguous && input.value_type_is_trivially_relocatable) || input.can_bulk_copy_unwrapped_storage;
+    }
+    const bool fallback_to_prefetch = requires_stable_address || !can_memcpy_contiguous_inputs || !dense_output;
+    const int min_bytes_in_flight   = cc_to_min_bytes_in_flight(cc);
 
     if (cc >= ::cuda::compute_capability{9, 0}) // handles sm_100 as well
     {
@@ -459,7 +467,7 @@ struct policy_selector
 
       const bool enough_threads_for_peeling = async_block_size >= alignment; // head and tail bytes
       const bool fallback_to_vectorized = exhaust_smem || !tile_sizes_retain_alignment || !enough_threads_for_peeling
-                                       || no_input_streams || !can_memcpy_all_inputs || vector_kernel_is_faster;
+                                       || no_input_streams || !can_memcpy_for_ublkcp || vector_kernel_is_faster;
 
       const auto algorithm =
         fallback_to_prefetch ? TransformAlgorithm::prefetch

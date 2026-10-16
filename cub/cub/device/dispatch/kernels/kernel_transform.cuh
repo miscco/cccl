@@ -27,6 +27,7 @@
 #include <cuda/__cmath/round_up.h>
 #include <cuda/__device/compute_capability.h>
 #include <cuda/__functional/always_true_false.h>
+#include <cuda/__iterator/contiguous_iterator_adaptor.h>
 #include <cuda/__memcpy_async/elect_one.h>
 #include <cuda/__memory/align_down.h>
 #include <cuda/__memory/aligned_size.h>
@@ -52,6 +53,8 @@
 #include <cuda/std/__type_traits/is_pointer.h>
 #include <cuda/std/__type_traits/is_same.h>
 #include <cuda/std/__type_traits/is_trivial.h>
+#include <cuda/std/__type_traits/remove_const.h>
+#include <cuda/std/__type_traits/remove_cvref.h>
 #include <cuda/std/__utility/move.h>
 #include <cuda/std/array>
 #include <cuda/std/cstdint>
@@ -402,6 +405,52 @@ _CCCL_HOST_DEVICE auto make_aligned_base_ptr(const T* ptr, int alignment) -> ali
   return aligned_base_ptr<T>{base_ptr, static_cast<int>(raw_ptr - base_ptr)};
 }
 
+template <typename It>
+struct kernel_arg
+{
+  using copied_type = bulk_copied_value_t<It>;
+
+  aligned_base_ptr<copied_type> aligned_ptr{};
+  // It may not be default constructible. The dummy member is the one the constructor activates; placement new starts
+  // the iterator's lifetime when the launch path needs it.
+  union
+  {
+    char trivial;
+    It iterator;
+  };
+
+  // Sometimes It is not trivially [default|copy]-constructible (e.g.
+  // thrust::normal_iterator<thrust::device_pointer<T>>), so kernel_arg's special members would be deleted. We work
+  // around it by explicitly defining them. The contained data is semantically trivially copyable: it only carries
+  // values to the device.
+  _CCCL_HOST_DEVICE kernel_arg() noexcept
+      : trivial{}
+  {}
+  _CCCL_HOST_DEVICE ~kernel_arg() noexcept {}
+
+  _CCCL_HOST_DEVICE kernel_arg(const kernel_arg& other)
+      : trivial{}
+  {
+    ::cuda::std::memcpy(reinterpret_cast<char*>(this), reinterpret_cast<const char*>(&other), sizeof(kernel_arg));
+  }
+};
+
+// Retarget a contiguous adaptor at bulk-copied storage so its functor runs. A raw pointer is already the stored type,
+// so the shared-memory tile is returned unchanged.
+template <typename Iter, typename T>
+_CCCL_DEVICE _CCCL_FORCEINLINE auto bulk_copy_reader(Iter iter, T* tile)
+{
+  if constexpr (can_bulk_copy_unwrapped_storage_v<::cuda::std::remove_cvref_t<Iter>>)
+  {
+    ::cuda::__rebase_contiguous_iterator_adaptor(iter, const_cast<::cuda::std::remove_const_t<T>*>(tile));
+    return iter;
+  }
+  else
+  {
+    return tile;
+  }
+}
+
 template <int ThreadsPerBlock>
 _CCCL_DEVICE void memcpy_async_aligned(void* dst, const void* src, unsigned int bytes_to_copy)
 {
@@ -702,20 +751,20 @@ template <int ThreadsPerBlock,
           typename Predicate,
           typename F,
           typename RandomAccessIteratorOut,
-          typename... InTs>
+          typename... Iters>
 _CCCL_DEVICE void transform_kernel_ublkcp(
   Offset num_items,
   int num_elem_per_thread,
   Predicate pred,
   F f,
   RandomAccessIteratorOut out,
-  aligned_base_ptr<InTs>... aligned_ptrs)
+  kernel_arg<Iters>... inputs)
 {
   // constexpr int ThreadsPerBlock       = Policy.async_copy.ThreadsPerBlock;
   constexpr int bulk_copy_alignment = transform::bulk_copy_alignment(current_tuning_cc());
 
   // add padding after a tile in shared memory to make space for the next tile's head padding, and retain alignment
-  constexpr int max_alignment = ::cuda::std::max({int{alignof(InTs)}...});
+  constexpr int max_alignment = ::cuda::std::max({int{alignof(typename kernel_arg<Iters>::copied_type)}...});
   constexpr int tile_padding  = ::cuda::std::max(bulk_copy_alignment, max_alignment);
 
   // We could use an attribute to align the shared memory. This is unfortunately not respected by nvcc in all cases and
@@ -779,10 +828,11 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
       char* smem                         = smem_base;
       ::cuda::std::uint32_t total_copied = 0;
 
-      auto bulk_copy_tile = [&](auto aligned_ptr) {
-        using T         = typename decltype(aligned_ptr)::value_type;
-        const char* src = aligned_ptr.ptr + offset * sizeof(T);
-        char* dst       = smem;
+      auto bulk_copy_tile = [&](auto input) {
+        const auto aligned_ptr = input.aligned_ptr;
+        using T                = typename decltype(aligned_ptr)::value_type;
+        const char* src        = aligned_ptr.ptr + offset * sizeof(T);
+        char* dst              = smem;
         _CCCL_ASSERT(::cuda::std::is_sufficiently_aligned<bulk_copy_alignment>(src), "");
         _CCCL_ASSERT(::cuda::std::is_sufficiently_aligned<bulk_copy_alignment>(dst), "");
 
@@ -822,7 +872,7 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
       // only elected thread waits, but other threads wait on the barrier fulfilled by the bulk copy later
       _CCCL_PDL_GRID_DEPENDENCY_SYNC();
       // Order of evaluation is left-to-right
-      (..., bulk_copy_tile(aligned_ptrs));
+      (..., bulk_copy_tile(inputs));
 
       ptx::mbarrier_arrive_expect_tx(ptx::sem_relaxed, ptx::scope_cta, ptx::space_shared, &bar, total_copied);
 
@@ -848,10 +898,11 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
         ::cuda::std::uint32_t total_copied = 0;
 
         // turning this lambda into a function does not change SASS
-        auto bulk_copy_tile = [&](auto aligned_ptr) {
-          using T         = typename decltype(aligned_ptr)::value_type;
-          const char* src = aligned_ptr.ptr + offset * sizeof(T);
-          char* dst       = smem;
+        auto bulk_copy_tile = [&](auto input) {
+          const auto aligned_ptr = input.aligned_ptr;
+          using T                = typename decltype(aligned_ptr)::value_type;
+          const char* src        = aligned_ptr.ptr + offset * sizeof(T);
+          char* dst              = smem;
           _CCCL_ASSERT(::cuda::std::is_sufficiently_aligned<bulk_copy_alignment>(src), "");
           _CCCL_ASSERT(::cuda::std::is_sufficiently_aligned<bulk_copy_alignment>(dst), "");
 
@@ -885,7 +936,7 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
         // only elected thread waits, but other threads wait on the barrier fulfilled by the bulk copy later
         _CCCL_PDL_GRID_DEPENDENCY_SYNC();
         // Order of evaluation is left-to-right
-        (..., bulk_copy_tile(aligned_ptrs));
+        (..., bulk_copy_tile(inputs));
 
         ptx::mbarrier_arrive_expect_tx(
           ::cuda::std::conditional_t<__cccl_ptx_isa >= 860, ptx::sem_relaxed_t, ptx::sem_release_t>{},
@@ -916,8 +967,9 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
       ::cuda::std::uint32_t total_copied = 0;
 
       // turning this lambda into a function does not change SASS
-      auto bulk_copy_tile_fallback = [&](auto aligned_ptr) {
-        using T = typename decltype(aligned_ptr)::value_type;
+      auto bulk_copy_tile_fallback = [&](auto input) {
+        const auto aligned_ptr = input.aligned_ptr;
+        using T                = typename decltype(aligned_ptr)::value_type;
 
         _CCCL_ASSERT(alignof(T) < bulk_copy_alignment || aligned_ptr.head_padding == 0, "");
         const int head_padding = alignof(T) < bulk_copy_alignment ? aligned_ptr.head_padding : 0;
@@ -936,7 +988,7 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
 
       _CCCL_PDL_GRID_DEPENDENCY_SYNC();
       // Order of evaluation is left-to-right
-      (..., bulk_copy_tile_fallback(aligned_ptrs));
+      (..., bulk_copy_tile_fallback(inputs));
 
       if (elected)
       {
@@ -972,13 +1024,16 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
     store_vec_size > 1 && ::cuda::std::is_same_v<Predicate, ::cuda::always_true>
     && THRUST_NS_QUALIFIER::is_contiguous_iterator_v<RandomAccessIteratorOut>
     && ::cuda::is_trivially_copyable_v<output_t> && ::cuda::is_power_of_two(out_size)
-    && (... && ::cuda::is_power_of_two(int{sizeof(InTs)}));
+    && (... && ::cuda::is_power_of_two(int{sizeof(typename kernel_arg<Iters>::copied_type)}));
 
   [[maybe_unused]] bool can_vectorize = false;
   if constexpr (vectorize_eligible)
   {
-    can_vectorize = ::cuda::std::is_sufficiently_aligned<out_size * store_vec_size>(out)
-                 && (... && (aligned_ptrs.head_padding % (int{sizeof(InTs)} * store_vec_size) == 0));
+    can_vectorize =
+      ::cuda::std::is_sufficiently_aligned<out_size * store_vec_size>(out)
+      && (...
+          && (inputs.aligned_ptr.head_padding % (int{sizeof(typename kernel_arg<Iters>::copied_type)} * store_vec_size)
+              == 0));
   }
 
   // all threads wait for bulk copy
@@ -999,8 +1054,9 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
       for (auto v = static_cast<int>(threadIdx.x); v < num_vecs; v += ThreadsPerBlock)
       {
         char* smem       = smem_base;
-        auto load_in_vec = [&](auto aligned_ptr) {
-          using T = typename decltype(aligned_ptr)::value_type;
+        auto load_in_vec = [&](auto input) {
+          const auto aligned_ptr = input.aligned_ptr;
+          using T                = typename decltype(aligned_ptr)::value_type;
           // head_padding = in_ptr % bulk_copy_alignment, and in_ptr is a valid T*, so it's aligned to
           // alignof(T), i.e. in_ptr % alignof(T) == 0. Both alignof(T) and bulk_copy_alignment are powers of two.
           //
@@ -1047,7 +1103,7 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
           }
           return in_vec;
         };
-        auto in_vecs = ::cuda::std::tuple{load_in_vec(aligned_ptrs)...};
+        auto in_vecs = ::cuda::std::tuple{load_in_vec(inputs)...};
 
         // must fully unroll to make sure register index is static
         ::cuda::__uninitialized_array<output_t, store_vec_size, sizeof(output_t) * store_vec_size> res;
@@ -1056,7 +1112,9 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
         {
           res[k] = ::cuda::std::apply(
             [&](auto&... in_vec) {
-              return f(in_vec[k]...);
+              // A contiguous adaptor is rebased onto the staged storage so its functor runs. A pointer reads the
+              // staged values directly.
+              return f(bulk_copy_reader(inputs.iterator, in_vec.data())[k]...);
             },
             in_vecs);
         }
@@ -1068,18 +1126,19 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
       for (int idx = num_vecs * store_vec_size + threadIdx.x; idx < valid_items; idx += ThreadsPerBlock)
       {
         const char* smem   = smem_base;
-        auto fetch_operand = [&](auto aligned_ptr) {
+        auto fetch_operand = [&](auto input) {
+          const auto aligned_ptr = input.aligned_ptr;
           using T                = typename decltype(aligned_ptr)::value_type;
           const int head_padding = alignof(T) < bulk_copy_alignment ? aligned_ptr.head_padding : 0;
           const char* src        = smem + head_padding;
           smem += tile_padding + int{sizeof(T)} * tile_size;
-          return reinterpret_cast<const T*>(src)[idx];
+          return bulk_copy_reader(input.iterator, reinterpret_cast<const T*>(src))[idx];
         };
         out[idx] = ::cuda::std::apply(
           [&](auto... values) {
             return f(values...);
           },
-          ::cuda::std::tuple<InTs...>{fetch_operand(aligned_ptrs)...});
+          ::cuda::std::tuple{fetch_operand(inputs)...});
       }
       return;
     }
@@ -1094,12 +1153,13 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
       if (full_tile || idx < valid_items)
       {
         const char* smem   = smem_base;
-        auto fetch_operand = [&](auto aligned_ptr) {
+        auto fetch_operand = [&](auto input) {
+          const auto aligned_ptr = input.aligned_ptr;
           using T                = typename decltype(aligned_ptr)::value_type;
           const int head_padding = alignof(T) < bulk_copy_alignment ? aligned_ptr.head_padding : 0;
           const char* src        = smem + head_padding;
           smem += tile_padding + int{sizeof(T)} * tile_size;
-          return reinterpret_cast<const T*>(src)[idx];
+          return bulk_copy_reader(input.iterator, reinterpret_cast<const T*>(src))[idx];
         };
 
         // need to expand into a tuple for guaranteed order of evaluation
@@ -1110,7 +1170,7 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
               out[idx] = f(values...);
             }
           },
-          ::cuda::std::tuple<InTs...>{fetch_operand(aligned_ptrs)...});
+          ::cuda::std::tuple{fetch_operand(inputs)...});
       }
     });
   };
@@ -1126,28 +1186,6 @@ _CCCL_DEVICE void transform_kernel_ublkcp(
 }
 
 template <typename It>
-union kernel_arg
-{
-  aligned_base_ptr<it_value_t<It>> aligned_ptr; // first member is trivial
-  static_assert(::cuda::std::is_trivial_v<decltype(aligned_ptr)>);
-  It iterator; // may not be trivially [default|copy]-constructible
-
-  // Sometimes It is not trivially [default|copy]-constructible (e.g.
-  // thrust::normal_iterator<thrust::device_pointer<T>>), so because of
-  // https://eel.is/c++draft/class.union#general-note-3, kernel_args's special members are deleted. We work around it by
-  // explicitly defining them.
-  _CCCL_HOST_DEVICE kernel_arg() noexcept {}
-  _CCCL_HOST_DEVICE ~kernel_arg() noexcept {}
-
-  _CCCL_HOST_DEVICE kernel_arg(const kernel_arg& other)
-  {
-    // since we use kernel_arg only to pass data to the device, the contained data is semantically trivially copyable,
-    // even if the type system is telling us otherwise.
-    ::cuda::std::memcpy(reinterpret_cast<char*>(this), reinterpret_cast<const char*>(&other), sizeof(kernel_arg));
-  }
-};
-
-template <typename It>
 _CCCL_HOST_DEVICE auto make_iterator_kernel_arg(It it) -> kernel_arg<It>
 {
   kernel_arg<It> arg;
@@ -1159,10 +1197,21 @@ _CCCL_HOST_DEVICE auto make_iterator_kernel_arg(It it) -> kernel_arg<It>
 }
 
 template <typename It>
-_CCCL_HOST_DEVICE auto make_aligned_base_ptr_kernel_arg(It ptr, int alignment) -> kernel_arg<It>
+_CCCL_HOST_DEVICE auto make_aligned_base_ptr_kernel_arg(It it, int alignment) -> kernel_arg<It>
 {
   kernel_arg<It> arg;
-  arg.aligned_ptr = make_aligned_base_ptr(ptr, alignment);
+  if constexpr (can_bulk_copy_unwrapped_storage_v<It>)
+  {
+    const auto* const base = ::cuda::std::to_address(::cuda::__unwrap_iterator_adaptor(it));
+    arg.aligned_ptr        = make_aligned_base_ptr(base, alignment);
+  }
+  else
+  {
+    arg.aligned_ptr = make_aligned_base_ptr(it, alignment);
+  }
+  // The ublockcopy kernel rebases this iterator onto the copied storage. A pointer does not need it, but constructing
+  // it keeps the argument lifetime uniform.
+  ::cuda::std::__construct_at(&arg.iterator, it);
   return arg;
 }
 
@@ -1268,7 +1317,7 @@ __launch_bounds__(get_threads_per_block<PolicySelector>) _CCCL_KERNEL_ATTRIBUTES
          ::cuda::std::move(pred),
          ::cuda::std::move(f),
          ::cuda::std::move(out),
-         ::cuda::std::move(ins.aligned_ptr)...);));
+         ::cuda::std::move(ins)...);));
   }
   else
   {

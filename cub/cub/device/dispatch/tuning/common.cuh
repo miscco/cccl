@@ -21,12 +21,16 @@
 #include <cuda/__functional/maximum.h>
 #include <cuda/__functional/minimum.h>
 #include <cuda/__functional/operator_properties.h>
+#include <cuda/__iterator/contiguous_iterator_adaptor.h>
 #include <cuda/__type_traits/is_trivially_copyable.h>
 #include <cuda/std/__concepts/same_as.h>
 #include <cuda/std/__functional/operations.h>
 #include <cuda/std/__fwd/format.h>
 #include <cuda/std/__host_stdlib/ostream>
+#include <cuda/std/__type_traits/conditional.h>
+#include <cuda/std/__type_traits/is_pointer.h>
 #include <cuda/std/__type_traits/is_signed.h>
+#include <cuda/std/__type_traits/is_void.h>
 
 CUB_NAMESPACE_BEGIN
 
@@ -115,23 +119,49 @@ inline constexpr auto classify_op =
     ? op_kind_t::max
     : op_kind_t::other;
 
+// True when It is not thrust-contiguous, but peels to a trivially copyable pointer and can be retargeted at that
+// storage. Bulk copy may move those bytes; the adaptor functor still has to run on the copy. Output iterators are
+// excluded (their value type is void). This is not thrust contiguity: the copied type is the stored element, which
+// may differ from its value type.
+template <typename It>
+inline constexpr bool can_bulk_copy_unwrapped_storage_v =
+  !THRUST_NS_QUALIFIER::is_contiguous_iterator_v<It> && !::cuda::std::is_void_v<it_value_t<It>>
+  && ::cuda::std::is_pointer_v<::cuda::__unwrapped_iterator_t<It>> && ::cuda::__iterator_can_rebase<It>
+  && ::cuda::is_trivially_copyable_v<::cuda::__unwrapped_iter_value_t<It>>;
+
+template <typename It>
+using bulk_copied_value_t =
+  ::cuda::std::conditional_t<can_bulk_copy_unwrapped_storage_v<It>, ::cuda::__unwrapped_iter_value_t<It>, it_value_t<It>>;
+
 struct iterator_info
 {
   int value_type_size;
   int value_type_alignment;
   bool value_type_is_trivially_relocatable;
   bool is_contiguous;
+  // See can_bulk_copy_unwrapped_storage_v. When set, value_type_size and value_type_alignment describe the stored
+  // element that bulk copy moves, not the adaptor's value type.
+  bool can_bulk_copy_unwrapped_storage = false;
 };
 
 template <typename It>
 [[nodiscard]] _CCCL_HOST_DEVICE_API constexpr auto make_iterator_info() -> iterator_info
 {
   using vt = it_value_t<It>;
-  return iterator_info{
-    static_cast<int>(size_of<vt>),
-    static_cast<int>(align_of<vt>),
-    ::cuda::is_trivially_copyable_v<vt>,
-    THRUST_NS_QUALIFIER::is_contiguous_iterator_v<It>};
+  if constexpr (can_bulk_copy_unwrapped_storage_v<It>)
+  {
+    using storage_t = ::cuda::__unwrapped_iter_value_t<It>;
+    return iterator_info{static_cast<int>(size_of<storage_t>), static_cast<int>(align_of<storage_t>), true, false, true};
+  }
+  else
+  {
+    return iterator_info{
+      static_cast<int>(size_of<vt>),
+      static_cast<int>(align_of<vt>),
+      ::cuda::is_trivially_copyable_v<vt>,
+      THRUST_NS_QUALIFIER::is_contiguous_iterator_v<It>,
+      false};
+  }
 }
 
 enum class primitive_key

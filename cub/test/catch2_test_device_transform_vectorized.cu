@@ -9,6 +9,7 @@
 
 #include <cuda/functional>
 #include <cuda/iterator>
+#include <cuda/std/utility>
 
 #include <algorithm>
 #include <numeric>
@@ -190,6 +191,30 @@ CUB_TEST("DeviceTransform invokes the functor of a contiguous transform iterator
   std::iota(reference.begin(), reference.end(), 0);
   REQUIRE(reference == result);
 }
+
+#if TEST_LAUNCH == 0
+CUB_TEST("DeviceTransform selects ublockcopy for a contiguous transform iterator", "[device][transform]")
+{
+  using iter_t     = decltype(::cuda::transform_iterator(::cuda::std::declval<int*>(), plus_one_t{}));
+  using selector_t = cub::detail::transform::policy_selector_from_types<false, true, ::cuda::std::tuple<iter_t>, int*>;
+  constexpr auto on_blackwell = selector_t{}(::cuda::compute_capability{12, 0});
+  constexpr auto on_ampere    = selector_t{}(::cuda::compute_capability{8, 6});
+  static_assert(on_blackwell.algorithm == cub::TransformAlgorithm::ublkcp);
+  static_assert(on_ampere.algorithm == cub::TransformAlgorithm::vectorized);
+
+  using widened_t = decltype(::cuda::transform_iterator(::cuda::std::declval<std::uint8_t*>(), cast_to<int>{}));
+  using widened_selector_t =
+    cub::detail::transform::policy_selector_from_types<false, true, ::cuda::std::tuple<widened_t>, int*>;
+  constexpr auto widened = widened_selector_t{}(::cuda::compute_capability{12, 0});
+  static_assert(widened.algorithm == cub::TransformAlgorithm::ublkcp);
+
+  using counting_t = decltype(::cuda::transform_iterator(::cuda::counting_iterator{0}, plus_one_t{}));
+  using counting_selector_t =
+    cub::detail::transform::policy_selector_from_types<false, true, ::cuda::std::tuple<counting_t>, int*>;
+  constexpr auto counting = counting_selector_t{}(::cuda::compute_capability{12, 0});
+  static_assert(counting.algorithm != cub::TransformAlgorithm::ublkcp);
+}
+#endif // TEST_LAUNCH == 0
 
 #if TEST_LAUNCH == 0
 struct ublkcp_store_vec_size_2_selector
