@@ -35,6 +35,7 @@
 #include <cuda/std/__algorithm/min.h>
 #include <cuda/std/__functional/identity.h>
 #include <cuda/std/__memory/is_sufficiently_aligned.h>
+#include <cuda/std/__memory/runtime_assume_aligned.h>
 #include <cuda/std/__type_traits/conditional.h>
 #include <cuda/std/__type_traits/is_same.h>
 
@@ -302,9 +303,12 @@ struct AgentReduceImpl
     if constexpr (CanVectorize)
     {
       InputT input_items[ITEMS_PER_THREAD];
-      // lane_id is the warp lane for a warp agent and the block thread id otherwise.
+      // lane_id is the warp lane for a warp agent and the block thread id otherwise. Full tiles start a whole number of
+      // tiles after the input checked by IsAligned, so they are aligned to VectorT as well
       LoadDirectStripedVectorized<NumThreads, vec_size, LOAD_MODIFIER>(
-        static_cast<int>(lane_id), d_in.ptr + block_offset, input_items);
+        static_cast<int>(lane_id),
+        ::cuda::std::__runtime_assume_aligned(d_in.ptr + block_offset, alignof(VectorT)),
+        input_items);
 
       // Convert from input type to output type
       _CCCL_PRAGMA_UNROLL_FULL()
