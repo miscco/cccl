@@ -22,8 +22,13 @@
 #include <cub/detail/null_type.cuh>
 #include <cub/detail/topk_helpers.cuh>
 #include <cub/detail/uninitialized.cuh>
+#include <cub/util_temporary_storage.cuh>
+
+#include <thrust/type_traits/is_contiguous_iterator.h>
 
 #include <cuda/__cmath/ceil_div.h>
+#include <cuda/std/__memory/assume_aligned.h>
+#include <cuda/std/__memory/pointer_traits.h>
 #include <cuda/std/__type_traits/is_same.h>
 
 CUB_NAMESPACE_BEGIN
@@ -258,29 +263,50 @@ struct AgentTopK
   // Utility methods for device topK
   //---------------------------------------------------------------------
 
+  // Load a full tile in a blocked arrangement from tile_base items after in. Vectorized loads test the alignment of in
+  // instead of the alignment of the tile, thus all tiles of a range share the test
+  template <typename InputItT>
+  _CCCL_DEVICE _CCCL_FORCEINLINE void
+  load_tile(InputItT in, const OffsetT tile_base, key_in_t (&thread_data)[items_per_thread])
+  {
+    if constexpr (AgentTopKPolicyT::load_algorithm == BLOCK_LOAD_VECTORIZE
+                  && THRUST_NS_QUALIFIER::is_contiguous_iterator_v<InputItT>)
+    {
+      LoadDirectBlockedVectorized<LOAD_DEFAULT>(
+        static_cast<int>(threadIdx.x), ::cuda::std::to_address(in), tile_base, thread_data);
+    }
+    else
+    {
+      block_load_input_t(temp_storage.load_input).Load(in + tile_base, thread_data);
+    }
+  }
+
   // Process a range of input data in tiles, calling f(key, index) for each element
   template <typename InputItT, typename FuncT>
   _CCCL_DEVICE _CCCL_FORCEINLINE void process_range(InputItT in, const OffsetT num_items, FuncT f)
   {
     key_in_t thread_data[items_per_thread];
 
+    // The number of tiles fits into an int, only the offsets of the items need OffsetT
+    const int last_tile                  = static_cast<int>(::cuda::ceil_div(num_items, tile_items)) - 1;
+    const OffsetT num_remaining_elements = num_items % tile_items;
+    const unsigned int last_block_id     = static_cast<unsigned int>(last_tile) % gridDim.x;
+
     const OffsetT items_per_pass =
       static_cast<OffsetT>(tile_items * gridDim.x); // NOLINT(bugprone-misplaced-widening-cast)
-    const OffsetT total_num_blocks = ::cuda::ceil_div(num_items, tile_items);
-
-    const OffsetT num_remaining_elements = num_items % tile_items;
-    const OffsetT last_block_id          = (total_num_blocks - 1) % gridDim.x;
 
     OffsetT tile_base = static_cast<OffsetT>(blockIdx.x * tile_items); // NOLINT(bugprone-misplaced-widening-cast)
     OffsetT offset    = threadIdx.x * items_per_thread + tile_base;
 
-    for (int i_block = static_cast<int>(blockIdx.x); i_block < total_num_blocks - 1;
-         i_block += static_cast<int>(gridDim.x))
+    // Unrolling the tiles keeps the keys of several tiles in registers, which costs occupancy once the tile loads fold
+    // their alignment tests
+    _CCCL_PRAGMA_NOUNROLL()
+    for (int tile = static_cast<int>(blockIdx.x); tile < last_tile; tile += static_cast<int>(gridDim.x))
     {
       // Ensure that the temporary storage from previous iteration can be reused
       __syncthreads();
 
-      block_load_input_t(temp_storage.load_input).Load(in + tile_base, thread_data);
+      load_tile(in, tile_base, thread_data);
       for (int j = 0; j < items_per_thread; ++j)
       {
         f(thread_data[j], offset + j);
@@ -297,7 +323,7 @@ struct AgentTopK
 
       if (num_remaining_elements == 0)
       {
-        block_load_input_t(temp_storage.load_input).Load(in + tile_base, thread_data);
+        load_tile(in, tile_base, thread_data);
       }
       else
       {
@@ -457,17 +483,19 @@ struct AgentTopK
     }
     else
     {
+      // The candidate buffers are allocations of alias_temporaries
+      key_in_t* const aligned_in_buf = ::cuda::std::assume_aligned<alias_temporaries_alignment>(in_buf);
       if (early_stop)
       {
-        process_range(in_buf, previous_len, f_early_stop);
+        process_range(aligned_in_buf, previous_len, f_early_stop);
       }
       else if (out_buf)
       {
-        process_range(in_buf, previous_len, f_with_out_buf);
+        process_range(aligned_in_buf, previous_len, f_with_out_buf);
       }
       else
       {
-        process_range(in_buf, previous_len, f_no_out_buf);
+        process_range(aligned_in_buf, previous_len, f_no_out_buf);
       }
     }
 
@@ -643,7 +671,8 @@ struct AgentTopK
     }
     else
     {
-      process_range(in_buf, current_len, f);
+      // The candidate buffers are allocations of alias_temporaries
+      process_range(::cuda::std::assume_aligned<alias_temporaries_alignment>(in_buf), current_len, f);
     }
   }
 
