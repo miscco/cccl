@@ -25,7 +25,6 @@
 #include <cub/detail/null_type.cuh>
 #include <cub/detail/numeric_traits.cuh>
 #include <cub/detail/uninitialized.cuh>
-#include <cub/detail/unit_word.cuh>
 #include <cub/iterator/cache_modified_input_iterator.cuh>
 #include <cub/thread/thread_load.cuh>
 #include <cub/util_ptx.cuh>
@@ -264,20 +263,14 @@ load_direct_blocked_vectorized(int linear_tid, const InputT* block_src_ptr, T (&
 
 namespace detail
 {
-//! @brief The vector type with which ``LoadDirectBlockedVectorized`` loads ``VecSize`` consecutive items of ``InputT``
-template <typename InputT, int VecSize>
-struct block_load_vector
-{
-  // Find biggest memory access word that InputT is a whole multiple of
-  using device_word_t              = typename UnitWord<InputT>::DeviceWord;
-  static constexpr int total_words = static_cast<int>(VecSize * sizeof(InputT) / sizeof(device_word_t));
-  static constexpr int vector_size = (total_words % 4 == 0) ? 4 : (total_words % 2 == 0) ? 2 : 1;
-
-  using type = typename CubVector<device_word_t, vector_size>::Type;
-};
-
-template <typename InputT, int VecSize>
-using block_load_vector_t = typename block_load_vector<InputT, VecSize>::type;
+//! @brief The number of consecutive items of ``T`` in each vector of ``BLOCK_LOAD_STRIPED_VECTORIZED``: the items in
+//! the widest vectors with which ``LoadDirectBlockedVectorized`` loads ``ItemsPerThread`` items, or a single item if
+//! these vectors do not hold a whole number of items
+template <typename T, int ItemsPerThread, CacheLoadModifier Modifier>
+inline constexpr int block_load_striped_vec_size_v =
+  block_load_max_vector_access_v<T, ItemsPerThread, Modifier> % sizeof(T) == 0
+    ? static_cast<int>(block_load_max_vector_access_v<T, ItemsPerThread, Modifier> / sizeof(T))
+    : 1;
 } // namespace detail
 
 #endif // _CCCL_DOXYGEN_INVOKED
@@ -529,20 +522,64 @@ load_direct_striped_vectorized_aligned(int linear_tid, const InputT* block_src_p
 }
 } // namespace detail
 
+namespace detail
+{
+//! @brief Loads the arrangement of ``LoadDirectStripedVectorized`` with vectors of ``VecSize`` items and accesses of
+//! ``Alignment`` bytes, to which ``block_src_ptr`` must be aligned
+template <::cuda::std::size_t Alignment,
+          int ThreadsPerBlock,
+          int VecSize,
+          CacheLoadModifier Modifier,
+          typename T,
+          int ItemsPerThread,
+          typename InputT>
+_CCCL_DEVICE _CCCL_FORCEINLINE void
+load_direct_striped_vectorized(int linear_tid, const InputT* block_src_ptr, T (&dst_items)[ItemsPerThread])
+{
+  static_assert(ItemsPerThread % VecSize == 0, "The vector size must evenly divide ItemsPerThread");
+  using vector_t = ::cuda::__aligned_array<InputT, VecSize, Alignment>;
+
+  // Vector i of a thread is vector linear_tid + i * ThreadsPerBlock of the block
+  // The thread offset is computed in unsigned arithmetic like offsets from threadIdx.x, because a signed multiplication
+  // generates additional address arithmetic in the calling kernels
+  const vector_t* vec_ptr =
+    reinterpret_cast<const vector_t*>(block_src_ptr + static_cast<unsigned int>(linear_tid) * VecSize);
+  _CCCL_PRAGMA_UNROLL_FULL()
+  for (int i = 0; i < ItemsPerThread / VecSize; i++)
+  {
+    const vector_t vec_items = _CUB::detail::load_vector<Modifier, InputT>(vec_ptr + i * ThreadsPerBlock);
+    _CCCL_PRAGMA_UNROLL_FULL()
+    for (int j = 0; j < VecSize; j++)
+    {
+      dst_items[i * VecSize + j] = vec_items[j];
+    }
+  }
+}
+} // namespace detail
+
 //! @rst
-//! Load a linear segment of items into a striped arrangement of vectors across the thread block.
+//! Load a linear segment of items into a striped arrangement of vectors across the thread block, from ``block_offset``
+//! items after ``block_src_ptr``.
 //!
-//! .. versionadded:: 3.6.0
+//! .. versionadded:: 3.7.0
 //!
 //! Assumes a :ref:`striped arrangement <flexible-data-arrangement>` of vectors of ``VecSize`` consecutive items across
 //! the thread block, where *thread*\ :sub:`i` owns the vectors (*i*), (*i* + *block-threads*), ...,
 //! (*i* + (*block-threads* * (*items-per-thread* / ``VecSize`` - 1))). With ``VecSize == 1``, this is the arrangement
 //! of ``LoadDirectStriped``.
 //!
-//! Each vector is loaded as a ``CubVector<InputT, VecSize>::Type``. The following conditions will prevent
-//! vectorization and the same arrangement is loaded item by item:
+//! Each vector is loaded like the items of a thread by ``LoadDirectBlockedVectorized``, with the widest accesses that
+//! the alignment of ``block_src_ptr`` allows, up to 16 bytes wide. On sm_100 and newer, loads without a cache modifier
+//! or with ``LOAD_LDG`` use accesses up to 32 bytes wide.
 //!
-//! - ``block_src_ptr`` is not aligned to the vector access width
+//! The alignment of ``block_src_ptr`` is tested instead of the alignment of the vectors, thus a loop over the tiles of
+//! the same ``block_src_ptr`` tests the alignment once for all tiles. ``block_offset`` must preserve the alignment of
+//! ``block_src_ptr``, thus it must be a multiple of ``VecSize``, for example a whole number of tiles.
+//!
+//! The following conditions will prevent vectorization and the same arrangement is loaded item by item:
+//!
+//! - ``block_src_ptr`` or the vectors do not allow accesses of at least 4 bytes that are wider than the alignment of
+//!   ``InputT``
 //! - ``InputT`` is volatile or not trivially copyable
 //!
 //! @endrst
@@ -551,7 +588,7 @@ load_direct_striped_vectorized_aligned(int linear_tid, const InputT* block_src_p
 //!   The thread block size in threads
 //!
 //! @tparam VecSize
-//!   The number of consecutive items in each vector, from 1 to 4. Must evenly divide ``ItemsPerThread``.
+//!   The number of consecutive items in each vector, which must evenly divide ``ItemsPerThread``.
 //!
 //! @tparam Modifier
 //!   **[optional]** Cache load modifier for reading the input (default: ``LOAD_DEFAULT``)
@@ -565,12 +602,18 @@ load_direct_striped_vectorized_aligned(int linear_tid, const InputT* block_src_p
 //! @tparam ItemsPerThread
 //!   **[inferred]** The number of items partitioned onto each thread.
 //!
+//! @tparam OffsetT
+//!   **[inferred]** The integral type of ``block_offset``
+//!
 //! @param[in] linear_tid
 //!   A suitable 1D thread-identifier for the calling thread (e.g., `(threadIdx.y * blockDim.x) + linear_tid` for 2D
 //!   thread blocks)
 //!
 //! @param[in] block_src_ptr
-//!   The thread block's base pointer for loading from
+//!   The base pointer whose alignment is tested
+//!
+//! @param[in] block_offset
+//!   The offset of the thread block's items from ``block_src_ptr``
 //!
 //! @param[out] dst_items
 //!   Destination to load data into
@@ -579,42 +622,78 @@ template <int ThreadsPerBlock,
           CacheLoadModifier Modifier = LOAD_DEFAULT,
           typename InputT,
           typename T,
-          int ItemsPerThread>
-_CCCL_DEVICE _CCCL_FORCEINLINE void
-LoadDirectStripedVectorized(int linear_tid, const InputT* block_src_ptr, T (&dst_items)[ItemsPerThread])
+          int ItemsPerThread,
+          typename OffsetT>
+_CCCL_DEVICE _CCCL_FORCEINLINE void LoadDirectStripedVectorized(
+  int linear_tid, const InputT* block_src_ptr, OffsetT block_offset, T (&dst_items)[ItemsPerThread])
 {
   static_assert(ItemsPerThread % VecSize == 0, "VecSize must evenly divide ItemsPerThread");
   constexpr int vec_size = static_cast<int>(VecSize);
 
-  // TODO(bgruber): remove the check for is_primitive<InputT> in CCCL 4.0
-  constexpr bool can_vectorize =
-    !::cuda::std::is_volatile_v<InputT> && (::cuda::is_trivially_copyable_v<InputT> || detail::is_primitive_v<InputT>);
-  if constexpr (can_vectorize)
+  // Vector i of a thread is vector linear_tid + i * ThreadsPerBlock of the block, thus vector i * ThreadsPerBlock from
+  // the first vector of the thread, which the vectorized loads and the fallback share
+  // The thread offset is computed in unsigned arithmetic like offsets from threadIdx.x, because a signed multiplication
+  // generates additional address arithmetic in the calling kernels
+  const InputT* const thread_src_ptr = block_src_ptr + block_offset + static_cast<unsigned int>(linear_tid) * vec_size;
+  if constexpr (detail::block_load_can_vectorize_v<const InputT*, InputT>)
   {
-    if (::cuda::std::is_sufficiently_aligned<alignof(typename CubVector<InputT, vec_size>::Type)>(block_src_ptr))
+    constexpr auto max_vector_access = detail::block_load_max_vector_access_v<InputT, vec_size, Modifier>;
+
+    // Test the alignments of block_src_ptr like LoadDirectBlockedVectorized. The vectors start a whole number of
+    // vectors after block_src_ptr, thus a single test selects the accesses of all vectors, and thread_src_ptr has the
+    // tested alignment. The vectors are loaded from thread_src_ptr as the vectors of thread 0, because computing the
+    // offset of the thread in every branch repeats the address arithmetic. The alignment is assumed here instead of in
+    // detail::load_direct_striped_vectorized, because the assumption generates additional address arithmetic in
+    // AgentReduce. Loading every vector with LoadDirectBlockedVectorized would repeat the branches for every vector,
+    // because the compiler only merges the masks of the address
+    // Only sm_100 and newer load vectors wider than 16 bytes with a single access
+    if constexpr (alignof(InputT) < 32 && 32 <= max_vector_access)
     {
-      _CUB::detail::load_direct_striped_vectorized_aligned<ThreadsPerBlock, VecSize, Modifier>(
-        linear_tid, block_src_ptr, dst_items);
-      return;
+      NV_IF_TARGET(NV_PROVIDES_SM_100, ({
+                     if (::cuda::std::is_sufficiently_aligned<32>(block_src_ptr))
+                     {
+                       _CUB::detail::load_direct_striped_vectorized<32, ThreadsPerBlock, vec_size, Modifier>(
+                         0, ::cuda::std::__runtime_assume_aligned(thread_src_ptr, 32), dst_items);
+                       return;
+                     }
+                   }))
+    }
+    if constexpr (alignof(InputT) < 16 && 16 <= max_vector_access)
+    {
+      if (::cuda::std::is_sufficiently_aligned<16>(block_src_ptr))
+      {
+        _CUB::detail::load_direct_striped_vectorized<16, ThreadsPerBlock, vec_size, Modifier>(
+          0, ::cuda::std::__runtime_assume_aligned(thread_src_ptr, 16), dst_items);
+        return;
+      }
+    }
+    if constexpr (alignof(InputT) < 8 && 8 <= max_vector_access)
+    {
+      if (::cuda::std::is_sufficiently_aligned<8>(block_src_ptr))
+      {
+        _CUB::detail::load_direct_striped_vectorized<8, ThreadsPerBlock, vec_size, Modifier>(
+          0, ::cuda::std::__runtime_assume_aligned(thread_src_ptr, 8), dst_items);
+        return;
+      }
+    }
+    // 2 byte vectors load byte by byte like the fallback, thus there are no vectors narrower than 4 bytes
+    if constexpr (alignof(InputT) < 4 && 4 <= max_vector_access)
+    {
+      if (::cuda::std::is_sufficiently_aligned<4>(block_src_ptr))
+      {
+        _CUB::detail::load_direct_striped_vectorized<4, ThreadsPerBlock, vec_size, Modifier>(
+          0, ::cuda::std::__runtime_assume_aligned(thread_src_ptr, 4), dst_items);
+        return;
+      }
     }
   }
 
   // Load the same arrangement item by item
-  const InputT* thread_src_ptr = block_src_ptr + static_cast<unsigned int>(linear_tid) * vec_size;
   _CCCL_PRAGMA_UNROLL_FULL()
   for (int i = 0; i < ItemsPerThread / vec_size; i++)
   {
-    if constexpr (Modifier != LOAD_DEFAULT)
-    {
-      _CUB::LoadDirectBlocked(i * ThreadsPerBlock,
-                              CacheModifiedInputIterator<Modifier, InputT, int>(thread_src_ptr),
-                              reinterpret_cast<T(&)[vec_size]>(dst_items[i * vec_size]));
-    }
-    else
-    {
-      _CUB::LoadDirectBlocked(
-        i * ThreadsPerBlock, thread_src_ptr, reinterpret_cast<T(&)[vec_size]>(dst_items[i * vec_size]));
-    }
+    _CUB::LoadDirectBlocked(
+      i * ThreadsPerBlock, thread_src_ptr, reinterpret_cast<T(&)[vec_size]>(dst_items[i * vec_size]));
   }
 }
 
@@ -1036,22 +1115,25 @@ enum BlockLoadAlgorithm // NOLINT(cppcoreguidelines-use-enum-class)
   //!
   //! A :ref:`striped arrangement <flexible-data-arrangement>` of vectors is read from memory using CUDA's built-in
   //! vectorized loads. Each vector holds consecutive items, and thread ``t`` owns the vectors at positions ``t``,
-  //! ``t + ThreadsPerBlock``, and so on. Each vector holds as many items as the vector with which
-  //! cub::BLOCK_LOAD_VECTORIZE loads the items of a thread, and is loaded as a ``CubVector`` of these items. If the
-  //! vector of cub::BLOCK_LOAD_VECTORIZE does not hold a whole number of items, each vector is a single item, which is
-  //! the arrangement of cub::BLOCK_LOAD_STRIPED.
+  //! ``t + ThreadsPerBlock``, and so on. Each vector holds as many items as the widest vectors that
+  //! cub::BLOCK_LOAD_VECTORIZE uses for the items of a thread, which are at most 32 bytes wide for inputs without a
+  //! cache modifier or with ``LOAD_LDG`` with CUDA 13 and newer, at most 8 bytes wide for inputs with
+  //! ``LOAD_VOLATILE``, and at most 16 bytes wide otherwise. If these vectors do not hold a whole number of items, each
+  //! vector is a single item, which is the arrangement of cub::BLOCK_LOAD_STRIPED.
   //!
   //! Performance Considerations
   //! ++++++++++++++++++++++++++
   //!
   //! - Consecutive threads load consecutive vectors, so the accesses stay coalesced regardless of the number of items
   //!   per thread.
+  //! - Only sm_100 and newer load vectors of 32 bytes with a single access.
   //! - The following conditions will prevent vectorization and the same arrangement is loaded item by item:
   //!
   //!   - The ``RandomAccessIterator`` is not a contiguous iterator (``cub::CacheModifiedInputIterator`` is an exception
   //!     and is still vectorized)
   //!   - The value type of the ``RandomAccessIterator`` is not ``T``
-  //!   - The block input offset is not aligned to the vector access width
+  //!   - The block input offset is not aligned to more than ``T`` and to at least 4 bytes, otherwise the widest
+  //!     accesses that its alignment allows are used
   //!   - The input is volatile or ``T`` is not trivially copyable
   //!
   //! - Guarded loads use the arrangement of cub::BLOCK_LOAD_STRIPED.
@@ -1357,25 +1439,24 @@ public:
     }
     else if constexpr (Algorithm == BLOCK_LOAD_STRIPED_VECTORIZED)
     {
-      // Vectors of the type with which BLOCK_LOAD_VECTORIZE loads the items of a thread, or single items if that does
-      // not hold a whole number of T
-      using vector_t         = detail::block_load_vector_t<T, ItemsPerThread>;
-      constexpr int vec_size = sizeof(vector_t) % sizeof(T) == 0 ? static_cast<int>(sizeof(vector_t) / sizeof(T)) : 1;
       if constexpr (detail::is_CacheModifiedInputIterator<RandomAccessIterator>
                     && ::cuda::std::is_same_v<detail::it_value_t<RandomAccessIterator>, T>)
       {
-        _CUB::LoadDirectStripedVectorized<ThreadsPerBlock, vec_size, RandomAccessIterator::__modifier>(
-          linear_tid, block_src_it.ptr, dst_items);
+        constexpr auto modifier = RandomAccessIterator::__modifier;
+        constexpr int vec_size  = detail::block_load_striped_vec_size_v<T, ItemsPerThread, modifier>;
+        _CUB::LoadDirectStripedVectorized<ThreadsPerBlock, vec_size, modifier>(linear_tid, block_src_it.ptr, 0, dst_items);
       }
       else if constexpr (THRUST_NS_QUALIFIER::is_contiguous_iterator_v<RandomAccessIterator>
                          && ::cuda::std::is_same_v<detail::it_value_t<RandomAccessIterator>, T>)
       {
+        constexpr int vec_size = detail::block_load_striped_vec_size_v<T, ItemsPerThread, LOAD_DEFAULT>;
         _CUB::LoadDirectStripedVectorized<ThreadsPerBlock, vec_size, LOAD_DEFAULT>(
-          linear_tid, ::cuda::std::to_address(block_src_it), dst_items);
+          linear_tid, ::cuda::std::to_address(block_src_it), 0, dst_items);
       }
       else
       {
         // Load the same arrangement item by item
+        constexpr int vec_size   = detail::block_load_striped_vec_size_v<T, ItemsPerThread, LOAD_DEFAULT>;
         const auto thread_src_it = block_src_it + static_cast<unsigned int>(linear_tid) * vec_size;
         _CCCL_PRAGMA_UNROLL_FULL()
         for (int i = 0; i < ItemsPerThread / vec_size; i++)

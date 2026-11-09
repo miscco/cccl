@@ -272,7 +272,7 @@ struct AgentTopK
     if constexpr (AgentTopKPolicyT::load_algorithm == BLOCK_LOAD_VECTORIZE
                   && THRUST_NS_QUALIFIER::is_contiguous_iterator_v<InputItT>)
     {
-      LoadDirectBlockedVectorized<LOAD_DEFAULT>(
+      _CUB::LoadDirectBlockedVectorized<LOAD_DEFAULT>(
         static_cast<int>(threadIdx.x), ::cuda::std::to_address(in), tile_base, thread_data);
     }
     else
