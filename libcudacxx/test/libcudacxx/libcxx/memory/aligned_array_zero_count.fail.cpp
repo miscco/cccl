@@ -8,13 +8,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <cuda/__memory/__vectorized_storage.h>
+#include <cuda/__memory/__aligned_array.h>
 
 #include "test_macros.h"
 
 int main(int, char**)
 {
-  cuda::__as_vectorized_storage_t<int, 0> storage{};
-  unused(storage);
+  cuda::__aligned_array<int, 0, 4> array{};
+  unused(array);
   return 0;
 }

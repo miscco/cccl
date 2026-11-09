@@ -87,7 +87,8 @@ enum WarpLoadAlgorithm // NOLINT(cppcoreguidelines-use-enum-class)
   //!   back to cub::WARP_LOAD_DIRECT:
   //!
   //!   - The ``InputIteratorT`` is not a simple pointer type
-  //!   - The block input offset is not aligned to the vector access width
+  //!   - The block input offset is not aligned to more than ``T`` and to at least 4 bytes, otherwise the widest vectors
+  //!     that its alignment allows are used
   //!   - The value type of the input is volatile or not trivially copyable
   //! @endrst
   WARP_LOAD_VECTORIZE,
@@ -333,19 +334,19 @@ class WarpLoad
 
     _CCCL_DEVICE _CCCL_FORCEINLINE void Load(InputT* block_ptr, InputT (&items)[ItemsPerThread])
     {
-      _CUB::LoadDirectBlockedVectorized<LOAD_DEFAULT>(linear_tid, block_ptr, items);
+      _CUB::LoadDirectBlockedVectorized<LOAD_DEFAULT>(linear_tid, block_ptr, 0, items);
     }
 
     _CCCL_DEVICE _CCCL_FORCEINLINE void Load(const InputT* block_ptr, InputT (&items)[ItemsPerThread])
     {
-      _CUB::LoadDirectBlockedVectorized<LOAD_DEFAULT>(linear_tid, block_ptr, items);
+      _CUB::LoadDirectBlockedVectorized<LOAD_DEFAULT>(linear_tid, block_ptr, 0, items);
     }
 
     template <CacheLoadModifier MODIFIER, typename ValueType, typename OffsetT>
     _CCCL_DEVICE _CCCL_FORCEINLINE void
     Load(CacheModifiedInputIterator<MODIFIER, ValueType, OffsetT> block_itr, InputT (&items)[ItemsPerThread])
     {
-      _CUB::LoadDirectBlockedVectorized<MODIFIER>(linear_tid, block_itr.ptr, items);
+      _CUB::LoadDirectBlockedVectorized<MODIFIER>(linear_tid, block_itr.ptr, 0, items);
     }
 
     template <typename InputIteratorT>
