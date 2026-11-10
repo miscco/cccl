@@ -179,7 +179,14 @@ struct AgentTopK
       // Smem needed for storing
       typename block_store_trans_t::TempStorage store_trans;
     };
-    OffsetT histogram[num_buckets];
+    union
+    {
+      // The items of this block per bucket, in 32 bits since 64-bit shared memory atomics are CAS loops. The dispatch
+      // launches enough blocks that none of them processes 2^32 items in a pass.
+      unsigned int bin_counts[num_buckets];
+      // The prefix sums of the global histogram in choose_bucket()
+      OffsetT histogram[num_buckets];
+    };
   };
   /// Alias wrapper allowing storage to be unioned
   using TempStorage = Uninitialized<_TempStorage>;
@@ -314,7 +321,8 @@ struct AgentTopK
     }
   }
 
-  _CCCL_DEVICE _CCCL_FORCEINLINE void init_histograms(OffsetT* histogram)
+  template <typename CountT>
+  _CCCL_DEVICE _CCCL_FORCEINLINE void init_histograms(CountT* histogram)
   {
     // Initialize histogram bin counts to zeros
     int histo_offset = 0;
@@ -340,16 +348,18 @@ struct AgentTopK
     _CCCL_PRAGMA_UNROLL_FULL()
     for (; histo_offset + threads_per_block <= num_buckets; histo_offset += threads_per_block)
     {
-      if (temp_storage.histogram[histo_offset + threadIdx.x] != 0)
+      if (temp_storage.bin_counts[histo_offset + threadIdx.x] != 0)
       {
-        atomicAdd(global_histogram + (histo_offset + threadIdx.x), temp_storage.histogram[histo_offset + threadIdx.x]);
+        atomicAdd(global_histogram + (histo_offset + threadIdx.x),
+                  static_cast<OffsetT>(temp_storage.bin_counts[histo_offset + threadIdx.x]));
       }
     }
 
     // Finish up with guarded merging if necessary
     if ((num_buckets % threads_per_block != 0) && (histo_offset + threadIdx.x < num_buckets))
     {
-      atomicAdd(global_histogram + (histo_offset + threadIdx.x), temp_storage.histogram[histo_offset + threadIdx.x]);
+      atomicAdd(global_histogram + (histo_offset + threadIdx.x),
+                static_cast<OffsetT>(temp_storage.bin_counts[histo_offset + threadIdx.x]));
     }
   }
 
@@ -366,7 +376,7 @@ struct AgentTopK
     bool load_from_original_input)
   {
     // Initialize shared memory histogram
-    init_histograms(temp_storage.histogram);
+    init_histograms(temp_storage.bin_counts);
 
     // Make sure the histogram was initialized
     __syncthreads();
@@ -408,7 +418,7 @@ struct AgentTopK
         }
 
         const int bucket = extract_bin_op(key);
-        atomicAdd(temp_storage.histogram + bucket, OffsetT{1});
+        atomicAdd(temp_storage.bin_counts + bucket, 1u);
       }
       else if (pre_res == candidate_class::selected)
       {
@@ -433,7 +443,7 @@ struct AgentTopK
       if (pre_res == candidate_class::candidate)
       {
         const int bucket = extract_bin_op(key);
-        atomicAdd(temp_storage.histogram + bucket, OffsetT{1});
+        atomicAdd(temp_storage.bin_counts + bucket, 1u);
       }
     };
 
@@ -715,13 +725,13 @@ struct AgentTopK
     Counter<key_in_t, OffsetT, OutOffsetT>* counter, OffsetT* histogram, int pass, bool is_last_pass)
   {
     // Initialize shared memory histogram
-    init_histograms(temp_storage.histogram);
+    init_histograms(temp_storage.bin_counts);
     __syncthreads();
 
     // Compute per-thread block histograms over the full input
     auto f = [this](key_in_t key, OffsetT /*index*/) {
       const int bucket = extract_bin_op(key);
-      atomicAdd(temp_storage.histogram + bucket, OffsetT{1});
+      atomicAdd(temp_storage.bin_counts + bucket, 1u);
     };
     process_range(d_keys_in, num_items, f);
 

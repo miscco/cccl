@@ -37,6 +37,7 @@
 #include <cuda/std/__algorithm/max.h>
 #include <cuda/std/__algorithm/min.h>
 #include <cuda/std/__cstddef/types.h>
+#include <cuda/std/__limits/numeric_limits.h>
 #include <cuda/std/__type_traits/common_type.h>
 #include <cuda/std/__type_traits/is_same.h>
 #include <cuda/std/cstdint>
@@ -402,8 +403,13 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
     {
       return error;
     }
+    // The blocks count their items per bucket in 32 bits, thus none of them may process 2^32 items in a pass
+    constexpr unsigned int max_tiles_per_block = ::cuda::std::numeric_limits<unsigned int>::max() / tile_size;
+    const unsigned int min_grid_size           = ::cuda::ceil_div(num_tiles, max_tiles_per_block);
+
     const auto main_kernel_max_occupancy = static_cast<unsigned int>(main_kernel_blocks_per_sm * num_sms);
-    const auto topk_grid_size            = (::cuda::std::min) (main_kernel_max_occupancy, num_tiles);
+    const auto topk_grid_size =
+      (::cuda::std::max) ((::cuda::std::min) (main_kernel_max_occupancy, num_tiles), min_grid_size);
 
     _CUB_LOG_KERNEL_LAUNCH(
       "topk_kernel", topk_grid_size, 1, 1, threads_per_block, 0, stream, ", SM occupancy: %d", main_kernel_blocks_per_sm);
@@ -432,7 +438,8 @@ CUB_RUNTIME_FUNCTION _CCCL_FORCEINLINE cudaError_t dispatch(
         return error;
       }
       const auto histogram_kernel_max_occupancy = static_cast<unsigned int>(histogram_kernel_blocks_per_sm * num_sms);
-      const auto histogram_grid_size            = (::cuda::std::min) (histogram_kernel_max_occupancy, num_tiles);
+      const auto histogram_grid_size =
+        (::cuda::std::max) ((::cuda::std::min) (histogram_kernel_max_occupancy, num_tiles), min_grid_size);
 
       const extract_bin_op extract_op(0, total_bits, decomposer);
       if (const auto error = CubDebug(
