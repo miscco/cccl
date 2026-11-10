@@ -31,13 +31,22 @@ _CCCL_BEGIN_NAMESPACE_CUDA_STD
 // All computations are done in constant evaluated functions rather than recursive class templates to minimize the
 // number of template instantiations. The numerator and denominator of a ratio are within [-INTMAX_MAX, INTMAX_MAX], so
 // they can always be negated.
+//
+// Clang 16 through 18 reject a consteval call with dependent arguments as a variable template initializer
+// (https://github.com/llvm/llvm-project/issues/94935). Every helper is constexpr there, including the ones these
+// functions call: a constexpr function cannot call a consteval function with its parameters.
+#if _CCCL_COMPILER(CLANG, <, 19)
+#  define _CCCL_RATIO_CONSTEVAL constexpr
+#else // ^^^ Clang < 19 ^^^ / vvv Clang >= 19 or another compiler vvv
+#  define _CCCL_RATIO_CONSTEVAL _CCCL_CONSTEVAL
+#endif // Clang >= 19 or another compiler
 
-[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL intmax_t __ratio_abs(intmax_t __x) noexcept
+[[nodiscard]] _CCCL_API _CCCL_RATIO_CONSTEVAL intmax_t __ratio_abs(intmax_t __x) noexcept
 {
   return __x < 0 ? -__x : __x;
 }
 
-[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL intmax_t __ratio_gcd(intmax_t __x, intmax_t __y) noexcept
+[[nodiscard]] _CCCL_API _CCCL_RATIO_CONSTEVAL intmax_t __ratio_gcd(intmax_t __x, intmax_t __y) noexcept
 {
   __x = ::cuda::std::__ratio_abs(__x);
   __y = ::cuda::std::__ratio_abs(__y);
@@ -55,17 +64,17 @@ _CCCL_BEGIN_NAMESPACE_CUDA_STD
   return __x == 0 ? 1 : __x;
 }
 
-[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL intmax_t __ratio_lcm(intmax_t __x, intmax_t __y) noexcept
+[[nodiscard]] _CCCL_API _CCCL_RATIO_CONSTEVAL intmax_t __ratio_lcm(intmax_t __x, intmax_t __y) noexcept
 {
   return __x / ::cuda::std::__ratio_gcd(__x, __y) * __y;
 }
 
-[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL bool __ratio_mul_overflows(intmax_t __x, intmax_t __y) noexcept
+[[nodiscard]] _CCCL_API _CCCL_RATIO_CONSTEVAL bool __ratio_mul_overflows(intmax_t __x, intmax_t __y) noexcept
 {
   return __y != 0 && ::cuda::std::__ratio_abs(__x) > INTMAX_MAX / ::cuda::std::__ratio_abs(__y);
 }
 
-[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL bool __ratio_add_overflows(intmax_t __x, intmax_t __y) noexcept
+[[nodiscard]] _CCCL_API _CCCL_RATIO_CONSTEVAL bool __ratio_add_overflows(intmax_t __x, intmax_t __y) noexcept
 {
   return __y < 0 ? __x < -INTMAX_MAX - __y : __x > INTMAX_MAX - __y;
 }
@@ -80,7 +89,7 @@ struct __ratio_result
 // The arithmetic operations expect their operands in canonical form, i.e. with coprime numerator and denominator and a
 // positive denominator. On overflow they return INTMAX_MIN for both, so that instantiating the resulting ratio fails.
 
-[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL __ratio_result
+[[nodiscard]] _CCCL_API _CCCL_RATIO_CONSTEVAL __ratio_result
 __ratio_multiply(intmax_t __n1, intmax_t __d1, intmax_t __n2, intmax_t __d2) noexcept
 {
   // Cancelling the common factors crosswise avoids intermediate overflow and keeps the result in canonical form
@@ -97,7 +106,7 @@ __ratio_multiply(intmax_t __n1, intmax_t __d1, intmax_t __n2, intmax_t __d2) noe
   return __ratio_result{__n1 * __n2, __d1 * __d2};
 }
 
-[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL __ratio_result
+[[nodiscard]] _CCCL_API _CCCL_RATIO_CONSTEVAL __ratio_result
 __ratio_divide(intmax_t __n1, intmax_t __d1, intmax_t __n2, intmax_t __d2) noexcept
 {
   // Multiply with the reciprocal of the divisor, whose denominator must be positive
@@ -105,7 +114,7 @@ __ratio_divide(intmax_t __n1, intmax_t __d1, intmax_t __n2, intmax_t __d2) noexc
                   : ::cuda::std::__ratio_multiply(__n1, __d1, __d2, __n2);
 }
 
-[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL __ratio_result
+[[nodiscard]] _CCCL_API _CCCL_RATIO_CONSTEVAL __ratio_result
 __ratio_add(intmax_t __n1, intmax_t __d1, intmax_t __n2, intmax_t __d2) noexcept
 {
   // Both ratios are scaled to the common denominator lcm(d1, d2) == d1 * scale1 == d2 * scale2. Factoring out the gcd
@@ -127,7 +136,7 @@ __ratio_add(intmax_t __n1, intmax_t __d1, intmax_t __n2, intmax_t __d2) noexcept
   return ::cuda::std::__ratio_multiply(__gcd_n, __scale2, __sum / __gcd_sum, __d2 / __gcd_sum);
 }
 
-[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL bool
+[[nodiscard]] _CCCL_API _CCCL_RATIO_CONSTEVAL bool
 __ratio_less_positive(intmax_t __n1, intmax_t __d1, intmax_t __n2, intmax_t __d2) noexcept
 {
   // Compare the continued fraction expansions term by term, which cannot overflow. For equal integral parts q,
@@ -159,7 +168,7 @@ __ratio_less_positive(intmax_t __n1, intmax_t __d1, intmax_t __n2, intmax_t __d2
   }
 }
 
-[[nodiscard]] _CCCL_API _CCCL_CONSTEVAL bool
+[[nodiscard]] _CCCL_API _CCCL_RATIO_CONSTEVAL bool
 __ratio_less(intmax_t __n1, intmax_t __d1, intmax_t __n2, intmax_t __d2) noexcept
 {
   if (__n1 > 0 && __n2 > 0)
@@ -207,21 +216,31 @@ inline constexpr bool __is_cuda_std_ratio_v<ratio<_Num, _Den>> = true;
 
 // [ratio.arithmetic]
 
+// The result is stored so each operation is evaluated once. Both components are read from that value.
 template <class _R1, class _R2>
-using ratio_add = ratio<::cuda::std::__ratio_add(_R1::num, _R1::den, _R2::num, _R2::den).__num_,
-                        ::cuda::std::__ratio_add(_R1::num, _R1::den, _R2::num, _R2::den).__den_>;
+inline constexpr __ratio_result __ratio_add_v = ::cuda::std::__ratio_add(_R1::num, _R1::den, _R2::num, _R2::den);
 
 template <class _R1, class _R2>
-using ratio_subtract = ratio<::cuda::std::__ratio_add(_R1::num, _R1::den, -_R2::num, _R2::den).__num_,
-                             ::cuda::std::__ratio_add(_R1::num, _R1::den, -_R2::num, _R2::den).__den_>;
+using ratio_add = ratio<__ratio_add_v<_R1, _R2>.__num_, __ratio_add_v<_R1, _R2>.__den_>;
 
 template <class _R1, class _R2>
-using ratio_multiply = ratio<::cuda::std::__ratio_multiply(_R1::num, _R1::den, _R2::num, _R2::den).__num_,
-                             ::cuda::std::__ratio_multiply(_R1::num, _R1::den, _R2::num, _R2::den).__den_>;
+inline constexpr __ratio_result __ratio_subtract_v = ::cuda::std::__ratio_add(_R1::num, _R1::den, -_R2::num, _R2::den);
 
 template <class _R1, class _R2>
-using ratio_divide = ratio<::cuda::std::__ratio_divide(_R1::num, _R1::den, _R2::num, _R2::den).__num_,
-                           ::cuda::std::__ratio_divide(_R1::num, _R1::den, _R2::num, _R2::den).__den_>;
+using ratio_subtract = ratio<__ratio_subtract_v<_R1, _R2>.__num_, __ratio_subtract_v<_R1, _R2>.__den_>;
+
+template <class _R1, class _R2>
+inline constexpr __ratio_result __ratio_multiply_v =
+  ::cuda::std::__ratio_multiply(_R1::num, _R1::den, _R2::num, _R2::den);
+
+template <class _R1, class _R2>
+using ratio_multiply = ratio<__ratio_multiply_v<_R1, _R2>.__num_, __ratio_multiply_v<_R1, _R2>.__den_>;
+
+template <class _R1, class _R2>
+inline constexpr __ratio_result __ratio_divide_v = ::cuda::std::__ratio_divide(_R1::num, _R1::den, _R2::num, _R2::den);
+
+template <class _R1, class _R2>
+using ratio_divide = ratio<__ratio_divide_v<_R1, _R2>.__num_, __ratio_divide_v<_R1, _R2>.__den_>;
 
 // [ratio.comparison]
 
@@ -297,6 +316,8 @@ using peta  = ratio<1000000000000000LL, 1LL>;
 using exa   = ratio<1000000000000000000LL, 1LL>;
 
 _CCCL_END_NAMESPACE_CUDA_STD
+
+#undef _CCCL_RATIO_CONSTEVAL
 
 #include <cuda/std/__cccl/epilogue.h>
 
