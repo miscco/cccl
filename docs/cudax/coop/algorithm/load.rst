@@ -64,7 +64,7 @@ Vectorization
 
 The load reads the widest vectors that the arrangement, the items and the alignment of ``src`` allow, and the items one by one otherwise. Vectors are read from contiguous ranges of trivially copyable items that are not accessed through volatile references. They are at least 4 bytes wide and wider than the alignment of the items, at most as wide as the items of a vector (all :math:`N` items of a thread for ``blocked``), and at most 16 bytes wide, or 32 bytes on sm_100 and newer without a cache modifier or with ``LOAD_LDG``. The items are converted to ``T``.
 
-A ``cub::CacheModifiedInputIterator`` loads its vectors with its cache modifier. With ``LOAD_CG``, ``LOAD_CS``, ``LOAD_CV`` and ``LOAD_VOLATILE``, only the widest vectors that the arrangement allows are used, and ``LOAD_VOLATILE`` vectors are at most 8 bytes wide. Items of a range that could be loaded with vectors are loaded without the cache modifier.
+A ``cub::CacheModifiedInputIterator`` loads its vectors with its cache modifier. With ``LOAD_CG``, ``LOAD_CS``, ``LOAD_CV`` and ``LOAD_VOLATILE``, only the widest vectors that the arrangement allows are used, and ``LOAD_VOLATILE`` vectors are at most 8 bytes wide. Items of a range that could be loaded with vectors are loaded without the cache modifier. This includes ``LOAD_VOLATILE``, thus these items are not loaded volatile.
 
 Alignment
 ---------

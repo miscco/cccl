@@ -528,8 +528,8 @@ _CCCL_DEVICE_API _CCCL_FORCEINLINE void __load(const _Group& __group, _InputIt _
 //! Vectors are loaded from contiguous ranges of trivially copyable items that are not accessed through volatile
 //! references, when the vectors of the arrangement allow accesses of at least 4 bytes that are wider than the items.
 //! The items of ``__src`` are converted to ``_Tp``. A ``cub::CacheModifiedInputIterator`` loads its vectors with its
-//! cache modifier, and its items without it. ``LOAD_CG``, ``LOAD_CS``, ``LOAD_CV`` and ``LOAD_VOLATILE`` only use the
-//! widest accesses that the vectors allow.
+//! cache modifier, and its items without it, thus items are not loaded volatile even with ``LOAD_VOLATILE``.
+//! ``LOAD_CG``, ``LOAD_CS``, ``LOAD_CV`` and ``LOAD_VOLATILE`` only use the widest accesses that the vectors allow.
 //!
 //! @param[in] __group The group, whose threads each call the load.
 //! @param[in] __arrangement ``blocked``, ``striped`` or ``striped_vectors<V>``.
