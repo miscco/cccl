@@ -29,6 +29,7 @@
 // IWYU pragma: begin_exports
 #include <cuda/experimental/coop/__algorithm/any_of.cuh>
 #include <cuda/experimental/coop/__algorithm/invoke_one.cuh>
+#include <cuda/experimental/coop/__algorithm/load.cuh>
 #include <cuda/experimental/coop/__algorithm/reduce.cuh>
 #include <cuda/experimental/coop/__algorithm/scratch.cuh>
 #include <cuda/experimental/coop/__algorithm/shuffle.cuh>
