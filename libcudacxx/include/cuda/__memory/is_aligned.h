@@ -22,6 +22,7 @@
 #endif // no system header
 
 #include <cuda/__memory/is_valid_alignment.h>
+#include <cuda/std/__memory/runtime_assume_aligned.h>
 
 #include <cuda/std/__cccl/prologue.h>
 
@@ -42,7 +43,13 @@ _CCCL_BEGIN_NAMESPACE_CUDA
 #ifdef _CCCL_BUILTIN_IS_ALIGNED
   return _CCCL_BUILTIN_IS_ALIGNED(__ptr, __alignment);
 #else // ^^^ _CCCL_BUILTIN_IS_ALIGNED ^^^ / vvv !_CCCL_BUILTIN_IS_ALIGNED vvv
-  return (reinterpret_cast<::cuda::std::uintptr_t>(__ptr) & (__alignment - 1)) == 0;
+  const bool __ret = (reinterpret_cast<::cuda::std::uintptr_t>(__ptr) & (__alignment - 1)) == 0;
+  // The alignment is assumed on __ptr, because an assumption of __ret is dropped where __ret is known to be true
+  if (__ret)
+  {
+    (void) ::cuda::std::__runtime_assume_aligned(__ptr, __alignment);
+  }
+  return __ret;
 #endif // ^^^ !_CCCL_BUILTIN_IS_ALIGNED ^^^
 }
 
