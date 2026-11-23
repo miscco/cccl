@@ -87,11 +87,10 @@ enum WarpStoreAlgorithm // NOLINT(cppcoreguidelines-use-enum-class)
   //! * The following conditions will prevent vectorization and writing will fall
   //!   back to ``cub::WARP_STORE_DIRECT``:
   //!
-  //!   * ``ItemsPerThread`` is odd
   //!   * The ``OutputIteratorT`` is not a simple pointer type
-  //!   * The block output offset is not quadword-aligned
-  //!   * The data type ``T`` is not a built-in primitive or CUDA vector type
-  //!     (e.g., ``short``, ``int2``, ``double``, ``float2``, etc.)
+  //!   * The block output offset is not aligned to more than ``T`` and to at least 4 bytes, otherwise the widest
+  //!     vectors that its alignment allows are used
+  //!   * The data type ``T`` is volatile or not trivially copyable
   //!
   //! @endrst
   WARP_STORE_VECTORIZE,

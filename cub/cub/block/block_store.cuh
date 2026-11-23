@@ -18,22 +18,28 @@
 #endif // no system header
 
 #include <cub/block/block_exchange.cuh>
-#include <cub/detail/cub_vector.cuh>
 #include <cub/detail/it_traits.cuh>
 #include <cub/detail/null_type.cuh>
+#include <cub/detail/numeric_traits.cuh>
 #include <cub/detail/uninitialized.cuh>
-#include <cub/detail/unit_word.cuh>
 #include <cub/util_ptx.cuh>
 
 #include <thrust/type_traits/is_contiguous_iterator.h>
 
-#include <cuda/std/__algorithm/max.h>
+#include <cuda/__memory/__vectorized_storage.h>
+#include <cuda/__type_traits/is_trivially_copyable.h>
+#include <cuda/std/__algorithm/min.h>
+#include <cuda/std/__bit/countr.h>
+#include <cuda/std/__cstddef/types.h>
 #include <cuda/std/__host_stdlib/ostream>
 #include <cuda/std/__memory/is_sufficiently_aligned.h>
 #include <cuda/std/__memory/pointer_traits.h>
+#include <cuda/std/__memory/runtime_assume_aligned.h>
 #include <cuda/std/__type_traits/is_same.h>
 #include <cuda/std/__type_traits/is_volatile.h>
 #include <cuda/std/__type_traits/remove_reference.h>
+
+#include <nv/target>
 
 #if __cpp_lib_format >= 201907L
 #  include <cuda/std/__concepts/same_as.h>
@@ -134,6 +140,125 @@ StoreDirectBlocked(int linear_tid, OutputIteratorT block_itr, T (&items)[ItemsPe
   }
 }
 
+#ifndef _CCCL_DOXYGEN_INVOKED // Do not document
+
+namespace detail
+{
+//! @brief Whether the storage of ``OutputIteratorT`` can be stored with vectors of ``T``
+// TODO(bgruber): remove the check for is_primitive<T> in CCCL 4.0
+template <typename OutputIteratorT, typename T>
+inline constexpr bool block_store_can_vectorize_v =
+  THRUST_NS_QUALIFIER::is_contiguous_iterator_v<OutputIteratorT>
+  && (::cuda::is_trivially_copyable_v<T> || is_primitive_v<T>)
+  && ::cuda::std::is_same_v<it_value_t<OutputIteratorT>, T>
+  // handles contiguous iterators wrapping volatile pointers, like span<volatile int>::iterator
+  && !::cuda::std::is_volatile_v<::cuda::std::remove_reference_t<it_reference_t<OutputIteratorT>>>;
+
+//! @brief The width in bytes of the widest vectors with which ``StoreDirectBlockedVectorized`` stores vectors of
+//! ``VecSize`` consecutive items of ``T``, wider than 16 bytes only from sm_100
+template <typename T, int VecSize>
+inline constexpr ::cuda::std::size_t block_store_max_vector_access_v = ::cuda::std::min(
+  ::cuda::std::size_t{1} << ::cuda::std::countr_zero(VecSize * sizeof(T)), ::cuda::__max_memory_access_width);
+
+//! @brief Stores the ``NumVectors`` vectors of ``VecSize`` items of a thread with accesses of ``Alignment`` bytes,
+//! which ``dst_ptr`` must be aligned to, ``VectorStride`` vectors apart from vector ``vector_index`` after ``dst_ptr``
+//! on
+template <::cuda::std::size_t Alignment, int VectorStride, int VecSize, typename T, typename VectorT, int NumVectors>
+_CCCL_DEVICE_API _CCCL_FORCEINLINE void
+store_direct_vectors(T* dst_ptr, unsigned int vector_index, const VectorT (&vectors)[NumVectors])
+{
+  using aligned_vector_t _CCCL_NODEBUG = ::cuda::__as_vectorized_storage_t<T, VecSize, Alignment>;
+  aligned_vector_t* vec_ptr =
+    reinterpret_cast<aligned_vector_t*>(::cuda::std::__runtime_assume_aligned(dst_ptr, Alignment)) + vector_index;
+  _CCCL_PRAGMA_UNROLL_FULL()
+  for (int i = 0; i < NumVectors; i++)
+  {
+    // The vector is assigned word by word into a copy of the store alignment, which is then stored as a whole, so that
+    // the words are stored with accesses of Alignment bytes
+    aligned_vector_t aligned_vector;
+    aligned_vector            = vectors[i];
+    vec_ptr[i * VectorStride] = aligned_vector;
+  }
+}
+
+//! @brief Stores the ``ItemsPerThread / VecSize`` vectors of ``VecSize`` items of a thread, ``VectorStride`` vectors
+//! apart from vector ``vector_index`` after ``dst_ptr`` on, with the widest accesses that the alignment of
+//! ``aligned_ptr`` allows, or item by item to ``thread_dst_ptr``, the first item of the thread. ``dst_ptr`` must be a
+//! whole number of vectors after ``aligned_ptr``
+template <int VectorStride, int VecSize, typename T, int ItemsPerThread>
+_CCCL_DEVICE_API _CCCL_FORCEINLINE void store_direct_vectorized(
+  T* aligned_ptr, T* dst_ptr, unsigned int vector_index, T* thread_dst_ptr, const T (&items)[ItemsPerThread])
+{
+  constexpr int vectors_per_thread = ItemsPerThread / VecSize;
+  constexpr auto max_vector_access = block_store_max_vector_access_v<T, VecSize>;
+  if constexpr (block_store_can_vectorize_v<T*, T> && 4 <= max_vector_access && alignof(T) < max_vector_access)
+  {
+    using vector_t _CCCL_NODEBUG = ::cuda::__as_vectorized_storage_t<T, VecSize, max_vector_access>;
+
+    // The items are copied into the vectors once for all widths. Every vector starts a whole number of vectors after
+    // aligned_ptr, thus a single test selects the accesses of all vectors of the thread. Only sm_100 and newer store
+    // vectors wider than 16 bytes with a single access
+    vector_t vectors[vectors_per_thread];
+    _CCCL_PRAGMA_UNROLL_FULL()
+    for (int i = 0; i < vectors_per_thread; i++)
+    {
+      _CCCL_PRAGMA_UNROLL_FULL()
+      for (int j = 0; j < VecSize; j++)
+      {
+        vectors[i].template __alias<T>(j) = items[(i * VecSize) + j];
+      }
+    }
+
+    if constexpr (alignof(T) < 32 && 32 <= max_vector_access)
+    {
+      NV_IF_TARGET(NV_PROVIDES_SM_100, ({
+                     if (::cuda::std::is_sufficiently_aligned<32>(aligned_ptr))
+                     {
+                       _CUB::detail::store_direct_vectors<32, VectorStride, VecSize>(dst_ptr, vector_index, vectors);
+                       return;
+                     }
+                   }))
+    }
+    if constexpr (alignof(T) < 16 && 16 <= max_vector_access)
+    {
+      if (::cuda::std::is_sufficiently_aligned<16>(aligned_ptr))
+      {
+        _CUB::detail::store_direct_vectors<16, VectorStride, VecSize>(dst_ptr, vector_index, vectors);
+        return;
+      }
+    }
+    if constexpr (alignof(T) < 8 && 8 <= max_vector_access)
+    {
+      if (::cuda::std::is_sufficiently_aligned<8>(aligned_ptr))
+      {
+        _CUB::detail::store_direct_vectors<8, VectorStride, VecSize>(dst_ptr, vector_index, vectors);
+        return;
+      }
+    }
+    if constexpr (alignof(T) < 4 && 4 <= max_vector_access)
+    {
+      if (::cuda::std::is_sufficiently_aligned<4>(aligned_ptr))
+      {
+        _CUB::detail::store_direct_vectors<4, VectorStride, VecSize>(dst_ptr, vector_index, vectors);
+        return;
+      }
+    }
+  }
+
+  _CCCL_PRAGMA_UNROLL_FULL()
+  for (int i = 0; i < vectors_per_thread; i++)
+  {
+    _CCCL_PRAGMA_UNROLL_FULL()
+    for (int j = 0; j < VecSize; j++)
+    {
+      thread_dst_ptr[(i * VectorStride * VecSize) + j] = items[(i * VecSize) + j];
+    }
+  }
+}
+} // namespace detail
+
+#endif // _CCCL_DOXYGEN_INVOKED
+
 //! @rst
 //! Store a blocked arrangement of items across a
 //! thread block into a linear segment of items.
@@ -143,15 +268,15 @@ StoreDirectBlocked(int linear_tid, OutputIteratorT block_itr, T (&items)[ItemsPe
 //!
 //! @blocked
 //!
-//! The output offset (``block_ptr + block_offset``) must be quad-item aligned,
-//! which is the default starting offset returned by ``cudaMalloc()``
+//! Each thread stores its items with the widest vectors that the alignment of ``block_ptr`` allows, up to 16 bytes
+//! wide. On sm_100 and newer, vectors are up to 32 bytes wide.
 //!
-//! The following conditions will prevent vectorization and storing will
-//! fall back to cub::BLOCK_STORE_DIRECT:
+//! The following conditions will prevent vectorization and storing will fall back to cub::BLOCK_STORE_DIRECT:
 //!
-//!   - ``ItemsPerThread`` is odd
-//!   - The data type ``T`` is not a built-in primitive or CUDA vector type
-//!     (e.g., ``short``, ``int2``, ``double``, ``float2``, etc.)
+//! - ``block_ptr`` or the items of a thread do not allow vectors of at least 4 bytes that are wider than the alignment
+//!   of ``T``
+//! - ``T`` is volatile or not trivially copyable
+//!
 //! @endrst
 //!
 //! @tparam T
@@ -173,37 +298,15 @@ template <typename T, int ItemsPerThread>
 _CCCL_DEVICE_API _CCCL_FORCEINLINE void
 StoreDirectBlockedVectorized(int linear_tid, T* block_ptr, T (&items)[ItemsPerThread])
 {
-  // Find biggest memory access word that T is a whole multiple of
-  using device_word_t              = typename UnitWord<T>::DeviceWord;
-  constexpr int total_words        = static_cast<int>(ItemsPerThread * sizeof(T) / sizeof(device_word_t));
-  constexpr int vector_size        = (total_words % 4 == 0) ? 4 : (total_words % 2 == 0) ? 2 : 1;
-  constexpr int vectors_per_thread = total_words / vector_size;
-
-  using vector_t = typename CubVector<device_word_t, vector_size>::Type;
-
-  // The staging array is accessed as vectors and as T, so it needs the stricter of the two alignments
-  constexpr auto staging_alignment = (::cuda::std::max) (alignof(vector_t), alignof(T));
-
-  // Add the alignment check to ensure the vectorized storing can proceed.
-  if (::cuda::std::is_sufficiently_aligned<staging_alignment>(block_ptr))
-  {
-    // Stage the items in an array of vectors of device words
-    alignas(staging_alignment) vector_t vec_items[vectors_per_thread];
-
-    _CCCL_PRAGMA_UNROLL_FULL()
-    for (int i = 0; i < ItemsPerThread; i++)
-    {
-      reinterpret_cast<T*>(vec_items)[i] = items[i];
-    }
-
-    // Direct-store using vector types
-    _CUB::StoreDirectBlocked(linear_tid, reinterpret_cast<vector_t*>(block_ptr), vec_items);
-  }
-  else
-  {
-    // Direct-store using original type when the address is misaligned
-    _CUB::StoreDirectBlocked(linear_tid, block_ptr, items);
-  }
+  // The blocked arrangement is the striped arrangement of a block of a single thread, whose single vector is vector
+  // linear_tid. The offset of the vector is unsigned, because a signed one is sign-extended before the tests, while the
+  // first item of the thread is offset in signed arithmetic like in StoreDirectBlocked
+  _CUB::detail::store_direct_vectorized<1, ItemsPerThread>(
+    block_ptr,
+    block_ptr,
+    static_cast<unsigned int>(linear_tid),
+    block_ptr + (linear_tid * ItemsPerThread), // NOLINT(bugprone-misplaced-widening-cast)
+    items);
 }
 
 //! @}
@@ -473,13 +576,13 @@ enum BlockStoreAlgorithm // NOLINT(cppcoreguidelines-use-enum-class)
   //! - The utilization of memory transactions (coalescing) remains high until the the
   //!   access stride between threads (i.e., the number items per thread) exceeds the
   //!   maximum vector store width (typically 4 items or 64B, whichever is lower).
+  //! - Only sm_100 and newer store vectors of 32 bytes with a single access.
   //! - The following conditions will prevent vectorization and writing will fall back to cub::BLOCK_STORE_DIRECT:
   //!
-  //!   - ``ItemsPerThread`` is odd
   //!   - The ``OutputIteratorT`` is not a contiguous iterator
-  //!   - The block output offset is not quadword-aligned
-  //!   - The data type ``T`` is not a built-in primitive or CUDA vector type
-  //!     (e.g., ``short``, ``int2``, ``double``, ``float2``, etc.)
+  //!   - The block output offset is not aligned to more than ``T`` and to at least 4 bytes, otherwise the widest
+  //!     vectors that its alignment allows are used
+  //!   - The output is volatile or ``T`` is not trivially copyable
   //!
   //! @endrst
   BLOCK_STORE_VECTORIZE,
@@ -845,11 +948,7 @@ public:
     }
     else if constexpr (Algorithm == BLOCK_STORE_VECTORIZE)
     {
-      if constexpr (THRUST_NS_QUALIFIER::is_contiguous_iterator_v<OutputIteratorT>
-                    && ::cuda::std::is_same_v<detail::it_value_t<OutputIteratorT>, T>
-                    // handles contiguous iterators wrapping volatile pointers, like span<volatile int>::iterator
-                    && !::cuda::std::is_volatile_v<
-                       ::cuda::std::remove_reference_t<detail::it_reference_t<OutputIteratorT>>>)
+      if constexpr (detail::block_store_can_vectorize_v<OutputIteratorT, T>)
       {
         _CUB::StoreDirectBlockedVectorized(linear_tid, ::cuda::std::to_address(block_itr), items);
       }

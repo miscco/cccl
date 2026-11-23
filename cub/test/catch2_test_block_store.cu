@@ -406,4 +406,148 @@ CUB_TEST_CASE("Vectorized block store works with non-default-constructible types
     REQUIRE(h_output[i].value == h_input[i]);
   }
 }
+
+// A padded pair, which is aligned to less than its size, thus its vectors can be wider than its alignment. Unlike
+// cuda::std::pair, it is trivially default constructible, thus it can be held in shared memory
+template <typename First, typename Second>
+struct padded_pair
+{
+  First first;
+  Second second;
+
+  friend __host__ __device__ bool operator==(const padded_pair& lhs, const padded_pair& rhs)
+  {
+    return lhs.first == rhs.first && lhs.second == rhs.second;
+  }
+};
+static_assert(sizeof(padded_pair<std::int32_t, std::int16_t>) == 8);
+static_assert(sizeof(padded_pair<std::int64_t, std::int32_t>) == 16);
+
+template <typename T>
+inline constexpr bool is_padded_pair_v = false;
+
+template <typename First, typename Second>
+inline constexpr bool is_padded_pair_v<padded_pair<First, Second>> = true;
+
+using store_vectorized_types =
+  c2h::type_list<std::uint8_t,
+                 std::int16_t,
+                 std::int32_t,
+                 std::int64_t,
+                 char3,
+                 short3,
+                 padded_pair<std::int32_t, std::int16_t>,
+                 padded_pair<std::int64_t, std::int32_t>>;
+
+template <typename T>
+c2h::host_vector<T> make_store_input(int num_items)
+{
+  if constexpr (is_padded_pair_v<T>)
+  {
+    // c2h generates no pairs
+    c2h::host_vector<T> h_input(num_items);
+    for (int i = 0; i < num_items; i++)
+    {
+      h_input[i] = T{(3 * i) + 1, static_cast<decltype(T::second)>(-i)};
+    }
+    return h_input;
+  }
+  else
+  {
+    c2h::device_vector<T> d_input(num_items, thrust::no_init);
+    c2h::gen(C2H_SEED(1), d_input);
+    return c2h::host_vector<T>(d_input);
+  }
+}
+
+template <int ItemsPerThread, typename T>
+__global__ void store_direct_blocked_vectorized_kernel(const T* input, T* output)
+{
+  T items[ItemsPerThread];
+  for (int i = 0; i < ItemsPerThread; i++)
+  {
+    items[i] = input[(threadIdx.x * ItemsPerThread) + i];
+  }
+  cub::StoreDirectBlockedVectorized(static_cast<int>(threadIdx.x), output, items);
+}
+
+// Places the items of a thread after a byte, so that they are only aligned to their type
+template <typename T, int ItemsPerThread>
+struct items_after_a_byte
+{
+  char byte;
+  T items[ItemsPerThread];
+};
+
+template <int ItemsPerThread, int ThreadsInBlock, typename T>
+__global__ void store_direct_blocked_vectorized_unaligned_source_kernel(const T* input, T* output)
+{
+  __shared__ items_after_a_byte<T, ItemsPerThread> shared[ThreadsInBlock];
+  for (int i = 0; i < ItemsPerThread; i++)
+  {
+    shared[threadIdx.x].items[i] = input[(threadIdx.x * ItemsPerThread) + i];
+  }
+  cub::StoreDirectBlockedVectorized(static_cast<int>(threadIdx.x), output, shared[threadIdx.x].items);
+}
+
+// The output starts offset items after an allocation that is aligned to more than every vector, thus the offset limits
+// the alignment of the output. The items before and after the tile must not be overwritten
+template <int ItemsPerThread, bool UnalignedSource, typename T>
+void test_store_direct_blocked_vectorized(int offset)
+{
+  constexpr int threads_in_block = 64;
+  constexpr int tile_size        = ItemsPerThread * threads_in_block;
+  CAPTURE(ItemsPerThread, UnalignedSource, offset);
+
+  const c2h::host_vector<T> h_input = make_store_input<T>(tile_size);
+  const c2h::device_vector<T> d_input(h_input);
+  c2h::device_vector<T> d_output(offset + tile_size + 1, T{});
+  T* output = thrust::raw_pointer_cast(d_output.data()) + offset;
+  if constexpr (UnalignedSource)
+  {
+    store_direct_blocked_vectorized_unaligned_source_kernel<ItemsPerThread, threads_in_block>
+      <<<1, threads_in_block>>>(thrust::raw_pointer_cast(d_input.data()), output);
+  }
+  else
+  {
+    store_direct_blocked_vectorized_kernel<ItemsPerThread>
+      <<<1, threads_in_block>>>(thrust::raw_pointer_cast(d_input.data()), output);
+  }
+  REQUIRE(cudaSuccess == cudaPeekAtLastError());
+  REQUIRE(cudaSuccess == cudaDeviceSynchronize());
+
+  c2h::host_vector<T> h_expected(offset + tile_size + 1, T{});
+  thrust::copy(h_input.begin(), h_input.end(), h_expected.begin() + offset);
+  // Compares on the host, because Catch2 cannot print the device references of a type without a stream insertion
+  REQUIRE(c2h::host_vector<T>(d_output) == h_expected);
+}
+
+// Offset 0 stores with the widest vectors that the items of a thread allow: up to 32 bytes on sm_100 and newer and up
+// to 16 bytes otherwise. Other offsets store with narrower vectors, or item by item if the output is only aligned to
+// the items
+CUB_TEST("StoreDirectBlockedVectorized stores with the widest vectors that the output allows",
+         "[store][block]",
+         CUB_SMALL,
+         store_vectorized_types)
+{
+  using type       = c2h::get<0, TestType>;
+  const int offset = GENERATE(0, 1, 2, 3, 4, 8);
+
+  test_store_direct_blocked_vectorized<1, false, type>(offset);
+  test_store_direct_blocked_vectorized<3, false, type>(offset);
+  test_store_direct_blocked_vectorized<4, false, type>(offset);
+  test_store_direct_blocked_vectorized<16, false, type>(offset);
+}
+
+CUB_TEST("StoreDirectBlockedVectorized stores items aligned only to their type",
+         "[store][block]",
+         CUB_SMALL,
+         store_vectorized_types)
+{
+  using type       = c2h::get<0, TestType>;
+  const int offset = GENERATE(0, 1);
+
+  test_store_direct_blocked_vectorized<4, true, type>(offset);
+  test_store_direct_blocked_vectorized<16, true, type>(offset);
+}
 #endif
