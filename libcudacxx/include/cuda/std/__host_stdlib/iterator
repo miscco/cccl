@@ -1,0 +1,42 @@
+//===----------------------------------------------------------------------===//
+//
+// Part of libcu++, the C++ Standard Library for your entire system,
+// under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+// SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef _CUDA_STD___HOST_STDLIB_ITERATOR
+#define _CUDA_STD___HOST_STDLIB_ITERATOR
+
+#include <cuda/std/detail/__config>
+
+#ifdef _CCCL_IMPLICIT_SYSTEM_HEADER_GCC
+#  pragma GCC system_header
+#elif defined(_CCCL_IMPLICIT_SYSTEM_HEADER_CLANG)
+#  pragma clang system_header
+#elif defined(_CCCL_IMPLICIT_SYSTEM_HEADER_MSVC)
+#  pragma system_header
+#endif // no system header
+
+#if _CCCL_HOSTED()
+// IWYU pragma: begin_exports
+#  if _CCCL_HOST_STD_LIB(LIBSTDCXX)
+// The stream iterators of libstdc++'s <iterator> pull in <streambuf> and with it <string>, so only include the other
+// parts of <iterator>, in the same order as <iterator>, because they rely on each other
+// clang-format off
+#    include <bits/stl_iterator_base_types.h>
+#    include <bits/stl_iterator_base_funcs.h>
+#    include <bits/stl_iterator.h>
+#    include <iosfwd>
+#    include <bits/range_access.h>
+// clang-format on
+#  else // ^^^ _CCCL_HOST_STD_LIB(LIBSTDCXX) ^^^ / vvv !_CCCL_HOST_STD_LIB(LIBSTDCXX) vvv
+#    include <iterator>
+#  endif // ^^^ !_CCCL_HOST_STD_LIB(LIBSTDCXX) ^^^
+// IWYU pragma: end_exports
+#endif // _CCCL_HOSTED()
+
+#endif // _CUDA_STD___HOST_STDLIB_ITERATOR

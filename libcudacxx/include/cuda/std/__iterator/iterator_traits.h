@@ -31,6 +31,7 @@
 #include <cuda/std/__concepts/same_as.h>
 #include <cuda/std/__concepts/totally_ordered.h>
 #include <cuda/std/__fwd/iterator.h>
+#include <cuda/std/__host_stdlib/iterator>
 #include <cuda/std/__iterator/incrementable_traits.h>
 #include <cuda/std/__iterator/readable_traits.h>
 #include <cuda/std/__type_traits/add_lvalue_reference.h>
@@ -48,12 +49,6 @@
 #include <cuda/std/cstddef>
 
 #if _CCCL_HOSTED()
-#  if _CCCL_COMPILER(MSVC)
-#    include <xutility> // for ::std::input_iterator_tag
-#  else // ^^^ _CCCL_COMPILER(MSVC) ^^^ / vvv !_CCCL_COMPILER(MSVC) vvv
-#    include <iterator> // for ::std::input_iterator_tag
-#  endif // !_CCCL_COMPILER(MSVC)
-
 #  ifdef _GLIBCXX_DEBUG
 #    include <debug/safe_iterator.h>
 #  endif // _GLIBCXX_DEBUG
