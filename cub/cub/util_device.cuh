@@ -31,6 +31,7 @@
 #include <cub/util_temporary_storage.cuh> // IWYU pragma: export
 
 #include <cuda/__device/compute_capability.h>
+#include <cuda/__device/target_compute_capabilities.h>
 #include <cuda/__memory/is_valid_alignment.h>
 #include <cuda/std/__algorithm/find.h>
 #include <cuda/std/__cstddef/types.h>

@@ -31,6 +31,10 @@
 #include <cuda/std/__algorithm/min.h>
 #include <cuda/std/__cstddef/types.h>
 
+#if _CCCL_CUDA_COMPILER(CLANG)
+#  include <cuda/__device/target_compute_capabilities.h>
+#endif // _CCCL_CUDA_COMPILER(CLANG)
+
 // Legacy include; this functionality used to be defined in here.
 
 CUB_NAMESPACE_BEGIN
