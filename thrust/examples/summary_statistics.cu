@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <iterator>
 #include <limits>
 
 // This example computes several statistical properties of a data

@@ -7,6 +7,7 @@
 #include <cuda/std/iterator>
 
 #include <iostream>
+#include <iterator>
 #include <string>
 
 // this functor clamps a value to the range [lo, hi]

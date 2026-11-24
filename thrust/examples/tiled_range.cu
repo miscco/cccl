@@ -7,6 +7,7 @@
 #include <thrust/iterator/transform_iterator.h>
 
 #include <iostream>
+#include <iterator>
 
 // this example illustrates how to tile a range multiple times
 // examples:
