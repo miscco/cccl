@@ -26,6 +26,7 @@
 #include <cuda/__ptx/instructions/elect_sync.h>
 #include <cuda/__ptx/instructions/fence.h>
 #include <cuda/std/__cstddef/byte.h>
+#include <cuda/std/__cstring/memcpy.h>
 #include <cuda/std/__type_traits/conditional.h>
 #include <cuda/std/cstdint>
 
@@ -372,32 +373,96 @@ squadStoreBulkSync(Squad squad, CpAsyncOobInfo<OutputT> cpAsyncOobInfo, const ::
 
 #endif // __cccl_ptx_isa >= 860
 
+//! @brief Loads the 1 byte items of a thread as the 16 byte chunks of shared memory that cover them, shifted into place
+//! by the offset of the items into the first chunk, which differs between the threads
+template <typename InputT, typename AccumT, int ElemPerThread>
+_CCCL_DEVICE_API _CCCL_FORCEINLINE void
+squadLoadSmemShifted(Squad squad, AccumT (&outReg)[ElemPerThread], const InputT* smemBuf)
+{
+  static_assert(sizeof(InputT) == 1, "Only 1 byte items are shifted into place");
+  // the offset into the first chunk is less than 16 bytes, thus the items span at most num_chunks chunks
+  constexpr int num_chunks   = (ElemPerThread + 30) / 16;
+  constexpr int num_words    = (ElemPerThread + 3) / 4;
+  const InputT* thread_items = smemBuf + (squad.threadRank() * ElemPerThread);
+  const int offset           = static_cast<int>(reinterpret_cast<::cuda::std::uintptr_t>(thread_items) % 16);
+  const auto* chunks         = reinterpret_cast<const uint4*>(thread_items - offset);
+
+  // the last chunk is only loaded if it holds items, so that no thread reads past the 16 byte chunks of the tile. The
+  // words that are not loaded only end up in the bytes past the items
+  ::cuda::std::uint32_t words[(num_chunks * 4) + 4] = {};
+  for (int c = 0; c < num_chunks; ++c)
+  {
+    if (c < num_chunks - 1 || c * 16 < offset + ElemPerThread)
+    {
+      const uint4 chunk  = chunks[c];
+      words[(c * 4) + 0] = chunk.x;
+      words[(c * 4) + 1] = chunk.y;
+      words[(c * 4) + 2] = chunk.z;
+      words[(c * 4) + 3] = chunk.w;
+    }
+  }
+
+  // registers cannot be indexed at runtime, thus whole words are shifted with selects, then the bytes
+  const int word_shift = offset / 4;
+  const int bit_shift  = (offset % 4) * 8;
+  ::cuda::std::uint32_t by_two[num_words + 2];
+  for (int w = 0; w < num_words + 2; ++w)
+  {
+    by_two[w] = (word_shift & 2) ? words[w + 2] : words[w];
+  }
+  ::cuda::std::uint32_t by_one[num_words + 1];
+  for (int w = 0; w < num_words + 1; ++w)
+  {
+    by_one[w] = (word_shift & 1) ? by_two[w + 1] : by_two[w];
+  }
+  ::cuda::std::uint32_t items[num_words];
+  for (int w = 0; w < num_words; ++w)
+  {
+    items[w] = __funnelshift_r(by_one[w], by_one[w + 1], bit_shift);
+  }
+
+  for (int i = 0; i < ElemPerThread; ++i)
+  {
+    alignas(InputT) unsigned char item[1];
+    ::cuda::std::memcpy(item, reinterpret_cast<const unsigned char*>(items) + i, 1);
+    outReg[i] = *reinterpret_cast<const InputT*>(item);
+  }
+}
+
 template <typename InputT, typename AccumT, int ElemPerThread>
 _CCCL_DEVICE_API void squadLoadSmem(Squad squad, AccumT (&outReg)[ElemPerThread], const InputT* smemBuf)
 {
   _CCCL_IKET_RANGE_PUSH(LoadSmem);
-  // shared memory has no accesses wider than 16 bytes
-  using vector_t = ::cuda::__as_vectorized_storage_t<InputT, ElemPerThread, 16>;
-  // items aligned to less than 4 bytes are extracted from the 32-bit registers of the vector, which costs more
-  // registers than the wider loads save
-  if constexpr (alignof(InputT) >= 4 && alignof(vector_t) > alignof(InputT))
+  if constexpr (sizeof(InputT) == 1)
   {
-    // the tile in shared memory is only as aligned as the tile in global memory
-    if (::cuda::is_aligned(smemBuf, alignof(vector_t)))
-    {
-      const vector_t vector = reinterpret_cast<const vector_t*>(smemBuf)[squad.threadRank()];
-      for (int i = 0; i < ElemPerThread; ++i)
-      {
-        outReg[i] = vector.template __alias<InputT>(i);
-      }
-      _CCCL_IKET_RANGE_POP();
-      return;
-    }
+    // loading 1 byte items one by one uses a quarter of every shared memory access, which limits their scan
+    _CUB::detail::warpspeed::squadLoadSmemShifted(squad, outReg, smemBuf);
   }
-  for (int i = 0; i < ElemPerThread; ++i)
+  else
   {
-    const int elem_idx = (squad.threadRank() * ElemPerThread) + i;
-    outReg[i]          = smemBuf[elem_idx];
+    // shared memory has no accesses wider than 16 bytes
+    using vector_t = ::cuda::__as_vectorized_storage_t<InputT, ElemPerThread, 16>;
+    // items aligned to less than 4 bytes are extracted from the 32-bit registers of the vector, which costs more
+    // registers than the wider loads save
+    if constexpr (alignof(InputT) >= 4 && alignof(vector_t) > alignof(InputT))
+    {
+      // the tile in shared memory is only as aligned as the tile in global memory
+      if (::cuda::is_aligned(smemBuf, alignof(vector_t)))
+      {
+        const vector_t vector = reinterpret_cast<const vector_t*>(smemBuf)[squad.threadRank()];
+        for (int i = 0; i < ElemPerThread; ++i)
+        {
+          outReg[i] = vector.template __alias<InputT>(i);
+        }
+        _CCCL_IKET_RANGE_POP();
+        return;
+      }
+    }
+    for (int i = 0; i < ElemPerThread; ++i)
+    {
+      const int elem_idx = (squad.threadRank() * ElemPerThread) + i;
+      outReg[i]          = smemBuf[elem_idx];
+    }
   }
   _CCCL_IKET_RANGE_POP();
 }
