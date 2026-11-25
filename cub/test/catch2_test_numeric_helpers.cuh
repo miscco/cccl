@@ -141,6 +141,11 @@ inline void init_default_constant(uchar3& val, int element_val = 2)
   val                     = uchar3{element_init, element_init, element_init};
 }
 
+inline void init_default_constant(int3& val, int element_val = 2)
+{
+  val = int3{element_val, element_val, element_val};
+}
+
 _CCCL_SUPPRESS_DEPRECATED_PUSH
 _CCCL_SUPPRESS_DEPRECATED_NVRTC_DIAG
 inline void init_default_constant(ulonglong4& val, int element_val = 2)

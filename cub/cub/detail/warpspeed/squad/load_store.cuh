@@ -16,6 +16,7 @@
 #include <cub/detail/warpspeed/resource/smem_ref.cuh>
 #include <cub/detail/warpspeed/squad/squad.cuh>
 
+#include <cuda/__memory/__vectorized_storage.h>
 #include <cuda/__memory/align_down.h>
 #include <cuda/__memory/align_up.h>
 #include <cuda/__memory/is_aligned.h>
@@ -375,6 +376,24 @@ template <typename InputT, typename AccumT, int ElemPerThread>
 _CCCL_DEVICE_API void squadLoadSmem(Squad squad, AccumT (&outReg)[ElemPerThread], const InputT* smemBuf)
 {
   _CCCL_IKET_RANGE_PUSH(LoadSmem);
+  // shared memory has no accesses wider than 16 bytes
+  using vector_t = ::cuda::__as_vectorized_storage_t<InputT, ElemPerThread, 16>;
+  // items aligned to less than 4 bytes are extracted from the 32-bit registers of the vector, which costs more
+  // registers than the wider loads save
+  if constexpr (alignof(InputT) >= 4 && alignof(vector_t) > alignof(InputT))
+  {
+    // the tile in shared memory is only as aligned as the tile in global memory
+    if (::cuda::is_aligned(smemBuf, alignof(vector_t)))
+    {
+      const vector_t vector = reinterpret_cast<const vector_t*>(smemBuf)[squad.threadRank()];
+      for (int i = 0; i < ElemPerThread; ++i)
+      {
+        outReg[i] = vector.template __alias<InputT>(i);
+      }
+      _CCCL_IKET_RANGE_POP();
+      return;
+    }
+  }
   for (int i = 0; i < ElemPerThread; ++i)
   {
     const int elem_idx = (squad.threadRank() * ElemPerThread) + i;

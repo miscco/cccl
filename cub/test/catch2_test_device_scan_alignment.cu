@@ -25,8 +25,9 @@
 
 DECLARE_LAUNCH_WRAPPER(cub::DeviceScan::InclusiveScan, device_inclusive_scan);
 
-// We cover types of various sizes smaller than 16 byte
-using value_types = c2h::type_list<uint8_t, uint16_t, uint32_t, uint64_t>;
+// We cover types of various sizes smaller than 16 byte, and int3, whose tiles the lookahead scan loads with vectors
+// wider than its alignment when the input allows it
+using value_types = c2h::type_list<uint8_t, uint16_t, uint32_t, uint64_t, int3>;
 
 CUB_TEST("Device scan works with all device interfaces", "[scan][device]", CUB_SMALL, value_types)
 {
@@ -54,10 +55,11 @@ CUB_TEST("Device scan works with all device interfaces", "[scan][device]", CUB_S
 
   // Compute verification data
   compute_inclusive_scan_reference(
-    host_items.cbegin() + offset, host_items.cbegin() + offset + num_items, expected_result.begin(), op_t{}, 0);
+    host_items.cbegin() + offset, host_items.cbegin() + offset + num_items, expected_result.begin(), op_t{}, input_t{});
 
   // Run test
-  constexpr output_t out_sentinel_value = 123;
+  output_t out_sentinel_value{};
+  init_default_constant(out_sentinel_value, 123);
   c2h::device_vector<output_t> out_result(num_items + offset + 1, out_sentinel_value);
   auto d_out_it = thrust::raw_pointer_cast(out_result.data());
   device_inclusive_scan(unwrap_it(d_in_it + offset), unwrap_it(d_out_it + offset), op_t{}, num_items);
